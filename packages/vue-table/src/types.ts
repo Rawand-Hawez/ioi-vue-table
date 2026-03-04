@@ -45,6 +45,11 @@ export interface ViewportState {
   viewportHeight: number;
 }
 
+export interface VirtualRange {
+  start: number;
+  end: number;
+}
+
 export interface IoiTableState {
   sort: SortState[];
   filters: FilterState[];
@@ -84,7 +89,14 @@ export interface IoiTableApi<TRow = Record<string, unknown>> extends IoiTableAct
   schemaVersion: 1;
   rows: Ref<TRow[]>;
   columns: Ref<ColumnDef<TRow>[]>;
+  rowHeight: Ref<number>;
+  overscan: Ref<number>;
   state: Ref<IoiTableState>;
+  totalRows: ComputedRef<number>;
+  totalHeight: ComputedRef<number>;
+  virtualRange: ComputedRef<VirtualRange>;
+  virtualPaddingTop: ComputedRef<number>;
+  virtualPaddingBottom: ComputedRef<number>;
   visibleIndices: ComputedRef<number[]>;
   visibleRows: ComputedRef<TRow[]>;
   lastEvent: Ref<IoiSemanticEvent<unknown> | null>;
