@@ -1,0 +1,8 @@
+{
+  "name": "@ioi/vue-table-core",
+  "private": true,
+  "version": "0.0.0",
+  "scripts": {
+    "build:wasm": "node ./scripts/build-wasm.mjs"
+  }
+}
