@@ -341,6 +341,114 @@ describe('useIoiTable', () => {
     expect(table.getSelectedKeys()).toEqual([1, 2, 3, 4, 5]);
   });
 
+  it('exports nested objects as flattened dot-notation columns', () => {
+    const table = useIoiTable({
+      rows: [
+        {
+          id: 1,
+          user: {
+            profile: {
+              name: 'Alpha',
+              stats: {
+                score: 12
+              }
+            }
+          }
+        },
+        {
+          id: 2,
+          user: {
+            profile: {
+              name: 'Beta',
+              stats: {
+                score: null
+              }
+            }
+          }
+        }
+      ],
+      columns: [{ field: 'user.profile' }]
+    });
+
+    const csv = table.exportCSV({ scope: 'allLoaded' });
+
+    expect(csv).toBe('user.profile.name,user.profile.stats.score\nAlpha,12\nBeta,');
+  });
+
+  it('exports arrays as JSON strings', () => {
+    const table = useIoiTable({
+      rows: [
+        { id: 1, tags: ['alpha', 'beta'] },
+        { id: 2, tags: [{ label: 'x' }, 99, true] },
+        { id: 3, tags: [] }
+      ],
+      columns: [{ field: 'tags' }]
+    });
+
+    const csv = table.exportCSV({ scope: 'allLoaded' });
+
+    expect(csv).toBe(
+      'tags\n"[""alpha"",""beta""]"\n"[{""label"":""x""},99,true]"\n[]'
+    );
+  });
+
+  it('quotes CSV fields containing commas, quotes, or newlines', () => {
+    const table = useIoiTable({
+      rows: [{ id: 1, note: 'Hello, "World"\nLine 2' }],
+      columns: [{ field: 'note' }]
+    });
+
+    const csv = table.exportCSV({ scope: 'allLoaded' });
+
+    expect(csv).toBe('note\n"Hello, ""World""\nLine 2"');
+  });
+
+  it('supports CSV scopes and preserves sorted order for filtered exports', () => {
+    const table = useIoiTable({
+      rows: [
+        { id: 1, group: 'A', score: 10, secret: 's1' },
+        { id: 2, group: 'B', score: 99, secret: 's2' },
+        { id: 3, group: 'A', score: 30, secret: 's3' },
+        { id: 4, group: 'A', score: 20, secret: 's4' }
+      ],
+      columns: [
+        { field: 'id', header: 'ID' },
+        { field: 'group', header: 'Group' },
+        { field: 'score', header: 'Score' },
+        { field: 'secret', header: 'Secret', hidden: true }
+      ],
+      rowKey: 'id',
+      rowHeight: 20,
+      viewportHeight: 20,
+      overscan: 0
+    });
+
+    table.setColumnFilter('group', { type: 'text', operator: 'equals', value: 'A' });
+    table.setSortState([{ field: 'score', direction: 'desc' }]);
+    expect(table.sortedIndices.value).toEqual([2, 3, 0]);
+
+    const filtered = table.exportCSV({ scope: 'filtered' });
+    const visible = table.exportCSV({ scope: 'visible' });
+
+    table.toggleRow(2);
+    table.toggleRow(4);
+    const selected = table.exportCSV({ scope: 'selected' });
+    const allLoaded = table.exportCSV({ scope: 'allLoaded' });
+    const withHiddenAndHeaders = table.exportCSV({
+      scope: 'allLoaded',
+      includeHiddenColumns: true,
+      headerMode: 'header'
+    });
+
+    expect(filtered).toBe('id,group,score\n3,A,30\n4,A,20\n1,A,10');
+    expect(visible).toBe('id,group,score\n3,A,30');
+    expect(selected).toBe('id,group,score\n2,B,99\n4,A,20');
+    expect(allLoaded).toBe('id,group,score\n1,A,10\n2,B,99\n3,A,30\n4,A,20');
+    expect(withHiddenAndHeaders).toBe(
+      'ID,Group,Score,Secret\n1,A,10,s1\n2,B,99,s2\n3,A,30,s3\n4,A,20,s4'
+    );
+  });
+
   it('disables selection when rowKey is missing and warns once', () => {
     const warnSpy = vi.spyOn(console, 'warn').mockImplementation(() => {});
     const table = useIoiTable({

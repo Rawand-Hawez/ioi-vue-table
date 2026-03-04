@@ -91,6 +91,8 @@ export interface ViewportState {
 
 export type SelectionMode = 'single' | 'multi';
 export type SelectAllScope = 'visible' | 'filtered' | 'allLoaded';
+export type ExportCsvScope = 'visible' | 'filtered' | 'selected' | 'allLoaded';
+export type ExportCsvHeaderMode = 'field' | 'header';
 
 export interface ToggleRowOptions {
   shiftKey?: boolean;
@@ -123,6 +125,9 @@ export interface IoiTableOptions<TRow = Record<string, unknown>> {
 export interface ExportCsvOptions {
   includeHeader?: boolean;
   delimiter?: ',' | ';' | '\t';
+  scope?: ExportCsvScope;
+  includeHiddenColumns?: boolean;
+  headerMode?: ExportCsvHeaderMode;
 }
 
 export interface IoiTableActions<TRow = Record<string, unknown>> {

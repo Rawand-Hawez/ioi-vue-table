@@ -3,7 +3,9 @@ import type { MaybeRef } from 'vue';
 import type {
   ColumnFilter,
   ColumnDef,
+  ExportCsvHeaderMode,
   ExportCsvOptions,
+  ExportCsvScope,
   IoiSemanticEvent,
   IoiSemanticEventType,
   IoiTableApi,
@@ -56,24 +58,174 @@ function toIndexArray(start: number, end: number): number[] {
   return Array.from({ length: Math.max(0, end - start) }, (_, offset) => start + offset);
 }
 
-function stringifyCell(value: unknown): string {
+function isPlainObject(value: unknown): value is Record<string, unknown> {
+  if (value === null || typeof value !== 'object') {
+    return false;
+  }
+
+  if (Array.isArray(value)) {
+    return false;
+  }
+
+  return !(value instanceof Date);
+}
+
+function collectNestedObjectLeafPaths(
+  value: Record<string, unknown>,
+  prefix: string,
+  leafPaths: string[]
+): void {
+  const keys = Object.keys(value);
+
+  for (let index = 0; index < keys.length; index += 1) {
+    const key = keys[index];
+    const nestedPath = prefix.length > 0 ? `${prefix}.${key}` : key;
+    const nestedValue = value[key];
+
+    if (isPlainObject(nestedValue)) {
+      collectNestedObjectLeafPaths(nestedValue, nestedPath, leafPaths);
+      continue;
+    }
+
+    leafPaths.push(nestedPath);
+  }
+}
+
+function stringifyCsvValue(value: unknown): string {
   if (value === null || value === undefined) {
     return '';
+  }
+
+  if (Array.isArray(value)) {
+    return JSON.stringify(value);
+  }
+
+  if (value instanceof Date) {
+    return Number.isNaN(value.getTime()) ? '' : value.toISOString();
   }
 
   if (typeof value === 'string') {
     return value;
   }
 
-  if (typeof value === 'number' || typeof value === 'boolean') {
+  if (typeof value === 'number' || typeof value === 'boolean' || typeof value === 'bigint') {
     return String(value);
   }
 
-  return JSON.stringify(value);
+  if (typeof value === 'object') {
+    try {
+      return JSON.stringify(value) ?? '';
+    } catch {
+      return String(value);
+    }
+  }
+
+  return String(value);
+}
+
+function encodeCsvField(value: unknown, delimiter: ',' | ';' | '\t'): string {
+  const text = stringifyCsvValue(value);
+  const escaped = text.replace(/"/g, '""');
+  const shouldQuote =
+    text.includes(',') ||
+    text.includes(delimiter) ||
+    text.includes('"') ||
+    text.includes('\n') ||
+    text.includes('\r');
+
+  return shouldQuote ? `"${escaped}"` : escaped;
+}
+
+function resolveHeaderLabel(
+  fieldPath: string,
+  header: string | undefined,
+  headerMode: ExportCsvHeaderMode,
+  suffix?: string
+): string {
+  const baseLabel =
+    headerMode === 'header' && typeof header === 'string' && header.trim().length > 0
+      ? header
+      : fieldPath;
+
+  if (!suffix) {
+    return baseLabel;
+  }
+
+  return `${baseLabel}.${suffix}`;
 }
 
 function getFieldValue<TRow>(row: TRow, field: string): unknown {
   return getNestedPathValue(row, field);
+}
+
+interface ExportColumn {
+  fieldPath: string;
+  header: string;
+}
+
+function resolveExportColumns<TRow>(
+  rows: readonly TRow[],
+  rowIndices: readonly number[],
+  columns: readonly ColumnDef<TRow>[],
+  headerMode: ExportCsvHeaderMode
+): ExportColumn[] {
+  const exportColumns: ExportColumn[] = [];
+
+  for (let columnIndex = 0; columnIndex < columns.length; columnIndex += 1) {
+    const column = columns[columnIndex];
+    const fieldPath = String(column.field);
+    const nestedSubpaths: string[] = [];
+    const seenNestedSubpaths = new Set<string>();
+    let hasScalarValue = false;
+
+    for (let index = 0; index < rowIndices.length; index += 1) {
+      const rowIndex = rowIndices[index];
+      const row = rows[rowIndex];
+
+      if (row === undefined) {
+        continue;
+      }
+
+      const value = getFieldValue(row, fieldPath);
+
+      if (isPlainObject(value)) {
+        const leafPaths: string[] = [];
+        collectNestedObjectLeafPaths(value, '', leafPaths);
+
+        for (let leafIndex = 0; leafIndex < leafPaths.length; leafIndex += 1) {
+          const leafPath = leafPaths[leafIndex];
+          if (seenNestedSubpaths.has(leafPath)) {
+            continue;
+          }
+
+          seenNestedSubpaths.add(leafPath);
+          nestedSubpaths.push(leafPath);
+        }
+        continue;
+      }
+
+      if (value !== null && value !== undefined) {
+        hasScalarValue = true;
+      }
+    }
+
+    if (hasScalarValue || nestedSubpaths.length === 0) {
+      exportColumns.push({
+        fieldPath,
+        header: resolveHeaderLabel(fieldPath, column.header, headerMode)
+      });
+    }
+
+    for (let nestedIndex = 0; nestedIndex < nestedSubpaths.length; nestedIndex += 1) {
+      const nestedPath = nestedSubpaths[nestedIndex];
+      exportColumns.push({
+        fieldPath: `${fieldPath}.${nestedPath}`,
+        header: resolveHeaderLabel(fieldPath, column.header, headerMode, nestedPath)
+      });
+    }
+  }
+
+  return exportColumns;
 }
 
 function normalizeSelectedKeys(keys: Array<string | number>): Array<string | number> {
@@ -600,24 +752,88 @@ export function useIoiTable<TRow = Record<string, unknown>>(
     setViewport(clampedIndex * rowHeight.value, state.value.viewport.viewportHeight);
   }
 
+  function resolveExportRowIndices(scope: ExportCsvScope): number[] {
+    if (scope === 'visible') {
+      return [...visibleIndices.value];
+    }
+
+    if (scope === 'allLoaded') {
+      return [...baseIndices.value];
+    }
+
+    if (scope === 'selected') {
+      if (!selectionEnabled.value || state.value.selectedRowKeys.length === 0) {
+        return [];
+      }
+
+      const selectedKeySet = new Set(state.value.selectedRowKeys);
+      return baseIndices.value.filter((rowIndex) => {
+        const rowKey = resolveSelectionKeyByIndex(rowIndex);
+        return rowKey !== null && selectedKeySet.has(rowKey);
+      });
+    }
+
+    return [...sortedIndices.value];
+  }
+
   function exportCSV(csvOptions: ExportCsvOptions = {}): string {
     const delimiter = csvOptions.delimiter ?? ',';
     const includeHeader = csvOptions.includeHeader ?? true;
-    const visibleColumns = normalizedColumns.value.filter((column) => !column.hidden);
+    const headerMode = csvOptions.headerMode ?? 'field';
+    const scope = csvOptions.scope ?? 'filtered';
+    const includeHiddenColumns = csvOptions.includeHiddenColumns ?? false;
+    const exportIndices = resolveExportRowIndices(scope);
+    const exportColumns = resolveExportColumns(
+      normalizedRows.value,
+      exportIndices,
+      normalizedColumns.value.filter((column) => includeHiddenColumns || !column.hidden),
+      headerMode
+    );
 
-    const header = includeHeader
-      ? `${visibleColumns.map((column) => column.header ?? String(column.field)).join(delimiter)}\n`
-      : '';
+    if (exportColumns.length === 0) {
+      emitSemanticEvent('data:extract', {
+        reason: 'exportCSV',
+        scope,
+        rowCount: exportIndices.length,
+        columnCount: 0,
+        includeHiddenColumns,
+        delimiter
+      });
+      return '';
+    }
 
-    const rows = normalizedRows.value
-      .map((row) =>
-        visibleColumns
-          .map((column) => stringifyCell(getFieldValue(row, String(column.field))))
-          .join(delimiter)
-      )
-      .join('\n');
+    const lines: string[] = [];
 
-    return `${header}${rows}`.trimEnd();
+    if (includeHeader && exportColumns.length > 0) {
+      lines.push(exportColumns.map((column) => encodeCsvField(column.header, delimiter)).join(delimiter));
+    }
+
+    for (let index = 0; index < exportIndices.length; index += 1) {
+      const rowIndex = exportIndices[index];
+      const row = normalizedRows.value[rowIndex];
+
+      if (row === undefined) {
+        continue;
+      }
+
+      const csvRow = exportColumns
+        .map((column) => encodeCsvField(getFieldValue(row, column.fieldPath), delimiter))
+        .join(delimiter);
+      lines.push(csvRow);
+    }
+
+    const csv = lines.join('\n');
+
+    emitSemanticEvent('data:extract', {
+      reason: 'exportCSV',
+      scope,
+      rowCount: exportIndices.length,
+      columnCount: exportColumns.length,
+      includeHiddenColumns,
+      delimiter
+    });
+
+    return csv;
   }
 
   function resetState(): void {
