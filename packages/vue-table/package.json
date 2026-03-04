@@ -2,6 +2,15 @@
   "name": "@ioi/vue-table",
   "version": "0.0.0",
   "description": "IOI Vue Table package",
+  "author": "Rawand Hawez",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/Rawand-Hawez/ioi-vue-table.git"
+  },
+  "homepage": "https://github.com/Rawand-Hawez/ioi-vue-table#readme",
+  "bugs": {
+    "url": "https://github.com/Rawand-Hawez/ioi-vue-table/issues"
+  },
   "type": "module",
   "main": "./dist/ioi-vue-table.cjs",
   "module": "./dist/ioi-vue-table.js",
