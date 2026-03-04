@@ -1,5 +1,6 @@
 <script setup lang="ts" generic="TRow extends Record<string, unknown>">
 import { computed, onMounted, ref, watch } from 'vue';
+import { useColumnState } from '../composables/useColumnState';
 import { useIoiTable } from '../composables/useIoiTable';
 import type {
   CellSlotProps,
@@ -52,8 +53,20 @@ const table = useIoiTable<TRow>(
 );
 
 const viewportRef = ref<HTMLDivElement | null>(null);
+const columnState = useColumnState<TRow>(
+  computed(() => ({
+    columns: table.columns.value
+  }))
+);
 
-const visibleColumns = computed(() => table.columns.value.filter((column) => !column.hidden));
+const pinnedLeftColumns = computed(() => columnState.pinnedLeftColumns.value);
+const centerColumns = computed(() => columnState.centerColumns.value);
+const pinnedRightColumns = computed(() => columnState.pinnedRightColumns.value);
+const renderColumns = computed(() => [
+  ...pinnedLeftColumns.value,
+  ...centerColumns.value,
+  ...pinnedRightColumns.value
+]);
 const visibleRowEntries = computed(() =>
   table.visibleIndices.value
     .map((rowIndex) => ({
@@ -62,6 +75,32 @@ const visibleRowEntries = computed(() =>
     }))
     .filter((entry): entry is { row: TRow; rowIndex: number } => entry.row !== undefined)
 );
+
+const leftStickyOffsets = computed(() => {
+  let offset = 0;
+  const offsets = new Map<string, number>();
+
+  for (let index = 0; index < pinnedLeftColumns.value.length; index += 1) {
+    const column = pinnedLeftColumns.value[index];
+    offsets.set(column.id, offset);
+    offset += getStickyWidth(column);
+  }
+
+  return offsets;
+});
+
+const rightStickyOffsets = computed(() => {
+  let offset = 0;
+  const offsets = new Map<string, number>();
+
+  for (let index = pinnedRightColumns.value.length - 1; index >= 0; index -= 1) {
+    const column = pinnedRightColumns.value[index];
+    offsets.set(column.id, offset);
+    offset += getStickyWidth(column);
+  }
+
+  return offsets;
+});
 
 watch(
   table.lastEvent,
@@ -100,14 +139,55 @@ function normalizeColumnWidth(width: number | string | undefined): string | unde
   return undefined;
 }
 
-function getColumnStyle(column: ColumnDef<TRow>): Record<string, string> {
-  const width = normalizeColumnWidth(column.width);
+function getStickyWidth(column: ColumnDef<TRow>): number {
+  if (typeof column.width === 'number' && Number.isFinite(column.width)) {
+    return column.width;
+  }
 
-  return {
+  if (typeof column.width === 'string') {
+    const normalized = column.width.trim();
+    if (normalized.endsWith('px')) {
+      const parsed = Number.parseFloat(normalized);
+      if (Number.isFinite(parsed)) {
+        return parsed;
+      }
+    }
+  }
+
+  if (typeof column.minWidth === 'number' && Number.isFinite(column.minWidth)) {
+    return column.minWidth;
+  }
+
+  return 160;
+}
+
+function getColumnStyle(
+  column: ColumnDef<TRow>,
+  section: 'header' | 'body' = 'body'
+): Record<string, string> {
+  const width = normalizeColumnWidth(column.width);
+  const columnId = column.id ?? String(column.field);
+  const style: Record<string, string> = {
     width: width ?? '',
     minWidth: column.minWidth ? `${column.minWidth}px` : '',
     maxWidth: column.maxWidth ? `${column.maxWidth}px` : ''
   };
+
+  if (column.pin === 'left') {
+    style.position = 'sticky';
+    style.left = `${leftStickyOffsets.value.get(columnId) ?? 0}px`;
+    style.zIndex = section === 'header' ? '4' : '2';
+    style.background = section === 'header' ? '#f7f9fc' : '#ffffff';
+    style.boxShadow = '2px 0 0 #eceff4';
+  } else if (column.pin === 'right') {
+    style.position = 'sticky';
+    style.right = `${rightStickyOffsets.value.get(columnId) ?? 0}px`;
+    style.zIndex = section === 'header' ? '4' : '2';
+    style.background = section === 'header' ? '#f7f9fc' : '#ffffff';
+    style.boxShadow = '-2px 0 0 #eceff4';
+  }
+
+  return style;
 }
 
 function getCellValue(row: TRow, field: string): unknown {
@@ -149,7 +229,12 @@ defineExpose({
   isSelected: table.isSelected,
   clearSelection: table.clearSelection,
   selectAll: table.selectAll,
-  getSelectedKeys: table.getSelectedKeys
+  getSelectedKeys: table.getSelectedKeys,
+  setColumnOrder: columnState.setColumnOrder,
+  setColumnVisibility: columnState.setColumnVisibility,
+  setColumnPin: columnState.setColumnPin,
+  setColumnSizing: columnState.setColumnSizing,
+  getColumnStateSnapshot: columnState.getSnapshot
 });
 </script>
 
@@ -166,9 +251,9 @@ defineExpose({
         <thead>
           <tr>
             <th
-              v-for="(column, columnIndex) in visibleColumns"
-              :key="column.id ?? String(column.field)"
-              :style="getColumnStyle(column)"
+              v-for="(column, columnIndex) in renderColumns"
+              :key="column.id"
+              :style="getColumnStyle(column, 'header')"
               scope="col"
             >
               <slot name="header" :column="column" :column-index="columnIndex">
@@ -184,7 +269,7 @@ defineExpose({
             aria-hidden="true"
           >
             <td
-              :colspan="Math.max(visibleColumns.length, 1)"
+              :colspan="Math.max(renderColumns.length, 1)"
               :style="{ height: `${table.virtualPaddingTop.value}px` }"
             />
           </tr>
@@ -196,8 +281,8 @@ defineExpose({
             @click="onRowClick(entry.row, entry.rowIndex)"
           >
             <td
-              v-for="(column, columnIndex) in visibleColumns"
-              :key="column.id ?? String(column.field)"
+              v-for="(column, columnIndex) in renderColumns"
+              :key="column.id"
               :style="getColumnStyle(column)"
             >
               <slot
@@ -218,12 +303,12 @@ defineExpose({
             aria-hidden="true"
           >
             <td
-              :colspan="Math.max(visibleColumns.length, 1)"
+              :colspan="Math.max(renderColumns.length, 1)"
               :style="{ height: `${table.virtualPaddingBottom.value}px` }"
             />
           </tr>
           <tr v-if="!table.totalRows.value">
-            <td :colspan="Math.max(visibleColumns.length, 1)" class="ioi-table__empty">
+            <td :colspan="Math.max(renderColumns.length, 1)" class="ioi-table__empty">
               <slot name="empty">No data</slot>
             </td>
           </tr>
@@ -249,15 +334,18 @@ defineExpose({
 .ioi-table__table {
   width: 100%;
   border-collapse: collapse;
+  table-layout: fixed;
   font-size: 14px;
   line-height: 1.4;
 }
 
 .ioi-table__table th,
 .ioi-table__table td {
+  position: relative;
   padding: 10px 12px;
   border-bottom: 1px solid #eceff4;
   text-align: left;
+  background-clip: padding-box;
 }
 
 .ioi-table__table th {

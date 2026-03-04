@@ -4,6 +4,14 @@ export { IoiTable };
 export const DataTable = IoiTable;
 
 export { useIoiTable } from './composables/useIoiTable';
+export { createInMemoryColumnStateAdapter, useColumnState } from './composables/useColumnState';
+export type {
+  ColumnPinState,
+  ColumnSizingUpdate,
+  ColumnStateColumn,
+  ColumnStatePersistenceAdapter,
+  ColumnStateSnapshot
+} from './composables/useColumnState';
 
 export type {
   ColumnFilter,
