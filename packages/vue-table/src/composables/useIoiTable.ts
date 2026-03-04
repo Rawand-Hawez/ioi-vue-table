@@ -8,8 +8,11 @@ import type {
   IoiTableApi,
   IoiTableOptions,
   IoiTableState,
+  SortState,
   VirtualRange
 } from '../types';
+import { get as getNestedPathValue } from '../utils/nestedPath';
+import { applySort, toggleSortState } from '../utils/sort';
 
 const SCHEMA_VERSION = 1 as const;
 const DEFAULT_ROW_HEIGHT = 36;
@@ -62,11 +65,7 @@ function stringifyCell(value: unknown): string {
 }
 
 function getFieldValue<TRow>(row: TRow, field: string): unknown {
-  if (!row || typeof row !== 'object') {
-    return undefined;
-  }
-
-  return (row as Record<string, unknown>)[field];
+  return getNestedPathValue(row, field);
 }
 
 export function useIoiTable<TRow = Record<string, unknown>>(
@@ -84,7 +83,15 @@ export function useIoiTable<TRow = Record<string, unknown>>(
   const totalRows = computed(() => normalizedRows.value.length);
   const baseIndices = computed<number[]>(() => toIndexArray(0, totalRows.value));
   const filteredIndices = computed<number[]>(() => baseIndices.value);
-  const sortedIndices = computed<number[]>(() => filteredIndices.value);
+  const sortedIndices = computed<number[]>(() =>
+    applySort(
+      filteredIndices.value,
+      normalizedRows.value,
+      state.value.sort,
+      normalizedColumns.value,
+      getFieldValue
+    )
+  );
   const processedRowCount = computed(() => sortedIndices.value.length);
   const totalHeight = computed(() => processedRowCount.value * rowHeight.value);
 
@@ -208,6 +215,40 @@ export function useIoiTable<TRow = Record<string, unknown>>(
     });
   }
 
+  function setSortState(sortState: SortState[]): void {
+    const nextSortState = sortState
+      .filter((entry) => entry.field && (entry.direction === 'asc' || entry.direction === 'desc'))
+      .map((entry) => ({
+        field: entry.field,
+        direction: entry.direction
+      })) as SortState[];
+
+    if (
+      nextSortState.length === state.value.sort.length &&
+      nextSortState.every(
+        (entry, index) =>
+          entry.field === state.value.sort[index]?.field &&
+          entry.direction === state.value.sort[index]?.direction
+      )
+    ) {
+      return;
+    }
+
+    state.value = {
+      ...state.value,
+      sort: nextSortState
+    };
+
+    emitSemanticEvent('data:sort', {
+      sort: nextSortState
+    });
+  }
+
+  function toggleSort(field: string, multi = false): void {
+    const nextSortState = toggleSortState(state.value.sort, field, multi);
+    setSortState(nextSortState);
+  }
+
   function setViewport(scrollTop: number, viewportHeight = state.value.viewport.viewportHeight): void {
     const nextViewportHeight = normalizePositiveNumber(viewportHeight, DEFAULT_VIEWPORT_HEIGHT);
     const maxScrollTop = Math.max(0, totalHeight.value - nextViewportHeight);
@@ -267,6 +308,8 @@ export function useIoiTable<TRow = Record<string, unknown>>(
   const actions = {
     setRows,
     setColumns,
+    setSortState,
+    toggleSort,
     setViewport,
     scrollToRow,
     exportCSV,

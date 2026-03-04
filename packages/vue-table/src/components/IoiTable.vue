@@ -9,6 +9,7 @@ import type {
   IoiTableOptions,
   RowClickPayload
 } from '../types';
+import { get as getNestedPathValue } from '../utils/nestedPath';
 
 const props = withDefaults(
   defineProps<{
@@ -110,7 +111,7 @@ function getColumnStyle(column: ColumnDef<TRow>): Record<string, string> {
 }
 
 function getCellValue(row: TRow, field: string): unknown {
-  return (row as Record<string, unknown>)[field];
+  return getNestedPathValue(row, field);
 }
 
 function resolveRowKey(row: TRow, index: number): string | number {

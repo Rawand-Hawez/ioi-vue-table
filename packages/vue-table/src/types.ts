@@ -19,6 +19,13 @@ export interface ColumnDef<TRow = Record<string, unknown>> {
   id?: string;
   field: keyof TRow | string;
   header?: string;
+  type?: 'text' | 'number' | 'date';
+  comparator?: (
+    valueA: unknown,
+    valueB: unknown,
+    rowA: TRow | undefined,
+    rowB: TRow | undefined
+  ) => number;
   width?: number | string;
   minWidth?: number;
   maxWidth?: number;
@@ -75,6 +82,8 @@ export interface ExportCsvOptions {
 export interface IoiTableActions<TRow = Record<string, unknown>> {
   setRows: (rows: TRow[]) => void;
   setColumns: (columns: ColumnDef<TRow>[]) => void;
+  setSortState: (sortState: SortState[]) => void;
+  toggleSort: (field: string, multi?: boolean) => void;
   setViewport: (scrollTop: number, viewportHeight?: number) => void;
   scrollToRow: (index: number) => void;
   exportCSV: (options?: ExportCsvOptions) => string;
