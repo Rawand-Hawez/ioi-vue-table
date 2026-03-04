@@ -94,6 +94,9 @@ export interface IoiTableApi<TRow = Record<string, unknown>> extends IoiTableAct
   state: Ref<IoiTableState>;
   totalRows: ComputedRef<number>;
   totalHeight: ComputedRef<number>;
+  baseIndices: ComputedRef<number[]>;
+  filteredIndices: ComputedRef<number[]>;
+  sortedIndices: ComputedRef<number[]>;
   virtualRange: ComputedRef<VirtualRange>;
   virtualPaddingTop: ComputedRef<number>;
   virtualPaddingBottom: ComputedRef<number>;

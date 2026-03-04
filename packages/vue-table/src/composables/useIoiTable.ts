@@ -82,10 +82,14 @@ export function useIoiTable<TRow = Record<string, unknown>>(
   const lastEvent = ref<IoiSemanticEvent<unknown> | null>(null);
 
   const totalRows = computed(() => normalizedRows.value.length);
-  const totalHeight = computed(() => totalRows.value * rowHeight.value);
+  const baseIndices = computed<number[]>(() => toIndexArray(0, totalRows.value));
+  const filteredIndices = computed<number[]>(() => baseIndices.value);
+  const sortedIndices = computed<number[]>(() => filteredIndices.value);
+  const processedRowCount = computed(() => sortedIndices.value.length);
+  const totalHeight = computed(() => processedRowCount.value * rowHeight.value);
 
   const virtualRange = computed<VirtualRange>(() => {
-    if (totalRows.value === 0) {
+    if (processedRowCount.value === 0) {
       return { start: 0, end: 0 };
     }
 
@@ -94,15 +98,15 @@ export function useIoiTable<TRow = Record<string, unknown>>(
     const start = clamp(
       Math.floor(state.value.viewport.scrollTop / rowHeight.value) - overscan.value,
       0,
-      totalRows.value
+      processedRowCount.value
     );
-    const end = clamp(start + visibleCount + overscan.value * 2, start, totalRows.value);
+    const end = clamp(start + visibleCount + overscan.value * 2, start, processedRowCount.value);
 
     return { start, end };
   });
 
   const visibleIndices = computed<number[]>(() =>
-    toIndexArray(virtualRange.value.start, virtualRange.value.end)
+    sortedIndices.value.slice(virtualRange.value.start, virtualRange.value.end)
   );
 
   const visibleRows = computed<TRow[]>(() =>
@@ -226,11 +230,11 @@ export function useIoiTable<TRow = Record<string, unknown>>(
   }
 
   function scrollToRow(index: number): void {
-    if (totalRows.value === 0) {
+    if (processedRowCount.value === 0) {
       return;
     }
 
-    const clampedIndex = clamp(index, 0, totalRows.value - 1);
+    const clampedIndex = clamp(index, 0, processedRowCount.value - 1);
     setViewport(clampedIndex * rowHeight.value, state.value.viewport.viewportHeight);
   }
 
@@ -279,6 +283,9 @@ export function useIoiTable<TRow = Record<string, unknown>>(
     state,
     totalRows,
     totalHeight,
+    baseIndices,
+    filteredIndices,
+    sortedIndices,
     virtualRange,
     virtualPaddingTop,
     virtualPaddingBottom,
