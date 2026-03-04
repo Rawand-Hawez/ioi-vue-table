@@ -6,6 +6,7 @@ import type {
   ExportCsvHeaderMode,
   ExportCsvOptions,
   ExportCsvScope,
+  IoiCellCommitPayload,
   IoiSemanticEvent,
   IoiSemanticEventType,
   IoiTableApi,
@@ -14,11 +15,12 @@ import type {
   SelectAllScope,
   SelectionMode,
   SortState,
+  StartEditOptions,
   ToggleRowOptions,
   VirtualRange
 } from '../types';
 import { applyFilters } from '../utils/filter';
-import { get as getNestedPathValue } from '../utils/nestedPath';
+import { get as getNestedPathValue, set as setNestedPathValue } from '../utils/nestedPath';
 import { applySort, toggleSortState } from '../utils/sort';
 
 const SCHEMA_VERSION = 1 as const;
@@ -258,6 +260,8 @@ export function useIoiTable<TRow = Record<string, unknown>>(
   const lastEvent = ref<IoiSemanticEvent<unknown> | null>(null);
   const hasWarnedSelectionDisabled = ref(false);
   const lastSelectedKey = ref<string | number | null>(null);
+  const editingDraft = ref<unknown>(null);
+  const editingError = ref<string | null>(null);
 
   const totalRows = computed(() => normalizedRows.value.length);
   const baseIndices = computed<number[]>(() => toIndexArray(0, totalRows.value));
@@ -353,6 +357,46 @@ export function useIoiTable<TRow = Record<string, unknown>>(
     }
 
     return resolveRowSelectionKey(row, index);
+  }
+
+  function findRowIndexByKey(targetKey: string | number): number {
+    for (let index = 0; index < baseIndices.value.length; index += 1) {
+      const rowIndex = baseIndices.value[index];
+      const rowKey = resolveSelectionKeyByIndex(rowIndex);
+      if (rowKey === targetKey) {
+        return rowIndex;
+      }
+    }
+
+    return -1;
+  }
+
+  function resolveEditRowIndex(editingCell: { rowKey?: string | number; rowIndex?: number }): number {
+    if (editingCell.rowKey !== undefined && editingCell.rowKey !== null) {
+      const indexByKey = findRowIndexByKey(editingCell.rowKey);
+      if (indexByKey !== -1) {
+        return indexByKey;
+      }
+    }
+
+    if (
+      typeof editingCell.rowIndex === 'number' &&
+      editingCell.rowIndex >= 0 &&
+      editingCell.rowIndex < normalizedRows.value.length
+    ) {
+      return editingCell.rowIndex;
+    }
+
+    return -1;
+  }
+
+  function clearEditingState(): void {
+    state.value = {
+      ...state.value,
+      editingCell: null
+    };
+    editingDraft.value = null;
+    editingError.value = null;
   }
 
   function collectSelectionKeys(indices: readonly number[]): Array<string | number> {
@@ -460,6 +504,23 @@ export function useIoiTable<TRow = Record<string, unknown>>(
           selectedRowKeys: nextSelectedKeys
         };
       }
+    },
+    { flush: 'sync' }
+  );
+
+  watch(
+    [() => normalizedRows.value, () => state.value.editingCell],
+    () => {
+      const editingCell = state.value.editingCell;
+      if (!editingCell) {
+        return;
+      }
+
+      if (resolveEditRowIndex(editingCell) !== -1) {
+        return;
+      }
+
+      clearEditingState();
     },
     { flush: 'sync' }
   );
@@ -752,6 +813,114 @@ export function useIoiTable<TRow = Record<string, unknown>>(
     setViewport(clampedIndex * rowHeight.value, state.value.viewport.viewportHeight);
   }
 
+  function startEdit(options: StartEditOptions): void {
+    const field = String(options.field);
+    if (!field) {
+      return;
+    }
+
+    const rowIndex = resolveEditRowIndex({
+      rowKey: options.rowKey,
+      rowIndex: options.rowIndex
+    });
+
+    if (rowIndex === -1) {
+      return;
+    }
+
+    const row = normalizedRows.value[rowIndex];
+    if (row === undefined) {
+      return;
+    }
+
+    const rowKey = resolveSelectionKeyByIndex(rowIndex);
+    state.value = {
+      ...state.value,
+      editingCell: {
+        field,
+        rowIndex,
+        rowKey: rowKey ?? undefined
+      }
+    };
+    editingDraft.value =
+      options.value !== undefined ? options.value : getFieldValue(row, field);
+    editingError.value = null;
+  }
+
+  function setEditDraft(value: unknown): void {
+    if (!state.value.editingCell) {
+      return;
+    }
+
+    editingDraft.value = value;
+    editingError.value = null;
+  }
+
+  function commitEdit(): boolean {
+    const editingCell = state.value.editingCell;
+    if (!editingCell) {
+      return false;
+    }
+
+    const rowIndex = resolveEditRowIndex(editingCell);
+    if (rowIndex === -1) {
+      editingError.value = 'Row not found';
+      return false;
+    }
+
+    const row = normalizedRows.value[rowIndex];
+    if (!row) {
+      editingError.value = 'Row not found';
+      return false;
+    }
+
+    const field = editingCell.field;
+    const column = normalizedColumns.value.find((entry) => String(entry.field) === field);
+    const draftValue = editingDraft.value;
+
+    if (column?.validate) {
+      const validationResult = column.validate(draftValue, row);
+      if (validationResult !== true) {
+        editingError.value =
+          typeof validationResult === 'string' && validationResult.length > 0
+            ? validationResult
+            : 'Invalid value';
+        return false;
+      }
+    }
+
+    const oldValue = getFieldValue(row, field);
+    setNestedPathValue(row, field, draftValue);
+    normalizedRows.value = [...normalizedRows.value];
+
+    const payload: IoiCellCommitPayload<TRow> = {
+      row,
+      rowIndex,
+      rowKey: resolveSelectionKeyByIndex(rowIndex),
+      field,
+      oldValue,
+      newValue: draftValue
+    };
+
+    resolvedOptions.value.onCellCommit?.(payload);
+    resolvedOptions.value.onRowUpdate?.(payload);
+    emitSemanticEvent('data:modify', {
+      reason: 'commitEdit',
+      ...payload
+    });
+    clearEditingState();
+
+    return true;
+  }
+
+  function cancelEdit(): void {
+    if (!state.value.editingCell) {
+      return;
+    }
+
+    clearEditingState();
+  }
+
   function resolveExportRowIndices(scope: ExportCsvScope): number[] {
     if (scope === 'visible') {
       return [...visibleIndices.value];
@@ -839,6 +1008,8 @@ export function useIoiTable<TRow = Record<string, unknown>>(
   function resetState(): void {
     const viewportHeight = state.value.viewport.viewportHeight;
     state.value = createInitialState(viewportHeight);
+    editingDraft.value = null;
+    editingError.value = null;
     emitSemanticEvent('data:explore', { reason: 'resetState' });
   }
 
@@ -858,6 +1029,10 @@ export function useIoiTable<TRow = Record<string, unknown>>(
     toggleSort,
     setViewport,
     scrollToRow,
+    startEdit,
+    setEditDraft,
+    commitEdit,
+    cancelEdit,
     exportCSV,
     resetState,
     emitSemanticEvent
@@ -870,6 +1045,8 @@ export function useIoiTable<TRow = Record<string, unknown>>(
     rowHeight,
     overscan,
     state,
+    editingDraft,
+    editingError,
     totalRows,
     totalHeight,
     baseIndices,
