@@ -20,6 +20,7 @@ export interface ColumnDef<TRow = Record<string, unknown>> {
   field: keyof TRow | string;
   header?: string;
   type?: 'text' | 'number' | 'date';
+  validate?: (value: unknown, row: TRow) => true | string;
   comparator?: (
     valueA: unknown,
     valueB: unknown,
@@ -80,8 +81,9 @@ export interface FilterState {
 }
 
 export interface EditingCellState {
-  rowIndex: number;
   field: string;
+  rowKey?: string | number;
+  rowIndex?: number;
 }
 
 export interface ViewportState {
@@ -120,6 +122,8 @@ export interface IoiTableOptions<TRow = Record<string, unknown>> {
   rowHeight?: number;
   overscan?: number;
   viewportHeight?: number;
+  onCellCommit?: (payload: IoiCellCommitPayload<TRow>) => void;
+  onRowUpdate?: (payload: IoiCellCommitPayload<TRow>) => void;
 }
 
 export interface ExportCsvOptions {
@@ -128,6 +132,22 @@ export interface ExportCsvOptions {
   scope?: ExportCsvScope;
   includeHiddenColumns?: boolean;
   headerMode?: ExportCsvHeaderMode;
+}
+
+export interface StartEditOptions {
+  field: string;
+  rowKey?: string | number;
+  rowIndex?: number;
+  value?: unknown;
+}
+
+export interface IoiCellCommitPayload<TRow = Record<string, unknown>> {
+  row: TRow;
+  rowIndex: number;
+  rowKey: string | number | null;
+  field: string;
+  oldValue: unknown;
+  newValue: unknown;
 }
 
 export interface IoiTableActions<TRow = Record<string, unknown>> {
@@ -146,6 +166,10 @@ export interface IoiTableActions<TRow = Record<string, unknown>> {
   toggleSort: (field: string, multi?: boolean) => void;
   setViewport: (scrollTop: number, viewportHeight?: number) => void;
   scrollToRow: (index: number) => void;
+  startEdit: (options: StartEditOptions) => void;
+  setEditDraft: (value: unknown) => void;
+  commitEdit: () => boolean;
+  cancelEdit: () => void;
   exportCSV: (options?: ExportCsvOptions) => string;
   resetState: () => void;
   emitSemanticEvent: <TPayload>(
@@ -161,6 +185,8 @@ export interface IoiTableApi<TRow = Record<string, unknown>> extends IoiTableAct
   rowHeight: Ref<number>;
   overscan: Ref<number>;
   state: Ref<IoiTableState>;
+  editingDraft: Ref<unknown>;
+  editingError: Ref<string | null>;
   totalRows: ComputedRef<number>;
   totalHeight: ComputedRef<number>;
   baseIndices: ComputedRef<number[]>;

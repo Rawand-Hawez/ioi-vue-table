@@ -24,6 +24,7 @@ export type {
   ExportCsvScope,
   FilterState,
   HeaderSlotProps,
+  IoiCellCommitPayload,
   IoiSemanticEvent,
   IoiSemanticEventType,
   IoiTableActions,
@@ -38,6 +39,7 @@ export type {
   SelectAllScope,
   SelectionMode,
   SortState,
+  StartEditOptions,
   TextColumnFilter,
   TextFilterOperator,
   ToggleRowOptions

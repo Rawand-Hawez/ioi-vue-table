@@ -59,7 +59,7 @@ IOI Vue Table is a performance-first, AI-ready, open-source datatable for Vue 3 
 - Shift-range selection is computed over the current `sortedIndices` order
 - `selectAll` scopes: `visible` (viewport window), `filtered` (sorted+filtered rows), `allLoaded` (all local rows)
 - Expansion: expandable row details (lazy rendered)
-- Editing: inline cell editing (text/number/select/date) with commit/cancel
+- Editing: staged inline cell editing with local draft state, commit/cancel actions, optional per-column `validate(value, row)`, and semantic `data:modify` events on commit
 
 ### Server-side Mode
 - Pagination: page-based or cursor-based

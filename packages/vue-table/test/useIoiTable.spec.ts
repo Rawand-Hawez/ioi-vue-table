@@ -30,9 +30,15 @@ describe('useIoiTable', () => {
     expect(typeof table.toggleSort).toBe('function');
     expect(typeof table.setViewport).toBe('function');
     expect(typeof table.scrollToRow).toBe('function');
+    expect(typeof table.startEdit).toBe('function');
+    expect(typeof table.setEditDraft).toBe('function');
+    expect(typeof table.commitEdit).toBe('function');
+    expect(typeof table.cancelEdit).toBe('function');
     expect(typeof table.exportCSV).toBe('function');
     expect(typeof table.resetState).toBe('function');
     expect(typeof table.emitSemanticEvent).toBe('function');
+    expect(table.editingDraft.value).toBeNull();
+    expect(table.editingError.value).toBeNull();
     expect(typeof table.actions.exportCSV).toBe('function');
   });
 
@@ -447,6 +453,124 @@ describe('useIoiTable', () => {
     expect(withHiddenAndHeaders).toBe(
       'ID,Group,Score,Secret\n1,A,10,s1\n2,B,99,s2\n3,A,30,s3\n4,A,20,s4'
     );
+  });
+
+  it('stages edits without mutating row data until commit', () => {
+    const table = useIoiTable({
+      rows: [{ id: 1, user: { profile: { name: 'Alpha' } } }],
+      columns: [{ field: 'user.profile.name', type: 'text' }],
+      rowKey: 'id'
+    });
+
+    table.startEdit({ rowKey: 1, field: 'user.profile.name' });
+    table.setEditDraft('Beta');
+
+    expect(table.state.value.editingCell).toMatchObject({
+      rowKey: 1,
+      field: 'user.profile.name'
+    });
+    expect(table.rows.value[0]?.user.profile.name).toBe('Alpha');
+  });
+
+  it('commits staged edits through nestedPath.set for nested fields', () => {
+    const table = useIoiTable({
+      rows: [{ id: 1, user: { profile: { name: 'Alpha' } } }],
+      columns: [{ field: 'user.profile.name', type: 'text' }],
+      rowKey: 'id'
+    });
+
+    table.startEdit({ rowKey: 1, field: 'user.profile.name' });
+    table.setEditDraft('Beta');
+
+    const committed = table.commitEdit();
+
+    expect(committed).toBe(true);
+    expect(table.rows.value[0]?.user.profile.name).toBe('Beta');
+    expect(table.state.value.editingCell).toBeNull();
+    expect(table.editingDraft.value).toBeNull();
+    expect(table.editingError.value).toBeNull();
+  });
+
+  it('cancels staged edits without mutating row data', () => {
+    const table = useIoiTable({
+      rows: [{ id: 1, name: 'Alpha' }],
+      columns: [{ field: 'name', type: 'text' }],
+      rowKey: 'id'
+    });
+
+    table.startEdit({ rowKey: 1, field: 'name' });
+    table.setEditDraft('Beta');
+    table.cancelEdit();
+
+    expect(table.rows.value[0]?.name).toBe('Alpha');
+    expect(table.state.value.editingCell).toBeNull();
+    expect(table.editingDraft.value).toBeNull();
+    expect(table.editingError.value).toBeNull();
+  });
+
+  it('blocks commit when column validation fails and exposes an error message', () => {
+    const table = useIoiTable({
+      rows: [{ id: 1, score: 10 }],
+      columns: [
+        {
+          field: 'score',
+          type: 'number',
+          validate: (value) =>
+            typeof value === 'number' && value >= 0 ? true : 'Score must be non-negative'
+        }
+      ],
+      rowKey: 'id'
+    });
+
+    table.startEdit({ rowKey: 1, field: 'score' });
+    table.setEditDraft(-5);
+
+    const committed = table.commitEdit();
+
+    expect(committed).toBe(false);
+    expect(table.rows.value[0]?.score).toBe(10);
+    expect(table.editingError.value).toBe('Score must be non-negative');
+    expect(table.state.value.editingCell).not.toBeNull();
+  });
+
+  it('emits schema-versioned data:modify events and calls commit hooks', () => {
+    const onCellCommit = vi.fn();
+    const onRowUpdate = vi.fn();
+    const table = useIoiTable({
+      rows: [{ id: 1, name: 'Alpha' }],
+      columns: [{ field: 'name', type: 'text' }],
+      rowKey: 'id',
+      onCellCommit,
+      onRowUpdate
+    });
+
+    table.startEdit({ rowKey: 1, field: 'name' });
+    table.setEditDraft('Beta');
+
+    const committed = table.commitEdit();
+
+    expect(committed).toBe(true);
+    expect(table.lastEvent.value?.schemaVersion).toBe(1);
+    expect(table.lastEvent.value?.type).toBe('data:modify');
+    expect(table.lastEvent.value?.payload).toMatchObject({
+      reason: 'commitEdit',
+      rowIndex: 0,
+      rowKey: 1,
+      field: 'name',
+      oldValue: 'Alpha',
+      newValue: 'Beta'
+    });
+    expect(onCellCommit).toHaveBeenCalledTimes(1);
+    expect(onCellCommit).toHaveBeenCalledWith(
+      expect.objectContaining({
+        rowIndex: 0,
+        rowKey: 1,
+        field: 'name',
+        oldValue: 'Alpha',
+        newValue: 'Beta'
+      })
+    );
+    expect(onRowUpdate).toHaveBeenCalledTimes(1);
   });
 
   it('disables selection when rowKey is missing and warns once', () => {
