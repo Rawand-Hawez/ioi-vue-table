@@ -69,7 +69,25 @@ IOI Vue Table is a performance-first, AI-ready, open-source datatable for Vue 3 
 NOTE: In server-mode v1, grouping/aggregation is either disabled or delegated to backend explicitly (must be defined in server contract).
 
 ### CSV Import/Export
-- Export: respects sort/filter/selection; flatten nested objects; handle arrays
+- Export (JS in v1 baseline): `exportCSV(options?)`
+- Export scopes:
+  - `visible` → current viewport window (`visibleIndices`)
+  - `filtered` → current filtered+sorted set (`sortedIndices`) **default**
+  - `selected` → selected row keys intersected with currently loaded rows
+  - `allLoaded` → all local rows (`baseIndices`)
+- Column inclusion:
+  - default exports visible columns only (`hidden !== true`)
+  - `includeHiddenColumns: true` exports all configured columns
+- Header mode:
+  - default `headerMode: "field"` (field paths as headers)
+  - optional `headerMode: "header"` (column header labels)
+- Flattening (locked):
+  - if a column field resolves to a nested object, export flattens to dot-notation columns using path semantics compatible with `nestedPath.get`
+  - null/undefined export as empty cells
+  - arrays export as `JSON.stringify(array)` (canonical and stable for JS/WASM parity)
+- CSV formatting (locked):
+  - quote fields containing comma, quote, or newline (and delimiter-aware quoting when delimiter is overridden)
+  - escape quotes by doubling (`"` → `""`)
 - Import: drag-drop; auto-map headers; preview; validation errors inline
 - Delimiter autodetect: comma/semicolon/tab
 
