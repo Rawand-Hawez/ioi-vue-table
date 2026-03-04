@@ -49,7 +49,7 @@ Default: staged edits with commit/cancel.
 
 ## 7) Selection Policy (Locked)
 - Selection is key-based when rowKey exists (recommended).
-- Index-based selection is allowed only for local-only / visible-only scenarios.
+- In the current JS implementation, selection actions require `rowKey`; without it, selection APIs are disabled and emit a dev warning.
 - Shift-range selection operates over the current sorted+filtered order but stores keys.
 
 ## 8) Semantic Events (Versioned)

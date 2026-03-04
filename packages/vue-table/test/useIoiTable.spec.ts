@@ -1,4 +1,4 @@
-import { describe, expect, it } from 'vitest';
+import { describe, expect, it, vi } from 'vitest';
 import { useIoiTable } from '../src/composables/useIoiTable';
 
 describe('useIoiTable', () => {
@@ -22,6 +22,11 @@ describe('useIoiTable', () => {
     expect(typeof table.clearColumnFilter).toBe('function');
     expect(typeof table.setGlobalSearch).toBe('function');
     expect(typeof table.clearAllFilters).toBe('function');
+    expect(typeof table.toggleRow).toBe('function');
+    expect(typeof table.isSelected).toBe('function');
+    expect(typeof table.clearSelection).toBe('function');
+    expect(typeof table.selectAll).toBe('function');
+    expect(typeof table.getSelectedKeys).toBe('function');
     expect(typeof table.toggleSort).toBe('function');
     expect(typeof table.setViewport).toBe('function');
     expect(typeof table.scrollToRow).toBe('function');
@@ -254,5 +259,104 @@ describe('useIoiTable', () => {
 
     table.clearColumnFilter('name');
     expect(table.filteredIndices.value).toEqual([1, 2]);
+  });
+
+  it('keeps selected keys stable across sorting and filtering', () => {
+    const table = useIoiTable({
+      rows: [
+        { id: 'a', name: 'Charlie', group: 'x' },
+        { id: 'b', name: 'Alice', group: 'x' },
+        { id: 'c', name: 'Bob', group: 'y' }
+      ],
+      columns: [
+        { field: 'name', type: 'text' },
+        { field: 'group', type: 'text' }
+      ],
+      rowKey: 'id'
+    });
+
+    table.toggleRow('a');
+    table.toggleRow('c');
+    expect(table.getSelectedKeys()).toEqual(['a', 'c']);
+
+    table.setSortState([{ field: 'name', direction: 'asc' }]);
+    expect(table.sortedIndices.value).toEqual([1, 2, 0]);
+    expect(table.isSelected('a')).toBe(true);
+    expect(table.isSelected('c')).toBe(true);
+
+    table.setColumnFilter('group', { type: 'text', operator: 'equals', value: 'x' });
+    expect(table.filteredIndices.value).toEqual([0, 1]);
+    expect(table.getSelectedKeys()).toEqual(['a', 'c']);
+  });
+
+  it('selects shift-ranges using sortedIndices order', () => {
+    const table = useIoiTable({
+      rows: [
+        { id: 'a', score: 30 },
+        { id: 'b', score: 10 },
+        { id: 'c', score: 20 },
+        { id: 'd', score: 40 }
+      ],
+      columns: [{ field: 'score', type: 'number' }],
+      rowKey: 'id'
+    });
+
+    table.setSortState([{ field: 'score', direction: 'asc' }]);
+    expect(table.sortedIndices.value).toEqual([1, 2, 0, 3]);
+
+    table.toggleRow('c');
+    table.toggleRow('d', { shiftKey: true });
+    expect(table.getSelectedKeys()).toEqual(['c', 'a', 'd']);
+  });
+
+  it('supports selectAll scopes for visible, filtered, and allLoaded rows', () => {
+    const table = useIoiTable({
+      rows: [
+        { id: 1, group: 'A' },
+        { id: 2, group: 'B' },
+        { id: 3, group: 'A' },
+        { id: 4, group: 'B' },
+        { id: 5, group: 'A' }
+      ],
+      columns: [{ field: 'group', type: 'text' }],
+      rowKey: 'id',
+      rowHeight: 20,
+      viewportHeight: 40,
+      overscan: 0
+    });
+
+    table.setColumnFilter('group', { type: 'text', operator: 'equals', value: 'A' });
+    expect(table.sortedIndices.value).toEqual([0, 2, 4]);
+    expect(table.visibleIndices.value).toEqual([0, 2]);
+
+    table.selectAll('visible');
+    expect(table.getSelectedKeys()).toEqual([1, 3]);
+
+    table.clearSelection();
+    table.selectAll('filtered');
+    expect(table.getSelectedKeys()).toEqual([1, 3, 5]);
+
+    table.clearSelection();
+    table.selectAll('allLoaded');
+    expect(table.getSelectedKeys()).toEqual([1, 2, 3, 4, 5]);
+  });
+
+  it('disables selection when rowKey is missing and warns once', () => {
+    const warnSpy = vi.spyOn(console, 'warn').mockImplementation(() => {});
+    const table = useIoiTable({
+      rows: [
+        { id: 1, name: 'Alpha' },
+        { id: 2, name: 'Beta' }
+      ],
+      columns: [{ field: 'name', type: 'text' }]
+    });
+
+    table.toggleRow(1);
+    table.selectAll('allLoaded');
+    expect(table.getSelectedKeys()).toEqual([]);
+    expect(warnSpy).toHaveBeenCalledTimes(1);
+    expect(warnSpy.mock.calls[0]?.[0]).toContain('Selection is disabled');
+
+    warnSpy.mockRestore();
   });
 });

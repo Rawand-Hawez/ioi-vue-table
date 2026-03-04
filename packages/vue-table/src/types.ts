@@ -88,6 +88,13 @@ export interface ViewportState {
   viewportHeight: number;
 }
 
+export type SelectionMode = 'single' | 'multi';
+export type SelectAllScope = 'visible' | 'filtered' | 'allLoaded';
+
+export interface ToggleRowOptions {
+  shiftKey?: boolean;
+}
+
 export interface VirtualRange {
   start: number;
   end: number;
@@ -106,6 +113,7 @@ export interface IoiTableOptions<TRow = Record<string, unknown>> {
   rows?: TRow[];
   columns?: ColumnDef<TRow>[];
   rowKey?: keyof TRow | ((row: TRow, index: number) => string | number);
+  selectionMode?: SelectionMode;
   rowHeight?: number;
   overscan?: number;
   viewportHeight?: number;
@@ -124,6 +132,11 @@ export interface IoiTableActions<TRow = Record<string, unknown>> {
   clearColumnFilter: (field: string) => void;
   setGlobalSearch: (text: string) => void;
   clearAllFilters: () => void;
+  toggleRow: (key: string | number, options?: ToggleRowOptions) => void;
+  isSelected: (key: string | number) => boolean;
+  clearSelection: () => void;
+  selectAll: (scope?: SelectAllScope) => void;
+  getSelectedKeys: () => Array<string | number>;
   toggleSort: (field: string, multi?: boolean) => void;
   setViewport: (scrollTop: number, viewportHeight?: number) => void;
   scrollToRow: (index: number) => void;

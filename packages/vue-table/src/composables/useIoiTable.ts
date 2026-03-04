@@ -9,7 +9,10 @@ import type {
   IoiTableApi,
   IoiTableOptions,
   IoiTableState,
+  SelectAllScope,
+  SelectionMode,
   SortState,
+  ToggleRowOptions,
   VirtualRange
 } from '../types';
 import { applyFilters } from '../utils/filter';
@@ -20,6 +23,8 @@ const SCHEMA_VERSION = 1 as const;
 const DEFAULT_ROW_HEIGHT = 36;
 const DEFAULT_OVERSCAN = 5;
 const DEFAULT_VIEWPORT_HEIGHT = 320;
+const SELECTION_ROW_KEY_WARNING =
+  '[IOI Table] Selection is disabled because `rowKey` is not configured.';
 
 function createInitialState(viewportHeight: number): IoiTableState {
   return {
@@ -71,6 +76,23 @@ function getFieldValue<TRow>(row: TRow, field: string): unknown {
   return getNestedPathValue(row, field);
 }
 
+function normalizeSelectedKeys(keys: Array<string | number>): Array<string | number> {
+  const seen = new Set<string | number>();
+  const normalized: Array<string | number> = [];
+
+  for (let index = 0; index < keys.length; index += 1) {
+    const key = keys[index];
+    if (seen.has(key)) {
+      continue;
+    }
+
+    seen.add(key);
+    normalized.push(key);
+  }
+
+  return normalized;
+}
+
 export function useIoiTable<TRow = Record<string, unknown>>(
   options: MaybeRef<IoiTableOptions<TRow>> = {}
 ): IoiTableApi<TRow> {
@@ -82,6 +104,8 @@ export function useIoiTable<TRow = Record<string, unknown>>(
   const overscan = ref(DEFAULT_OVERSCAN);
   const state = ref<IoiTableState>(createInitialState(DEFAULT_VIEWPORT_HEIGHT));
   const lastEvent = ref<IoiSemanticEvent<unknown> | null>(null);
+  const hasWarnedSelectionDisabled = ref(false);
+  const lastSelectedKey = ref<string | number | null>(null);
 
   const totalRows = computed(() => normalizedRows.value.length);
   const baseIndices = computed<number[]>(() => toIndexArray(0, totalRows.value));
@@ -139,6 +163,62 @@ export function useIoiTable<TRow = Record<string, unknown>>(
     const renderedHeight = visibleIndices.value.length * rowHeight.value;
     return Math.max(0, totalHeight.value - virtualPaddingTop.value - renderedHeight);
   });
+  const selectionMode = computed<SelectionMode>(() =>
+    resolvedOptions.value.selectionMode === 'single' ? 'single' : 'multi'
+  );
+  const selectionEnabled = computed(
+    () => resolvedOptions.value.rowKey !== undefined && resolvedOptions.value.rowKey !== null
+  );
+
+  function warnSelectionDisabled(): void {
+    if (hasWarnedSelectionDisabled.value) {
+      return;
+    }
+
+    hasWarnedSelectionDisabled.value = true;
+    console.warn(SELECTION_ROW_KEY_WARNING);
+  }
+
+  function resolveRowSelectionKey(row: TRow, index: number): string | number | null {
+    const { rowKey } = resolvedOptions.value;
+    if (!rowKey) {
+      return null;
+    }
+
+    if (typeof rowKey === 'function') {
+      const resolvedKey = rowKey(row, index);
+      return typeof resolvedKey === 'string' || typeof resolvedKey === 'number' ? resolvedKey : null;
+    }
+
+    const value = getNestedPathValue(row, String(rowKey));
+    return typeof value === 'string' || typeof value === 'number' ? value : null;
+  }
+
+  function resolveSelectionKeyByIndex(index: number): string | number | null {
+    const row = normalizedRows.value[index];
+    if (row === undefined) {
+      return null;
+    }
+
+    return resolveRowSelectionKey(row, index);
+  }
+
+  function collectSelectionKeys(indices: readonly number[]): Array<string | number> {
+    const keys: Array<string | number> = [];
+
+    for (let index = 0; index < indices.length; index += 1) {
+      const key = resolveSelectionKeyByIndex(indices[index]);
+      if (key !== null) {
+        keys.push(key);
+      }
+    }
+
+    return normalizeSelectedKeys(keys);
+  }
+
+  function getSortedSelectionKeys(): Array<string | number> {
+    return collectSelectionKeys(sortedIndices.value);
+  }
 
   watch(
     () => resolvedOptions.value.rows,
@@ -192,6 +272,42 @@ export function useIoiTable<TRow = Record<string, unknown>>(
     [totalHeight, () => state.value.viewport.viewportHeight],
     () => {
       setViewport(state.value.viewport.scrollTop, state.value.viewport.viewportHeight);
+    },
+    { flush: 'sync' }
+  );
+
+  watch(
+    selectionEnabled,
+    (enabled) => {
+      if (enabled || state.value.selectedRowKeys.length === 0) {
+        return;
+      }
+
+      state.value = {
+        ...state.value,
+        selectedRowKeys: []
+      };
+      lastSelectedKey.value = null;
+    },
+    { flush: 'sync' }
+  );
+
+  watch(
+    [() => normalizedRows.value, () => resolvedOptions.value.rowKey],
+    () => {
+      if (!selectionEnabled.value || state.value.selectedRowKeys.length === 0) {
+        return;
+      }
+
+      const availableKeys = new Set(collectSelectionKeys(baseIndices.value));
+      const nextSelectedKeys = state.value.selectedRowKeys.filter((key) => availableKeys.has(key));
+
+      if (nextSelectedKeys.length !== state.value.selectedRowKeys.length) {
+        state.value = {
+          ...state.value,
+          selectedRowKeys: nextSelectedKeys
+        };
+      }
     },
     { flush: 'sync' }
   );
@@ -348,6 +464,107 @@ export function useIoiTable<TRow = Record<string, unknown>>(
     });
   }
 
+  function setSelectedKeys(nextKeys: Array<string | number>, reason: string): void {
+    const normalizedKeys = normalizeSelectedKeys(nextKeys);
+    const currentKeys = state.value.selectedRowKeys;
+
+    if (
+      normalizedKeys.length === currentKeys.length &&
+      normalizedKeys.every((key, index) => key === currentKeys[index])
+    ) {
+      return;
+    }
+
+    state.value = {
+      ...state.value,
+      selectedRowKeys: normalizedKeys
+    };
+
+    emitSemanticEvent('data:select', {
+      reason,
+      selectedRowKeys: normalizedKeys
+    });
+  }
+
+  function toggleRow(key: string | number, options: ToggleRowOptions = {}): void {
+    if (!selectionEnabled.value) {
+      warnSelectionDisabled();
+      return;
+    }
+
+    const currentKeys = state.value.selectedRowKeys;
+    const isAlreadySelected = currentKeys.includes(key);
+    const isSingleSelection = selectionMode.value === 'single';
+
+    if (isSingleSelection) {
+      const nextKeys = isAlreadySelected && currentKeys.length === 1 ? [] : [key];
+      lastSelectedKey.value = nextKeys.length > 0 ? key : null;
+      setSelectedKeys(nextKeys, 'toggleRow');
+      return;
+    }
+
+    if (options.shiftKey && lastSelectedKey.value !== null) {
+      const orderedKeys = getSortedSelectionKeys();
+      const anchorIndex = orderedKeys.indexOf(lastSelectedKey.value);
+      const targetIndex = orderedKeys.indexOf(key);
+
+      if (anchorIndex !== -1 && targetIndex !== -1) {
+        const start = Math.min(anchorIndex, targetIndex);
+        const end = Math.max(anchorIndex, targetIndex);
+        const rangeKeys = orderedKeys.slice(start, end + 1);
+        setSelectedKeys([...currentKeys, ...rangeKeys], 'shiftRange');
+        lastSelectedKey.value = key;
+        return;
+      }
+    }
+
+    const nextKeys = isAlreadySelected
+      ? currentKeys.filter((selectedKey) => selectedKey !== key)
+      : [...currentKeys, key];
+
+    lastSelectedKey.value = isAlreadySelected ? null : key;
+    setSelectedKeys(nextKeys, 'toggleRow');
+  }
+
+  function isSelected(key: string | number): boolean {
+    return state.value.selectedRowKeys.includes(key);
+  }
+
+  function clearSelection(): void {
+    lastSelectedKey.value = null;
+    setSelectedKeys([], 'clearSelection');
+  }
+
+  function selectAll(scope: SelectAllScope = 'filtered'): void {
+    if (!selectionEnabled.value) {
+      warnSelectionDisabled();
+      return;
+    }
+
+    const indices =
+      scope === 'visible'
+        ? visibleIndices.value
+        : scope === 'allLoaded'
+          ? baseIndices.value
+          : sortedIndices.value;
+
+    const nextKeys = collectSelectionKeys(indices);
+
+    if (selectionMode.value === 'single') {
+      const singleKey = nextKeys[0];
+      setSelectedKeys(singleKey !== undefined ? [singleKey] : [], `selectAll:${scope}`);
+      lastSelectedKey.value = singleKey ?? null;
+      return;
+    }
+
+    setSelectedKeys(nextKeys, `selectAll:${scope}`);
+    lastSelectedKey.value = nextKeys.length > 0 ? nextKeys[nextKeys.length - 1] : null;
+  }
+
+  function getSelectedKeys(): Array<string | number> {
+    return [...state.value.selectedRowKeys];
+  }
+
   function toggleSort(field: string, multi = false): void {
     const nextSortState = toggleSortState(state.value.sort, field, multi);
     setSortState(nextSortState);
@@ -417,6 +634,11 @@ export function useIoiTable<TRow = Record<string, unknown>>(
     clearColumnFilter,
     setGlobalSearch,
     clearAllFilters,
+    toggleRow,
+    isSelected,
+    clearSelection,
+    selectAll,
+    getSelectedKeys,
     toggleSort,
     setViewport,
     scrollToRow,

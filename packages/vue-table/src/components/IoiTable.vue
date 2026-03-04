@@ -144,7 +144,12 @@ defineExpose({
   setColumnFilter: table.setColumnFilter,
   clearColumnFilter: table.clearColumnFilter,
   setGlobalSearch: table.setGlobalSearch,
-  clearAllFilters: table.clearAllFilters
+  clearAllFilters: table.clearAllFilters,
+  toggleRow: table.toggleRow,
+  isSelected: table.isSelected,
+  clearSelection: table.clearSelection,
+  selectAll: table.selectAll,
+  getSelectedKeys: table.getSelectedKeys
 });
 </script>
 
