@@ -30,6 +30,7 @@ export interface ColumnDef<TRow = Record<string, unknown>> {
   minWidth?: number;
   maxWidth?: number;
   hidden?: boolean;
+  pin?: 'left' | 'right' | 'none';
 }
 
 export interface SortState {

@@ -21,8 +21,10 @@ IOI Vue Table is a performance-first, AI-ready, open-source datatable for Vue 3 
 
 ### Column System
 - ColumnDef supports: field, header, width (px/%), minWidth, maxWidth
+- Column state uses stable IDs: explicit `column.id` first, otherwise `String(column.field)`
 - Hidden columns
 - Sticky pinning left/right
+- Pin partitions are derived as `pinnedLeft`, `center`, `pinnedRight`; horizontal windowing is not applied in v1 JS path
 - Drag-to-resize with persistence (adapter-based)
 - Drag-to-reorder
 
