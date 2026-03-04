@@ -95,15 +95,23 @@ describe('sort utils', () => {
     ];
     const columns: ColumnDef[] = [{ field: 'createdAt', type: 'date' }];
 
-    const sortedIndices = applySort(
+    const asc = applySort(
       [0, 1, 2, 3],
       rows,
       [{ field: 'createdAt', direction: 'asc' }],
       columns,
       pathGet
     );
+    const desc = applySort(
+      [0, 1, 2, 3],
+      rows,
+      [{ field: 'createdAt', direction: 'desc' }],
+      columns,
+      pathGet
+    );
 
-    expect(sortedIndices).toEqual([1, 3, 0, 2]);
+    expect(asc).toEqual([1, 3, 0, 2]);
+    expect(desc).toEqual([0, 3, 1, 2]);
   });
 
   it('uses custom comparator when provided on a column', () => {

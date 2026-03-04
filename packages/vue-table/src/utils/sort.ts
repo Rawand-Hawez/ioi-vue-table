@@ -7,6 +7,11 @@ interface ComparableValue {
   value: number | string | null;
 }
 
+interface DefaultCompareResult {
+  result: number;
+  usedNullOrdering: boolean;
+}
+
 const textCollator = new Intl.Collator(undefined, {
   numeric: true,
   sensitivity: 'base'
@@ -74,7 +79,7 @@ function compareDefaultValues(
   type: ColumnDef['type'],
   leftValue: unknown,
   rightValue: unknown
-): number {
+): DefaultCompareResult {
   const leftComparable =
     type === 'number'
       ? prepareNumberValue(leftValue)
@@ -89,22 +94,28 @@ function compareDefaultValues(
         : prepareTextValue(rightValue);
 
   if (leftComparable.isNull && rightComparable.isNull) {
-    return 0;
+    return { result: 0, usedNullOrdering: true };
   }
 
   if (leftComparable.isNull) {
-    return 1;
+    return { result: 1, usedNullOrdering: true };
   }
 
   if (rightComparable.isNull) {
-    return -1;
+    return { result: -1, usedNullOrdering: true };
   }
 
   if (type === 'number' || type === 'date') {
-    return compareNumbers(leftComparable.value as number, rightComparable.value as number);
+    return {
+      result: compareNumbers(leftComparable.value as number, rightComparable.value as number),
+      usedNullOrdering: false
+    };
   }
 
-  return compareText(leftComparable.value as string, rightComparable.value as string);
+  return {
+    result: compareText(leftComparable.value as string, rightComparable.value as string),
+    usedNullOrdering: false
+  };
 }
 
 function compareNullishValues(leftValue: unknown, rightValue: unknown): number {
@@ -206,11 +217,18 @@ export function applySort<TRow>(
 
       const compared =
         column?.comparator !== undefined
-          ? column.comparator(leftValue, rightValue, leftRow, rightRow)
+          ? {
+              result: column.comparator(leftValue, rightValue, leftRow, rightRow),
+              usedNullOrdering: false
+            }
           : compareDefaultValues(column?.type, leftValue, rightValue);
 
-      if (compared !== 0) {
-        return rule.direction === 'desc' ? -compared : compared;
+      if (compared.result !== 0) {
+        if (compared.usedNullOrdering) {
+          return compared.result;
+        }
+
+        return rule.direction === 'desc' ? -compared.result : compared.result;
       }
     }
 
