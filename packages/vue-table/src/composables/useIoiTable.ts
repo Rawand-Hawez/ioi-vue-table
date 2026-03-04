@@ -1,4 +1,5 @@
 import { computed, ref, shallowRef, unref, watch } from 'vue';
+import type { MaybeRef } from 'vue';
 import type {
   ColumnDef,
   ExportCsvOptions,
@@ -6,11 +7,13 @@ import type {
   IoiSemanticEventType,
   IoiTableApi,
   IoiTableOptions,
-  IoiTableState
+  IoiTableState,
+  VirtualRange
 } from '../types';
 
 const SCHEMA_VERSION = 1 as const;
 const DEFAULT_ROW_HEIGHT = 36;
+const DEFAULT_OVERSCAN = 5;
 const DEFAULT_VIEWPORT_HEIGHT = 320;
 
 function createInitialState(viewportHeight: number): IoiTableState {
@@ -24,6 +27,22 @@ function createInitialState(viewportHeight: number): IoiTableState {
       viewportHeight
     }
   };
+}
+
+function normalizePositiveNumber(value: number | undefined, fallback: number): number {
+  if (typeof value !== 'number' || Number.isNaN(value) || value <= 0) {
+    return fallback;
+  }
+
+  return value;
+}
+
+function clamp(value: number, min: number, max: number): number {
+  return Math.min(Math.max(value, min), max);
+}
+
+function toIndexArray(start: number, end: number): number[] {
+  return Array.from({ length: Math.max(0, end - start) }, (_, offset) => start + offset);
 }
 
 function stringifyCell(value: unknown): string {
@@ -51,33 +70,107 @@ function getFieldValue<TRow>(row: TRow, field: string): unknown {
 }
 
 export function useIoiTable<TRow = Record<string, unknown>>(
-  options: IoiTableOptions<TRow> = {}
+  options: MaybeRef<IoiTableOptions<TRow>> = {}
 ): IoiTableApi<TRow> {
-  const normalizedRows = shallowRef(options.rows ?? []);
-  const normalizedColumns = shallowRef(options.columns ?? []);
+  const resolvedOptions = computed(() => unref(options));
+  const normalizedRows = shallowRef<TRow[]>([]);
+  const normalizedColumns = shallowRef<ColumnDef<TRow>[]>([]);
 
-  const rowHeight = ref(options.rowHeight ?? DEFAULT_ROW_HEIGHT);
-  const state = ref<IoiTableState>(createInitialState(options.viewportHeight ?? DEFAULT_VIEWPORT_HEIGHT));
+  const rowHeight = ref(DEFAULT_ROW_HEIGHT);
+  const overscan = ref(DEFAULT_OVERSCAN);
+  const state = ref<IoiTableState>(createInitialState(DEFAULT_VIEWPORT_HEIGHT));
   const lastEvent = ref<IoiSemanticEvent<unknown> | null>(null);
 
-  watch(
-    () => unref(options.rows),
-    (rows) => {
-      normalizedRows.value = rows ?? [];
-    }
-  );
+  const totalRows = computed(() => normalizedRows.value.length);
+  const totalHeight = computed(() => totalRows.value * rowHeight.value);
 
-  watch(
-    () => unref(options.columns),
-    (columns) => {
-      normalizedColumns.value = columns ?? [];
+  const virtualRange = computed<VirtualRange>(() => {
+    if (totalRows.value === 0) {
+      return { start: 0, end: 0 };
     }
-  );
 
-  const visibleIndices = computed<number[]>(() => normalizedRows.value.map((_, rowIndex) => rowIndex));
+    const viewportHeight = state.value.viewport.viewportHeight;
+    const visibleCount = Math.max(1, Math.ceil(viewportHeight / rowHeight.value));
+    const start = clamp(
+      Math.floor(state.value.viewport.scrollTop / rowHeight.value) - overscan.value,
+      0,
+      totalRows.value
+    );
+    const end = clamp(start + visibleCount + overscan.value * 2, start, totalRows.value);
+
+    return { start, end };
+  });
+
+  const visibleIndices = computed<number[]>(() =>
+    toIndexArray(virtualRange.value.start, virtualRange.value.end)
+  );
 
   const visibleRows = computed<TRow[]>(() =>
-    visibleIndices.value.map((rowIndex) => normalizedRows.value[rowIndex])
+    visibleIndices.value
+      .map((rowIndex) => normalizedRows.value[rowIndex])
+      .filter((row): row is TRow => row !== undefined)
+  );
+
+  const virtualPaddingTop = computed(() => virtualRange.value.start * rowHeight.value);
+  const virtualPaddingBottom = computed(() => {
+    const renderedHeight = visibleIndices.value.length * rowHeight.value;
+    return Math.max(0, totalHeight.value - virtualPaddingTop.value - renderedHeight);
+  });
+
+  watch(
+    () => resolvedOptions.value.rows,
+    (rows) => {
+      normalizedRows.value = rows ? [...rows] : [];
+    },
+    { immediate: true }
+  );
+
+  watch(
+    () => resolvedOptions.value.columns,
+    (columns) => {
+      normalizedColumns.value = columns ? [...columns] : [];
+    },
+    { immediate: true }
+  );
+
+  watch(
+    () => resolvedOptions.value.rowHeight,
+    (nextRowHeight) => {
+      rowHeight.value = normalizePositiveNumber(nextRowHeight, DEFAULT_ROW_HEIGHT);
+    },
+    { immediate: true }
+  );
+
+  watch(
+    () => resolvedOptions.value.overscan,
+    (nextOverscan) => {
+      if (typeof nextOverscan !== 'number' || Number.isNaN(nextOverscan) || nextOverscan < 0) {
+        overscan.value = DEFAULT_OVERSCAN;
+        return;
+      }
+
+      overscan.value = Math.floor(nextOverscan);
+    },
+    { immediate: true }
+  );
+
+  watch(
+    () => resolvedOptions.value.viewportHeight,
+    (nextViewportHeight) => {
+      setViewport(
+        state.value.viewport.scrollTop,
+        normalizePositiveNumber(nextViewportHeight, DEFAULT_VIEWPORT_HEIGHT)
+      );
+    },
+    { immediate: true }
+  );
+
+  watch(
+    [totalHeight, () => state.value.viewport.viewportHeight],
+    () => {
+      setViewport(state.value.viewport.scrollTop, state.value.viewport.viewportHeight);
+    },
+    { flush: 'sync' }
   );
 
   function emitSemanticEvent<TPayload>(
@@ -96,7 +189,7 @@ export function useIoiTable<TRow = Record<string, unknown>>(
   }
 
   function setRows(rows: TRow[]): void {
-    normalizedRows.value = rows;
+    normalizedRows.value = [...rows];
     emitSemanticEvent('data:explore', {
       reason: 'setRows',
       rowCount: rows.length
@@ -104,7 +197,7 @@ export function useIoiTable<TRow = Record<string, unknown>>(
   }
 
   function setColumns(columns: ColumnDef<TRow>[]): void {
-    normalizedColumns.value = columns;
+    normalizedColumns.value = [...columns];
     emitSemanticEvent('data:explore', {
       reason: 'setColumns',
       columnCount: columns.length
@@ -112,18 +205,33 @@ export function useIoiTable<TRow = Record<string, unknown>>(
   }
 
   function setViewport(scrollTop: number, viewportHeight = state.value.viewport.viewportHeight): void {
+    const nextViewportHeight = normalizePositiveNumber(viewportHeight, DEFAULT_VIEWPORT_HEIGHT);
+    const maxScrollTop = Math.max(0, totalHeight.value - nextViewportHeight);
+    const nextScrollTop = clamp(scrollTop, 0, maxScrollTop);
+
+    if (
+      nextScrollTop === state.value.viewport.scrollTop &&
+      nextViewportHeight === state.value.viewport.viewportHeight
+    ) {
+      return;
+    }
+
     state.value = {
       ...state.value,
       viewport: {
-        scrollTop,
-        viewportHeight
+        scrollTop: nextScrollTop,
+        viewportHeight: nextViewportHeight
       }
     };
   }
 
   function scrollToRow(index: number): void {
-    const clamped = Math.max(0, index);
-    setViewport(clamped * rowHeight.value, state.value.viewport.viewportHeight);
+    if (totalRows.value === 0) {
+      return;
+    }
+
+    const clampedIndex = clamp(index, 0, totalRows.value - 1);
+    setViewport(clampedIndex * rowHeight.value, state.value.viewport.viewportHeight);
   }
 
   function exportCSV(csvOptions: ExportCsvOptions = {}): string {
@@ -135,7 +243,7 @@ export function useIoiTable<TRow = Record<string, unknown>>(
       ? `${visibleColumns.map((column) => column.header ?? String(column.field)).join(delimiter)}\n`
       : '';
 
-    const rows = visibleRows.value
+    const rows = normalizedRows.value
       .map((row) =>
         visibleColumns
           .map((column) => stringifyCell(getFieldValue(row, String(column.field))))
@@ -166,7 +274,14 @@ export function useIoiTable<TRow = Record<string, unknown>>(
     schemaVersion: SCHEMA_VERSION,
     rows: normalizedRows,
     columns: normalizedColumns,
+    rowHeight,
+    overscan,
     state,
+    totalRows,
+    totalHeight,
+    virtualRange,
+    virtualPaddingTop,
+    virtualPaddingBottom,
     visibleIndices,
     visibleRows,
     lastEvent,

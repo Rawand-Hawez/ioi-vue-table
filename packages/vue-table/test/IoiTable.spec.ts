@@ -4,24 +4,31 @@ import IoiTable from '../src/components/IoiTable.vue';
 
 describe('IoiTable', () => {
   it('renders columns and rows', () => {
+    const rows = Array.from({ length: 20 }, (_, index) => ({
+      id: index + 1,
+      name: `Name ${index + 1}`
+    }));
+
     const wrapper = mount(IoiTable, {
       props: {
         columns: [
           { field: 'id', header: 'ID' },
           { field: 'name', header: 'Name' }
         ],
-        rows: [
-          { id: 1, name: 'Aster' },
-          { id: 2, name: 'Beryl' }
-        ]
+        rows,
+        rowHeight: 24,
+        height: 72,
+        overscan: 1
       }
     });
 
     expect(wrapper.findAll('thead th')).toHaveLength(2);
     expect(wrapper.text()).toContain('ID');
     expect(wrapper.text()).toContain('Name');
-    expect(wrapper.text()).toContain('Aster');
-    expect(wrapper.text()).toContain('Beryl');
+
+    const renderedRows = wrapper.findAll('tbody tr.ioi-table__row');
+    expect(renderedRows.length).toBeLessThan(rows.length);
+    expect(renderedRows.length).toBe(5);
   });
 
   it('renders empty slot when no rows exist', () => {
