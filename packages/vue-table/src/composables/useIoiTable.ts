@@ -1,6 +1,7 @@
 import { computed, ref, shallowRef, unref, watch } from 'vue';
 import type { MaybeRef } from 'vue';
 import type {
+  ColumnFilter,
   ColumnDef,
   ExportCsvOptions,
   IoiSemanticEvent,
@@ -11,6 +12,7 @@ import type {
   SortState,
   VirtualRange
 } from '../types';
+import { applyFilters } from '../utils/filter';
 import { get as getNestedPathValue } from '../utils/nestedPath';
 import { applySort, toggleSortState } from '../utils/sort';
 
@@ -23,6 +25,7 @@ function createInitialState(viewportHeight: number): IoiTableState {
   return {
     sort: [],
     filters: [],
+    globalSearch: '',
     selectedRowKeys: [],
     editingCell: null,
     viewport: {
@@ -82,7 +85,16 @@ export function useIoiTable<TRow = Record<string, unknown>>(
 
   const totalRows = computed(() => normalizedRows.value.length);
   const baseIndices = computed<number[]>(() => toIndexArray(0, totalRows.value));
-  const filteredIndices = computed<number[]>(() => baseIndices.value);
+  const filteredIndices = computed<number[]>(() =>
+    applyFilters(
+      baseIndices.value,
+      normalizedRows.value,
+      state.value.filters,
+      state.value.globalSearch,
+      normalizedColumns.value,
+      getFieldValue
+    )
+  );
   const sortedIndices = computed<number[]>(() =>
     applySort(
       filteredIndices.value,
@@ -244,6 +256,98 @@ export function useIoiTable<TRow = Record<string, unknown>>(
     });
   }
 
+  function setColumnFilter(field: string, filter: ColumnFilter): void {
+    const normalizedField = String(field);
+    if (!normalizedField) {
+      return;
+    }
+
+    const existingIndex = state.value.filters.findIndex((entry) => entry.field === normalizedField);
+    const nextFilters = [...state.value.filters];
+    const nextFilterState = {
+      field: normalizedField,
+      filter
+    };
+
+    if (existingIndex === -1) {
+      nextFilters.push(nextFilterState);
+    } else {
+      const existing = nextFilters[existingIndex];
+      if (
+        existing &&
+        existing.field === normalizedField &&
+        JSON.stringify(existing.filter) === JSON.stringify(filter)
+      ) {
+        return;
+      }
+
+      nextFilters[existingIndex] = nextFilterState;
+    }
+
+    state.value = {
+      ...state.value,
+      filters: nextFilters
+    };
+
+    emitSemanticEvent('data:filter', {
+      filters: nextFilters,
+      globalSearch: state.value.globalSearch
+    });
+  }
+
+  function clearColumnFilter(field: string): void {
+    const normalizedField = String(field);
+    const nextFilters = state.value.filters.filter((entry) => entry.field !== normalizedField);
+
+    if (nextFilters.length === state.value.filters.length) {
+      return;
+    }
+
+    state.value = {
+      ...state.value,
+      filters: nextFilters
+    };
+
+    emitSemanticEvent('data:filter', {
+      filters: nextFilters,
+      globalSearch: state.value.globalSearch
+    });
+  }
+
+  function setGlobalSearch(text: string): void {
+    const nextGlobalSearch = text;
+    if (nextGlobalSearch === state.value.globalSearch) {
+      return;
+    }
+
+    state.value = {
+      ...state.value,
+      globalSearch: nextGlobalSearch
+    };
+
+    emitSemanticEvent('data:filter', {
+      filters: state.value.filters,
+      globalSearch: nextGlobalSearch
+    });
+  }
+
+  function clearAllFilters(): void {
+    if (state.value.filters.length === 0 && state.value.globalSearch.length === 0) {
+      return;
+    }
+
+    state.value = {
+      ...state.value,
+      filters: [],
+      globalSearch: ''
+    };
+
+    emitSemanticEvent('data:filter', {
+      filters: [],
+      globalSearch: ''
+    });
+  }
+
   function toggleSort(field: string, multi = false): void {
     const nextSortState = toggleSortState(state.value.sort, field, multi);
     setSortState(nextSortState);
@@ -309,6 +413,10 @@ export function useIoiTable<TRow = Record<string, unknown>>(
     setRows,
     setColumns,
     setSortState,
+    setColumnFilter,
+    clearColumnFilter,
+    setGlobalSearch,
+    clearAllFilters,
     toggleSort,
     setViewport,
     scrollToRow,

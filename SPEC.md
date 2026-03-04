@@ -39,6 +39,14 @@ IOI Vue Table is a performance-first, AI-ready, open-source datatable for Vue 3 
 - Null/undefined values sort last in both asc and desc modes
 - Date sorting accepts `Date` objects and ISO-8601 strings; invalid dates are treated as null (last)
 - Filtering: per-column (text/number/date) + global search
+- Processing pipeline order is locked: `baseIndices -> filteredIndices -> sortedIndices -> visibleIndices`
+- Text filter defaults to `contains` and is case-insensitive by default; `equals` and `startsWith` are supported in v1
+- Number filter operators: `eq`, `lt`, `lte`, `gt`, `gte`, `between` (inclusive range)
+- Date filter operators: `before`, `after`, `on` (`on` matches the same UTC calendar day)
+- Date filters accept `Date` objects and ISO-8601 strings; invalid row dates are treated as null and never match date predicates
+- All filter field access uses nested paths (`nestedPath.get`)
+- Array rule for text/global search: treat arrays as "any element matches" after stringifying each element
+- Global search is case-insensitive and scans visible (non-hidden) configured columns only
 - Grouping: basic 1-level collapsible grouping (no pivot)
 - Aggregation: sum/avg/count for group headers
 
@@ -75,7 +83,7 @@ NOTE: In server-mode v1, grouping/aggregation is either disabled or delegated to
 - Full TypeScript inference on row type T
 - Slots: cell, header, empty, loading, expanded-row
 - Events: row-click, cell-update, selection-change, sort-change, filter-change, state-change
-- Exposed methods: scrollToRow(), exportCSV(), resetState()
+- Exposed methods: scrollToRow(), exportCSV(), resetState(), setColumnFilter(), clearColumnFilter(), setGlobalSearch(), clearAllFilters()
 
 ## 5) Out of Scope (Explicit)
 - Pivoting

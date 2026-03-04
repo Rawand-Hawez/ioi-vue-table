@@ -18,6 +18,10 @@ describe('useIoiTable', () => {
     expect(typeof table.setRows).toBe('function');
     expect(typeof table.setColumns).toBe('function');
     expect(typeof table.setSortState).toBe('function');
+    expect(typeof table.setColumnFilter).toBe('function');
+    expect(typeof table.clearColumnFilter).toBe('function');
+    expect(typeof table.setGlobalSearch).toBe('function');
+    expect(typeof table.clearAllFilters).toBe('function');
     expect(typeof table.toggleSort).toBe('function');
     expect(typeof table.setViewport).toBe('function');
     expect(typeof table.scrollToRow).toBe('function');
@@ -85,5 +89,170 @@ describe('useIoiTable', () => {
 
     table.toggleSort('user.profile.name');
     expect(table.sortedIndices.value).toEqual([0, 1, 2]);
+  });
+
+  it('applies text filters with nested paths and case-insensitive contains by default', () => {
+    const table = useIoiTable({
+      rows: [
+        { id: 1, user: { profile: { name: 'Alice' } } },
+        { id: 2, user: { profile: { name: 'bob' } } },
+        { id: 3, user: { profile: { name: 'ALICIA' } } }
+      ],
+      columns: [{ field: 'user.profile.name', type: 'text' }]
+    });
+
+    table.setColumnFilter('user.profile.name', { type: 'text', value: 'ali' });
+    expect(table.filteredIndices.value).toEqual([0, 2]);
+
+    table.setColumnFilter('user.profile.name', {
+      type: 'text',
+      operator: 'startsWith',
+      value: 'bo'
+    });
+    expect(table.filteredIndices.value).toEqual([1]);
+  });
+
+  it('matches text filters against arrays when any stringified element contains the query', () => {
+    const table = useIoiTable({
+      rows: [
+        { id: 1, tags: ['One', 'Two'] },
+        { id: 2, tags: ['Three', 99] },
+        { id: 3, tags: [] }
+      ],
+      columns: [{ field: 'tags', type: 'text' }]
+    });
+
+    table.setColumnFilter('tags', { type: 'text', value: '99' });
+    expect(table.filteredIndices.value).toEqual([1]);
+
+    table.setColumnFilter('tags', { type: 'text', value: 'wo' });
+    expect(table.filteredIndices.value).toEqual([0]);
+  });
+
+  it('supports all number filter operators', () => {
+    const table = useIoiTable({
+      rows: [
+        { id: 1, amount: 10 },
+        { id: 2, amount: 20 },
+        { id: 3, amount: 30 },
+        { id: 4, amount: 40 }
+      ],
+      columns: [{ field: 'amount', type: 'number' }]
+    });
+
+    table.setColumnFilter('amount', { type: 'number', operator: 'eq', value: 20 });
+    expect(table.filteredIndices.value).toEqual([1]);
+
+    table.setColumnFilter('amount', { type: 'number', operator: 'lt', value: 30 });
+    expect(table.filteredIndices.value).toEqual([0, 1]);
+
+    table.setColumnFilter('amount', { type: 'number', operator: 'lte', value: 20 });
+    expect(table.filteredIndices.value).toEqual([0, 1]);
+
+    table.setColumnFilter('amount', { type: 'number', operator: 'gt', value: 20 });
+    expect(table.filteredIndices.value).toEqual([2, 3]);
+
+    table.setColumnFilter('amount', { type: 'number', operator: 'gte', value: 30 });
+    expect(table.filteredIndices.value).toEqual([2, 3]);
+
+    table.setColumnFilter('amount', { type: 'number', operator: 'between', min: 15, max: 35 });
+    expect(table.filteredIndices.value).toEqual([1, 2]);
+  });
+
+  it('supports date filtering with Date and ISO values and treats invalid as null', () => {
+    const table = useIoiTable({
+      rows: [
+        { id: 1, createdAt: new Date('2024-01-10T12:00:00.000Z') },
+        { id: 2, createdAt: '2024-01-12T08:00:00.000Z' },
+        { id: 3, createdAt: 'not-a-date' },
+        { id: 4, createdAt: null },
+        { id: 5, createdAt: undefined }
+      ],
+      columns: [{ field: 'createdAt', type: 'date' }]
+    });
+
+    table.setColumnFilter('createdAt', {
+      type: 'date',
+      operator: 'before',
+      value: '2024-01-12T00:00:00.000Z'
+    });
+    expect(table.filteredIndices.value).toEqual([0]);
+
+    table.setColumnFilter('createdAt', {
+      type: 'date',
+      operator: 'after',
+      value: new Date('2024-01-10T12:00:00.000Z')
+    });
+    expect(table.filteredIndices.value).toEqual([1]);
+
+    table.setColumnFilter('createdAt', {
+      type: 'date',
+      operator: 'on',
+      value: new Date('2024-01-12T00:00:00.000Z')
+    });
+    expect(table.filteredIndices.value).toEqual([1]);
+  });
+
+  it('keeps filtered rows as sort input in the index pipeline', () => {
+    const table = useIoiTable({
+      rows: [
+        { id: 1, group: 'A', score: 80 },
+        { id: 2, group: 'B', score: 90 },
+        { id: 3, group: 'A', score: 70 },
+        { id: 4, group: 'A', score: 95 }
+      ],
+      columns: [
+        { field: 'group', type: 'text' },
+        { field: 'score', type: 'number' }
+      ]
+    });
+
+    table.setColumnFilter('group', { type: 'text', value: 'a', operator: 'equals' });
+    expect(table.filteredIndices.value).toEqual([0, 2, 3]);
+
+    table.setSortState([{ field: 'score', direction: 'desc' }]);
+    expect(table.sortedIndices.value).toEqual([3, 0, 2]);
+  });
+
+  it('applies global search on visible columns only and supports array values', () => {
+    const table = useIoiTable({
+      rows: [
+        { id: 1, name: 'Alpha', secret: 'needle-only-hidden', tags: ['Red'] },
+        { id: 2, name: 'Beta', secret: 'nope', tags: ['needle-tag'] },
+        { id: 3, name: 'Gamma', secret: 'nothing', tags: [] }
+      ],
+      columns: [
+        { field: 'name', type: 'text' },
+        { field: 'secret', type: 'text', hidden: true },
+        { field: 'tags', type: 'text' }
+      ]
+    });
+
+    table.setGlobalSearch('NEEDLE');
+    expect(table.filteredIndices.value).toEqual([1]);
+
+    table.clearAllFilters();
+    expect(table.filteredIndices.value).toEqual([0, 1, 2]);
+  });
+
+  it('clears per-column filters independently', () => {
+    const table = useIoiTable({
+      rows: [
+        { id: 1, name: 'Alice', age: 10 },
+        { id: 2, name: 'Bob', age: 20 },
+        { id: 3, name: 'Alicia', age: 20 }
+      ],
+      columns: [
+        { field: 'name', type: 'text' },
+        { field: 'age', type: 'number' }
+      ]
+    });
+
+    table.setColumnFilter('name', { type: 'text', value: 'ali' });
+    table.setColumnFilter('age', { type: 'number', operator: 'eq', value: 20 });
+    expect(table.filteredIndices.value).toEqual([2]);
+
+    table.clearColumnFilter('name');
+    expect(table.filteredIndices.value).toEqual([1, 2]);
   });
 });

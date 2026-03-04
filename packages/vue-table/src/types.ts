@@ -37,9 +37,45 @@ export interface SortState {
   direction: 'asc' | 'desc';
 }
 
+export type TextFilterOperator = 'contains' | 'equals' | 'startsWith';
+
+export interface TextColumnFilter {
+  type: 'text';
+  value: string;
+  operator?: TextFilterOperator;
+  caseSensitive?: boolean;
+}
+
+export type NumberFilterOperator = 'eq' | 'lt' | 'lte' | 'gt' | 'gte' | 'between';
+
+export interface NumberValueColumnFilter {
+  type: 'number';
+  operator: Exclude<NumberFilterOperator, 'between'>;
+  value: number | string | null | undefined;
+}
+
+export interface NumberBetweenColumnFilter {
+  type: 'number';
+  operator: 'between';
+  min: number | string | null | undefined;
+  max: number | string | null | undefined;
+}
+
+export type NumberColumnFilter = NumberValueColumnFilter | NumberBetweenColumnFilter;
+
+export type DateFilterOperator = 'before' | 'after' | 'on';
+
+export interface DateColumnFilter {
+  type: 'date';
+  operator: DateFilterOperator;
+  value: Date | string | null | undefined;
+}
+
+export type ColumnFilter = TextColumnFilter | NumberColumnFilter | DateColumnFilter;
+
 export interface FilterState {
   field: string;
-  value: unknown;
+  filter: ColumnFilter;
 }
 
 export interface EditingCellState {
@@ -60,6 +96,7 @@ export interface VirtualRange {
 export interface IoiTableState {
   sort: SortState[];
   filters: FilterState[];
+  globalSearch: string;
   selectedRowKeys: Array<string | number>;
   editingCell: EditingCellState | null;
   viewport: ViewportState;
@@ -83,6 +120,10 @@ export interface IoiTableActions<TRow = Record<string, unknown>> {
   setRows: (rows: TRow[]) => void;
   setColumns: (columns: ColumnDef<TRow>[]) => void;
   setSortState: (sortState: SortState[]) => void;
+  setColumnFilter: (field: string, filter: ColumnFilter) => void;
+  clearColumnFilter: (field: string) => void;
+  setGlobalSearch: (text: string) => void;
+  clearAllFilters: () => void;
   toggleSort: (field: string, multi?: boolean) => void;
   setViewport: (scrollTop: number, viewportHeight?: number) => void;
   scrollToRow: (index: number) => void;

@@ -140,7 +140,11 @@ function onScroll(event: Event): void {
 defineExpose({
   scrollToRow: table.scrollToRow,
   exportCSV: table.exportCSV,
-  resetState: table.resetState
+  resetState: table.resetState,
+  setColumnFilter: table.setColumnFilter,
+  clearColumnFilter: table.clearColumnFilter,
+  setGlobalSearch: table.setGlobalSearch,
+  clearAllFilters: table.clearAllFilters
 });
 </script>
 
