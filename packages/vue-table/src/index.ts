@@ -25,9 +25,12 @@ export type {
   NumberFilterOperator,
   NumberValueColumnFilter,
   RowClickPayload,
+  SelectAllScope,
+  SelectionMode,
   SortState,
   TextColumnFilter,
-  TextFilterOperator
+  TextFilterOperator,
+  ToggleRowOptions
 } from './types';
 
 import './styles.css';

@@ -52,6 +52,10 @@ IOI Vue Table is a performance-first, AI-ready, open-source datatable for Vue 3 
 
 ### Row Operations
 - Selection: single/multi with checkbox, shift-range select, selectAll (scope-aware)
+- Selection state stores row keys (`selectedRowKeys`) and is key-based
+- `rowKey` is required for selection actions; if `rowKey` is missing, selection APIs are disabled with a dev warning
+- Shift-range selection is computed over the current `sortedIndices` order
+- `selectAll` scopes: `visible` (viewport window), `filtered` (sorted+filtered rows), `allLoaded` (all local rows)
 - Expansion: expandable row details (lazy rendered)
 - Editing: inline cell editing (text/number/select/date) with commit/cancel
 
@@ -83,7 +87,7 @@ NOTE: In server-mode v1, grouping/aggregation is either disabled or delegated to
 - Full TypeScript inference on row type T
 - Slots: cell, header, empty, loading, expanded-row
 - Events: row-click, cell-update, selection-change, sort-change, filter-change, state-change
-- Exposed methods: scrollToRow(), exportCSV(), resetState(), setColumnFilter(), clearColumnFilter(), setGlobalSearch(), clearAllFilters()
+- Exposed methods: scrollToRow(), exportCSV(), resetState(), setColumnFilter(), clearColumnFilter(), setGlobalSearch(), clearAllFilters(), toggleRow(), isSelected(), clearSelection(), selectAll(), getSelectedKeys()
 
 ## 5) Out of Scope (Explicit)
 - Pivoting
