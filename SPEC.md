@@ -35,6 +35,9 @@ IOI Vue Table is a performance-first, AI-ready, open-source datatable for Vue 3 
 
 ### Data Operations (Client-side)
 - Sorting: single + multi, custom functions
+- Sorting is stable (equal keys preserve prior order)
+- Null/undefined values sort last in both asc and desc modes
+- Date sorting accepts `Date` objects and ISO-8601 strings; invalid dates are treated as null (last)
 - Filtering: per-column (text/number/date) + global search
 - Grouping: basic 1-level collapsible grouping (no pivot)
 - Aggregation: sum/avg/count for group headers

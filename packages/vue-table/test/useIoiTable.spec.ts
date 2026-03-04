@@ -17,6 +17,8 @@ describe('useIoiTable', () => {
 
     expect(typeof table.setRows).toBe('function');
     expect(typeof table.setColumns).toBe('function');
+    expect(typeof table.setSortState).toBe('function');
+    expect(typeof table.toggleSort).toBe('function');
     expect(typeof table.setViewport).toBe('function');
     expect(typeof table.scrollToRow).toBe('function');
     expect(typeof table.exportCSV).toBe('function');
@@ -61,5 +63,27 @@ describe('useIoiTable', () => {
     expect(table.visibleIndices.value).toHaveLength(5);
     expect(table.virtualPaddingTop.value).toBe(60);
     expect(table.virtualPaddingBottom.value).toBe(1840);
+  });
+
+  it('sorts indices programmatically via sort state actions', () => {
+    const table = useIoiTable({
+      rows: [
+        { id: 1, user: { profile: { name: 'Charlie' } } },
+        { id: 2, user: { profile: { name: 'Alice' } } },
+        { id: 3, user: { profile: { name: 'Bob' } } }
+      ],
+      columns: [{ field: 'user.profile.name', type: 'text' }],
+      rowHeight: 36,
+      viewportHeight: 320
+    });
+
+    table.setSortState([{ field: 'user.profile.name', direction: 'asc' }]);
+    expect(table.sortedIndices.value).toEqual([1, 2, 0]);
+
+    table.toggleSort('user.profile.name');
+    expect(table.sortedIndices.value).toEqual([0, 2, 1]);
+
+    table.toggleSort('user.profile.name');
+    expect(table.sortedIndices.value).toEqual([0, 1, 2]);
   });
 });
