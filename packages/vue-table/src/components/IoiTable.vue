@@ -41,14 +41,54 @@ defineSlots<{
   empty?: () => unknown;
 }>();
 
+const DEFAULT_HEIGHT = 320;
+const DEFAULT_ROW_HEIGHT = 36;
+const DEFAULT_OVERSCAN = 5;
+
+function normalizePositiveNumber(value: unknown, fallback: number): number {
+  if (typeof value === 'number' && Number.isFinite(value) && value > 0) {
+    return value;
+  }
+
+  if (typeof value === 'string') {
+    const parsed = Number(value.trim());
+    if (Number.isFinite(parsed) && parsed > 0) {
+      return parsed;
+    }
+  }
+
+  return fallback;
+}
+
+function normalizeNonNegativeInteger(value: unknown, fallback: number): number {
+  if (typeof value === 'number' && Number.isFinite(value) && value >= 0) {
+    return Math.floor(value);
+  }
+
+  if (typeof value === 'string') {
+    const parsed = Number(value.trim());
+    if (Number.isFinite(parsed) && parsed >= 0) {
+      return Math.floor(parsed);
+    }
+  }
+
+  return fallback;
+}
+
+const normalizedHeight = computed(() => normalizePositiveNumber(props.height, DEFAULT_HEIGHT));
+const normalizedRowHeight = computed(() => normalizePositiveNumber(props.rowHeight, DEFAULT_ROW_HEIGHT));
+const normalizedOverscan = computed(() =>
+  normalizeNonNegativeInteger(props.overscan, DEFAULT_OVERSCAN)
+);
+
 const table = useIoiTable<TRow>(
   computed(() => ({
     rows: props.rows,
     columns: props.columns,
     rowKey: props.rowKey,
-    rowHeight: props.rowHeight,
-    overscan: props.overscan,
-    viewportHeight: props.height
+    rowHeight: normalizedRowHeight.value,
+    overscan: normalizedOverscan.value,
+    viewportHeight: normalizedHeight.value
   }))
 );
 
@@ -126,7 +166,7 @@ watch(
 );
 
 watch(
-  () => props.height,
+  normalizedHeight,
   (nextHeight) => {
     table.setViewport(table.state.value.viewport.scrollTop, nextHeight);
   }
@@ -137,7 +177,10 @@ onMounted(() => {
     return;
   }
 
-  table.setViewport(viewportRef.value.scrollTop, viewportRef.value.clientHeight || props.height);
+  table.setViewport(
+    viewportRef.value.scrollTop,
+    viewportRef.value.clientHeight || normalizedHeight.value
+  );
 });
 
 onUnmounted(() => {
@@ -398,7 +441,7 @@ function onRowClick(row: TRow, rowIndex: number): void {
 
 function onScroll(event: Event): void {
   const target = event.target as HTMLDivElement;
-  table.setViewport(target.scrollTop, target.clientHeight || props.height);
+  table.setViewport(target.scrollTop, target.clientHeight || normalizedHeight.value);
 }
 
 defineExpose({
@@ -431,7 +474,7 @@ defineExpose({
 </script>
 
 <template>
-  <div class="ioi-table" :style="{ '--ioi-table-height': `${height}px` }">
+  <div class="ioi-table" :style="{ '--ioi-table-height': `${normalizedHeight}px` }">
     <div
       ref="viewportRef"
       class="ioi-table__viewport"
@@ -489,7 +532,7 @@ defineExpose({
             v-for="entry in visibleRowEntries"
             :key="resolveRowKey(entry.row, entry.rowIndex)"
             class="ioi-table__row"
-            :style="{ height: `${rowHeight}px` }"
+            :style="{ height: `${normalizedRowHeight}px` }"
             @click="onRowClick(entry.row, entry.rowIndex)"
           >
             <td

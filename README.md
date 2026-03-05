@@ -44,6 +44,10 @@ const rows: UserRow[] = [
 
 `IoiTable` remains available as a backward-compatible alias.
 
+## Operations Guide
+
+- [Sort, filter, search, pagination patterns, and virtual scrolling](docs/table-operations.md)
+
 ## Run Playground
 
 ```bash

@@ -43,3 +43,4 @@ const rows: UserRow[] = [
 
 - Repository: <https://github.com/Rawand-Hawez/ioi-vue-table>
 - Full guide: <https://github.com/Rawand-Hawez/ioi-vue-table#readme>
+- [Sort/filter/search/pagination + virtual scrolling guide](https://github.com/Rawand-Hawez/ioi-vue-table/blob/main/docs/table-operations.md)

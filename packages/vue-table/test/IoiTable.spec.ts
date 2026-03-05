@@ -1,6 +1,6 @@
 import { mount } from '@vue/test-utils';
 import { nextTick } from 'vue';
-import { describe, expect, it } from 'vitest';
+import { describe, expect, it, vi } from 'vitest';
 import IoiTable from '../src/components/IoiTable.vue';
 
 describe('IoiTable', () => {
@@ -30,6 +30,35 @@ describe('IoiTable', () => {
     const renderedRows = wrapper.findAll('tbody tr.ioi-table__row');
     expect(renderedRows.length).toBeLessThan(rows.length);
     expect(renderedRows.length).toBe(5);
+  });
+
+  it('keeps virtualization active when height prop is non-numeric at runtime', () => {
+    const warnSpy = vi.spyOn(console, 'warn').mockImplementation(() => {});
+    const rows = Array.from({ length: 40 }, (_, index) => ({
+      id: index + 1,
+      name: `Name ${index + 1}`
+    }));
+
+    try {
+      const wrapper = mount(IoiTable as unknown as object, {
+        props: {
+          columns: [
+            { field: 'id', header: 'ID' },
+            { field: 'name', header: 'Name' }
+          ],
+          rows,
+          rowHeight: 48,
+          height: '100%',
+          overscan: 1
+        }
+      });
+
+      const renderedRows = wrapper.findAll('tbody tr.ioi-table__row');
+      expect(renderedRows.length).toBeLessThan(rows.length);
+      expect(renderedRows.length).toBe(9);
+    } finally {
+      warnSpy.mockRestore();
+    }
   });
 
   it('renders empty slot when no rows exist', () => {

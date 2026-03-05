@@ -11,3 +11,4 @@ Supporting docs:
 
 - `README.md`
 - `CONTRIBUTING.md`
+- `table-operations.md` (sort/filter/search/pagination patterns + virtual scrolling)
