@@ -1,166 +1,97 @@
-# Sort, Filter, Search, and Pagination Guide
+# Table Operations Guide (v0.1.4)
 
-This guide documents the current v1 behavior of `@ioi-dev/vue-table` and recommended usage patterns.
+This guide is the frontend implementation contract for table interaction features in `@ioi-dev/vue-table@0.1.4`.
 
-## What Is Built In
+## 0.1.4 Snapshot
 
-Built in today:
+Implemented in this release:
 
-- Vertical virtualization (virtual scrolling)
-- Client-side pagination state (controlled) when `pageSize > 0`
 - Client-side sorting (`setSortState`, `toggleSort`)
 - Per-column filtering (`setColumnFilter`, `clearColumnFilter`, `clearAllFilters`)
 - Global search (`setGlobalSearch`)
-- Faceted select options via `getColumnFacetOptions(field)` (excludes the column’s own filter)
+- Controlled pagination (`pageIndex`, `pageSize`, `pagination-change`)
+- Header filter controls (`headerFilter: 'text' | 'select'`)
+- Faceted dropdown options (`getColumnFacetOptions(field)`) based on other active filters + global search, excluding self-filter
+- Headless rendering (`header-filter` slot + class hooks; no bundled visual theme)
 
-Not built in yet:
+Still not included:
 
-- Pagination UI controls (you render buttons/selects in app code)
+- Built-in pagination UI (frontend app renders buttons/selectors)
 
-Data pipeline order is fixed:
+## Pipeline Order
+
+Pipeline order is fixed:
 
 `baseIndices -> filteredIndices -> sortedIndices -> (virtual slice | page slice) -> visibleIndices`
 
-## Virtual Scrolling
+Meaning:
 
-Virtual scrolling is enabled by default in `<Table />` when pagination is not enabled.
+- Filters and global search run before sort.
+- Pagination always applies to the filtered+sorted dataset.
+- Virtual scrolling and pagination are mutually exclusive view modes.
 
-When `pageSize > 0` (pagination enabled), the table renders the current page and virtual scrolling is disabled.
+## Virtual Scroll vs Pagination
 
-```vue
-<Table
-  :rows="rows"
-  :columns="columns"
-  row-key="id"
-  :height="420"
-  :row-height="34"
-  :overscan="6"
-/>
-```
+- Virtual scrolling is active when `pageSize <= 0` (or omitted).
+- Pagination is active when `pageSize > 0`.
+- When pagination is active, virtual paddings are disabled and the current page rows are rendered.
 
-How it works:
-
-- `height` creates the internal scroll viewport and should always be set intentionally.
-- `row-height` is used to compute virtual ranges and paddings.
-- `overscan` renders extra rows above/below the viewport to reduce pop-in while scrolling.
-- `height` is treated as a numeric pixel value (`number` prop). Non-numeric values are ignored and fallback to default height.
-
-Current defaults:
+Defaults:
 
 - `height = 320`
 - `rowHeight = 36`
 - `overscan = 5`
 
-Tuning tips:
+Important:
 
-- Increase `overscan` when fast scrolling shows row pop-in.
-- Keep `row-height` close to actual row CSS height for accurate scroll math.
-- For very large local datasets, keep pagination server-side when possible.
+- Use numeric `:height` (for example `:height="420"`), not string values like `height="100%"`.
+- Keep row CSS height aligned with `rowHeight` for accurate viewport math.
 
-Troubleshooting:
+## Frontend State Model (Recommended)
 
-- Use `:height="420"` (number binding), not `height="100%"` (string).
-- Keep `overscan` relatively small (single-digit to low double-digit values for most cases).
-- If you are paginating (`pageSize > 0`), `height` is treated as a virtual scrolling concern and does not create an internal scroll viewport.
-
-## Sort
-
-### Programmatic sort with `<Table />`
-
-```vue
-<script setup lang="ts">
-import { ref } from 'vue';
-import { Table, type ColumnDef, type SortState } from '@ioi-dev/vue-table';
-
-interface Row {
-  id: number;
-  city: string;
-  score: number;
-}
-
-const rows = ref<Row[]>([]);
-const columns: ColumnDef<Row>[] = [
-  { field: 'id', type: 'number', width: 90 },
-  { field: 'city', type: 'text' },
-  { field: 'score', type: 'number' }
-];
-
-interface TableExpose {
-  setSortState: (sortState: SortState[]) => void;
-  toggleSort: (field: string, multi?: boolean) => void;
-}
-
-const tableRef = ref<TableExpose | null>(null);
-
-function sortScoreDesc(): void {
-  tableRef.value?.setSortState([{ field: 'score', direction: 'desc' }]);
-}
-
-function multiSortCityThenScore(): void {
-  tableRef.value?.setSortState([
-    { field: 'city', direction: 'asc' },
-    { field: 'score', direction: 'desc' }
-  ]);
-}
-
-function cycleScoreSort(): void {
-  tableRef.value?.toggleSort('score');
-  // toggle order: none -> asc -> desc -> none
-}
-</script>
-
-<template>
-  <button type="button" @click="sortScoreDesc">Sort Score Desc</button>
-  <button type="button" @click="multiSortCityThenScore">Sort City + Score</button>
-  <button type="button" @click="cycleScoreSort">Toggle Score Sort</button>
-
-  <Table ref="tableRef" :rows="rows" :columns="columns" row-key="id" :height="360" />
-</template>
-```
-
-### Sort behavior guarantees
-
-- Stable sort: equal values keep prior order.
-- Multi-sort order follows array order in `setSortState`.
-- `null`/`undefined` sort last in both ascending and descending.
-- Date columns accept `Date` and ISO strings; invalid dates are treated as null (last).
-
-## Column Filters
-
-Use `setColumnFilter(field, filter)` where `filter` is one of:
-
-- Text: `{ type: 'text', value, operator?, caseSensitive? }`
-- Number: `{ type: 'number', operator, value }` or `{ type: 'number', operator: 'between', min, max }`
-- Date: `{ type: 'date', operator: 'before' | 'after' | 'on', value }`
-
-Examples:
+Use a single reactive model in your page/container component:
 
 ```ts
-tableRef.value?.setColumnFilter('city', {
-  type: 'text',
-  operator: 'equals',
-  value: 'Erbil'
-});
-
-tableRef.value?.setColumnFilter('score', {
-  type: 'number',
-  operator: 'gte',
-  value: 700
-});
-
-tableRef.value?.setColumnFilter('createdAt', {
-  type: 'date',
-  operator: 'after',
-  value: '2026-01-01T00:00:00.000Z'
-});
-
-tableRef.value?.clearColumnFilter('score');
-tableRef.value?.clearAllFilters();
+const pageIndex = ref(0);
+const pageSize = ref(25);
+const pageCount = ref(1);
+const rowCount = ref(0);
+const globalSearch = ref('');
 ```
 
-### Header filter UI in `<Table />` (headless)
+Recommendation for this project stage:
 
-You can opt into simple, unstyled header filter controls per column:
+- Keep client-side datasets around ~1k rows for rich interaction views.
+- Switch to backend pagination/filtering for larger datasets.
+
+## Controlled Pagination Contract
+
+`pageIndex` is `0`-based.
+
+`pagination-change` payload:
+
+```ts
+interface IoiPaginationChangePayload {
+  pageIndex: number;
+  pageSize: number;
+  pageCount: number;
+  rowCount: number;
+  reason: 'setPageIndex' | 'setPageSize' | 'autoReset' | 'clamp' | 'resetState' | 'meta';
+}
+```
+
+Reason semantics:
+
+- `setPageIndex`: user/app moved page
+- `setPageSize`: page size changed (table resets page index to `0`)
+- `autoReset`: sort/filter/search changed while on page > 0
+- `clamp`: current page became out-of-range after row-count change
+- `resetState`: full table reset
+- `meta`: metadata changed (for example external prop update or pageCount/rowCount refresh)
+
+## Header Filters Contract
+
+Column config:
 
 ```ts
 const columns: ColumnDef<Row>[] = [
@@ -171,43 +102,44 @@ const columns: ColumnDef<Row>[] = [
 
 Behavior:
 
-- `headerFilter: 'text'` renders an `<input>` and applies a text `contains` filter.
-- `headerFilter: 'select'` renders a `<select>` and applies a text `equals` filter.
-- Select options are derived from `getColumnFacetOptions(field)` using **other filters + global search** (excluding the column’s own filter).
-- Use the `header-filter` slot to render your own control with Tailwind/ShadCN/Bootstrap, etc.
+- `headerFilter: 'text'` -> text filter with operator `contains`
+- `headerFilter: 'select'` -> text filter with operator `equals`
+- Select options come from `getColumnFacetOptions(field)`
+- Facet generation excludes the column's own filter and respects all other active filters + global search
+- Header filter identity is tied to `column.field` (safe for duplicate visual columns)
 
-### Filter semantics
+## Headless Styling Contract
 
-- Text defaults: `operator='contains'`, `caseSensitive=false`.
-- Number operators: `eq`, `lt`, `lte`, `gt`, `gte`, `between` (inclusive).
-- Date `on` compares by UTC calendar day.
-- Nested paths are supported (example: `user.profile.name`, `items.0.price`).
-- Arrays match if any stringified element matches the text/global query.
+The table is intentionally unthemed. Style from app-level CSS or framework utilities.
 
-## Global Search
+Main class hooks:
+
+- `.ioi-table`
+- `.ioi-table__viewport`
+- `.ioi-table__table`
+- `.ioi-table__header-content`
+- `.ioi-table__filter-input`
+- `.ioi-table__filter-select`
+- `.ioi-table__row`
+- `.ioi-table__empty`
+
+For fully custom header controls, use the `header-filter` slot.
+
+Slot props:
 
 ```ts
-tableRef.value?.setGlobalSearch('needle');
+interface HeaderFilterSlotProps<TRow> {
+  column: ColumnDef<TRow>;
+  columnIndex: number;
+  mode: 'text' | 'select';
+  value: string;
+  options?: string[];
+  setValue: (value: string) => void;
+  clear: () => void;
+}
 ```
 
-Rules:
-
-- Case-insensitive.
-- Searches only visible columns (`hidden !== true`).
-- Composes with column filters (both must match).
-
-## Pagination
-
-Pagination is a client-side view over the fully filtered + sorted dataset.
-
-Rules:
-
-- `pageIndex` is **0-based**.
-- Enable pagination by setting `pageSize > 0`.
-- When pagination is enabled, virtual scrolling is disabled and the table renders the current page rows.
-- Sort/filter/search auto-reset the page index to `0`.
-
-### Controlled pagination with `<Table />`
+## Implementation Blueprint (Copy/Paste)
 
 ```vue
 <script setup lang="ts">
@@ -216,29 +148,35 @@ import { Table, type ColumnDef, type IoiPaginationChangePayload } from '@ioi-dev
 
 interface Row {
   id: number;
-  name: string;
+  owner: string;
+  status: string;
   score: number;
 }
 
 const rows = ref<Row[]>([]);
-const columns: ColumnDef<Row>[] = [
-  { field: 'id', type: 'number' },
-  { field: 'name', type: 'text' },
-  { field: 'score', type: 'number' }
-];
-
-const pageSize = ref(25);
 const pageIndex = ref(0);
+const pageSize = ref(25);
 const pageCount = ref(1);
+const rowCount = ref(0);
+
+const columns: ColumnDef<Row>[] = [
+  { field: 'id', header: 'ID', type: 'number', width: 90 },
+  { field: 'status', header: 'Status', type: 'text', headerFilter: 'select' },
+  { field: 'owner', header: 'Owner', type: 'text', headerFilter: 'text' },
+  { field: 'score', header: 'Score', type: 'number' }
+];
 
 function onPaginationChange(payload: IoiPaginationChangePayload): void {
   pageCount.value = payload.pageCount;
+  rowCount.value = payload.rowCount;
 }
 
 function nextPage(): void {
-  if (pageIndex.value < pageCount.value - 1) {
-    pageIndex.value += 1;
-  }
+  if (pageIndex.value < pageCount.value - 1) pageIndex.value += 1;
+}
+
+function prevPage(): void {
+  if (pageIndex.value > 0) pageIndex.value -= 1;
 }
 </script>
 
@@ -249,22 +187,54 @@ function nextPage(): void {
     :rows="rows"
     :columns="columns"
     row-key="id"
-    :height="360"
+    :height="420"
+    :row-height="36"
+    :overscan="5"
     @pagination-change="onPaginationChange"
   />
-  <button type="button" @click="nextPage">Next</button>
+
+  <div class="table-pager">
+    <button type="button" :disabled="pageIndex === 0" @click="prevPage">Prev</button>
+    <span>Page {{ pageIndex + 1 }} / {{ pageCount }}</span>
+    <button type="button" :disabled="pageIndex >= pageCount - 1" @click="nextPage">Next</button>
+    <select v-model.number="pageSize">
+      <option :value="10">10</option>
+      <option :value="25">25</option>
+      <option :value="50">50</option>
+    </select>
+    <span>{{ rowCount }} rows</span>
+  </div>
 </template>
 ```
 
-### Server-side pagination (still recommended for large datasets)
+## Programmatic Operations
 
-- Keep `pageIndex`, `pageSize`, `sort`, `filters`, `globalSearch` in your app state.
-- Fetch only the current page rows from your backend.
-- Pass fetched rows into `<Table />` and **do not enable client-side pagination** (omit `pageSize` or set `pageSize` to `0`).
+Use component `ref` and exposed methods for external controls:
 
-## Common Mistakes
+- `setSortState(sortState)`
+- `toggleSort(field, multi?)`
+- `setColumnFilter(field, filter)`
+- `clearColumnFilter(field)`
+- `clearAllFilters()`
+- `setGlobalSearch(text)`
+- `setPageIndex(index)`
+- `setPageSize(size)`
+- `getColumnFacetOptions(field)`
 
-- Applying global search to hidden columns: hidden columns are intentionally excluded.
-- Treating `pageIndex` as 1-based: it is 0-based.
-- Double paginating: don’t page rows in app code and also set `pageSize` on `<Table />`.
-- Using client-side pagination for very large data: prefer server-side pagination for scale.
+## Server-Mode Guidance
+
+For backend-driven datasets:
+
+- Keep sort/filter/search/page state in app store/router.
+- Fetch current page from API.
+- Pass fetched rows to `<Table />`.
+- Do not enable client-side pagination (`pageSize = 0` or omit it).
+
+## Common Integration Mistakes
+
+- Treating `pageIndex` as 1-based.
+- Rendering backend-paginated rows while also enabling client-side pagination.
+- Expecting hidden columns to be included in global search.
+- Passing non-numeric `height` and expecting virtual scrolling to behave correctly.
+- Forgetting to render your own pager controls (table does not ship pagination UI).
+

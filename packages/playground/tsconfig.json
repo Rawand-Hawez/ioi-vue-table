@@ -3,6 +3,8 @@
   "include": ["src/**/*.ts", "src/**/*.vue"],
   "compilerOptions": {
     "baseUrl": ".",
+    "incremental": true,
+    "tsBuildInfoFile": "../../.cache/tsbuildinfo/playground.typecheck.tsbuildinfo",
     "paths": {
       "@ioi-dev/vue-table": ["../vue-table/src/index.ts"]
     }

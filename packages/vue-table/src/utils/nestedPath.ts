@@ -1,10 +1,35 @@
 type PathSegments = readonly string[];
 
+const PATH_CACHE_MAX_ENTRIES = 2048;
 const pathCache = new Map<string, PathSegments | null>();
 const dotCharCode = 46;
 const zeroCharCode = 48;
 const nineCharCode = 57;
 const hasOwnProperty = Object.prototype.hasOwnProperty;
+
+function getCachedPath(path: string): PathSegments | null | undefined {
+  if (!pathCache.has(path)) {
+    return undefined;
+  }
+
+  const cached = pathCache.get(path) ?? null;
+  pathCache.delete(path);
+  pathCache.set(path, cached);
+  return cached;
+}
+
+function setCachedPath(path: string, segments: PathSegments | null): void {
+  if (pathCache.has(path)) {
+    pathCache.delete(path);
+  } else if (pathCache.size >= PATH_CACHE_MAX_ENTRIES) {
+    const oldestKey = pathCache.keys().next().value;
+    if (oldestKey !== undefined) {
+      pathCache.delete(oldestKey);
+    }
+  }
+
+  pathCache.set(path, segments);
+}
 
 function isNumericSegment(segment: string): boolean {
   if (segment.length === 0) {
@@ -22,12 +47,13 @@ function isNumericSegment(segment: string): boolean {
 }
 
 function parsePath(path: string): PathSegments | null {
-  if (pathCache.has(path)) {
-    return pathCache.get(path) ?? null;
+  const cached = getCachedPath(path);
+  if (cached !== undefined) {
+    return cached;
   }
 
   if (path.length === 0) {
-    pathCache.set(path, null);
+    setCachedPath(path, null);
     return null;
   }
 
@@ -40,7 +66,7 @@ function parsePath(path: string): PathSegments | null {
     }
 
     if (index === segmentStart) {
-      pathCache.set(path, null);
+      setCachedPath(path, null);
       return null;
     }
 
@@ -49,12 +75,12 @@ function parsePath(path: string): PathSegments | null {
   }
 
   if (segmentStart === path.length) {
-    pathCache.set(path, null);
+    setCachedPath(path, null);
     return null;
   }
 
   segments.push(path.slice(segmentStart));
-  pathCache.set(path, segments);
+  setCachedPath(path, segments);
 
   return segments;
 }
@@ -174,3 +200,9 @@ export function set(target: unknown, path: string, value: unknown): void {
 
   writeSegment(current, segments[segments.length - 1], value);
 }
+
+export const __nestedPathCache = {
+  size(): number {
+    return pathCache.size;
+  }
+};

@@ -8,6 +8,8 @@ Performance-first Vue 3 data table with a small API surface and JS-first default
 npm install @ioi-dev/vue-table vue
 ```
 
+Default package entry imports library CSS. Use `@ioi-dev/vue-table/unstyled` for zero-CSS integration.
+
 ## Quick Start
 
 ```vue
@@ -79,3 +81,9 @@ const columns: ColumnDef<UserRow>[] = [
 - Repository: <https://github.com/Rawand-Hawez/ioi-vue-table>
 - Full guide: <https://github.com/Rawand-Hawez/ioi-vue-table#readme>
 - [Sort/filter/search/pagination + virtual scrolling guide](https://github.com/Rawand-Hawez/ioi-vue-table/blob/main/docs/table-operations.md)
+
+## Behavior Defaults
+
+- CSV export sanitizes formula-like prefixes by default (`sanitizeFormulas: true`).
+- Optional debounce: `globalSearchDebounceMs` and `filterDebounceMs` (default `0`).
+- Virtualization knobs remain configurable via `rowHeight` and `overscan`.

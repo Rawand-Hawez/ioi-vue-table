@@ -155,6 +155,7 @@ export interface CsvImportPreview<TRow = Record<string, unknown>> {
   mapping: CsvImportMapping;
   columns: CsvImportPreviewColumn[];
   rows: CsvImportPreviewRow<TRow>[];
+  fatalError?: string | null;
 }
 
 export interface CommitCsvImportOptions {
@@ -191,11 +192,20 @@ export interface IoiTableState {
 export interface IoiTableOptions<TRow = Record<string, unknown>> {
   rows?: TRow[];
   columns?: ColumnDef<TRow>[];
+  /** Row key selector used for selection/editing identity. */
   rowKey?: keyof TRow | ((row: TRow, index: number) => string | number);
   selectionMode?: SelectionMode;
+  /** Virtual row height in pixels. */
   rowHeight?: number;
+  /** Number of extra rows rendered before/after the viewport. */
   overscan?: number;
   viewportHeight?: number;
+  /** Debounce delay (ms) for global search updates. */
+  globalSearchDebounceMs?: number;
+  /** Debounce delay (ms) for per-column filter updates. */
+  filterDebounceMs?: number;
+  /** Default CSV preview limit when parse options omit previewRowLimit. */
+  defaultCsvPreviewRowLimit?: number;
   pagination?: IoiPaginationOptions;
   onPaginationChange?: (payload: IoiPaginationChangePayload) => void;
   onCellCommit?: (payload: IoiCellCommitPayload<TRow>) => void;
@@ -208,6 +218,10 @@ export interface ExportCsvOptions {
   scope?: ExportCsvScope;
   includeHiddenColumns?: boolean;
   headerMode?: ExportCsvHeaderMode;
+  /** Sanitizes formula-like prefixes to mitigate CSV injection in spreadsheet tools. Defaults to true. */
+  sanitizeFormulas?: boolean;
+  /** Prefix used when formula sanitization is active. Defaults to `'`. */
+  formulaEscapePrefix?: "'" | '\t';
 }
 
 export interface StartEditOptions {
@@ -227,12 +241,19 @@ export interface IoiCellCommitPayload<TRow = Record<string, unknown>> {
 }
 
 export interface IoiTableActions<TRow = Record<string, unknown>> {
+  /** Replaces table rows. */
   setRows: (rows: TRow[]) => void;
+  /** Replaces table columns. */
   setColumns: (columns: ColumnDef<TRow>[]) => void;
+  /** Sets multi-column sort state. */
   setSortState: (sortState: SortState[]) => void;
+  /** Sets or replaces a filter for a field. */
   setColumnFilter: (field: string, filter: ColumnFilter) => void;
+  /** Clears a filter for a field. */
   clearColumnFilter: (field: string) => void;
+  /** Sets global search text. */
   setGlobalSearch: (text: string) => void;
+  /** Clears all column filters and global search text. */
   clearAllFilters: () => void;
   setPageIndex: (pageIndex: number) => void;
   setPageSize: (pageSize: number) => void;
@@ -249,13 +270,17 @@ export interface IoiTableActions<TRow = Record<string, unknown>> {
   setEditDraft: (value: unknown) => void;
   commitEdit: () => boolean;
   cancelEdit: () => void;
+  /** Exports table data to CSV. */
   exportCSV: (options?: ExportCsvOptions) => string;
+  /** Parses CSV text/blob and returns preview metadata/rows. */
   parseCSV: (
     fileOrText: CsvImportSource,
     options?: ParseCsvOptions
   ) => Promise<CsvImportPreview<TRow>>;
+  /** Commits the most recent CSV parse session. */
   commitCSVImport: (mapping?: CsvImportMapping, options?: CommitCsvImportOptions) => CsvImportResult<TRow>;
   resetState: () => void;
+  /** Emits a schema-versioned semantic event. */
   emitSemanticEvent: <TPayload>(
     type: IoiSemanticEventType,
     payload: TPayload

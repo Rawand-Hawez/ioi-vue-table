@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { get, has, set } from '../src/utils/nestedPath';
+import { __nestedPathCache, get, has, set } from '../src/utils/nestedPath';
 
 describe('nestedPath', () => {
   it('gets and checks nested object values', () => {
@@ -124,5 +124,15 @@ describe('nestedPath', () => {
         name: 'Alpha'
       }
     });
+  });
+
+  it('keeps the internal path cache bounded under high-cardinality paths', () => {
+    const row: Record<string, unknown> = {};
+
+    for (let index = 0; index < 5_000; index += 1) {
+      get(row, `nested.path.${index}`);
+    }
+
+    expect(__nestedPathCache.size()).toBeLessThanOrEqual(2048);
   });
 });

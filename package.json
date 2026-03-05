@@ -13,10 +13,12 @@
     "typecheck": "npm run typecheck --workspace @ioi-dev/vue-table && npm run typecheck --workspace @ioi/vue-table-playground",
     "lint": "npm run lint --workspace @ioi-dev/vue-table && npm run lint --workspace @ioi/vue-table-playground",
     "ci": "npm run lint && npm run typecheck && npm run test && npm run build",
+    "bench": "npm run build --workspace @ioi-dev/vue-table && npm run bench --workspace @ioi/vue-table-bench",
     "build:wasm": "npm run build:wasm --workspace @ioi/vue-table-core"
   },
   "devDependencies": {
     "@changesets/cli": "^2.30.0",
+    "@types/node": "25.3.3",
     "@typescript-eslint/eslint-plugin": "^8.24.1",
     "@typescript-eslint/parser": "^8.24.1",
     "@vitejs/plugin-vue": "^5.2.1",
@@ -25,6 +27,7 @@
     "eslint-plugin-vue": "^9.32.0",
     "jsdom": "^25.0.1",
     "typescript": "^5.7.3",
+    "undici-types": "7.18.2",
     "vite": "^5.4.14",
     "vitest": "^2.1.8",
     "vue": "^3.4.38",

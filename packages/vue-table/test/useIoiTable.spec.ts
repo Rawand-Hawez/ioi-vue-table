@@ -352,6 +352,47 @@ describe('useIoiTable', () => {
     expect(table.filteredIndices.value).toEqual([1, 2]);
   });
 
+  it('debounces column filters and global search when debounce options are configured', () => {
+    vi.useFakeTimers();
+    try {
+      const table = useIoiTable({
+        rows: [
+          { id: 1, name: 'Alpha' },
+          { id: 2, name: 'Beta' },
+          { id: 3, name: 'Gamma' }
+        ],
+        columns: [{ field: 'name', type: 'text' }],
+        filterDebounceMs: 30,
+        globalSearchDebounceMs: 40
+      });
+
+      table.setColumnFilter('name', { type: 'text', value: 'a', operator: 'equals' });
+      expect(table.state.value.filters).toEqual([]);
+      vi.advanceTimersByTime(29);
+      expect(table.state.value.filters).toEqual([]);
+      vi.advanceTimersByTime(1);
+      expect(table.state.value.filters).toEqual([
+        {
+          field: 'name',
+          filter: {
+            type: 'text',
+            value: 'a',
+            operator: 'equals'
+          }
+        }
+      ]);
+
+      table.setGlobalSearch('beta');
+      expect(table.state.value.globalSearch).toBe('');
+      vi.advanceTimersByTime(39);
+      expect(table.state.value.globalSearch).toBe('');
+      vi.advanceTimersByTime(1);
+      expect(table.state.value.globalSearch).toBe('beta');
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
   it('keeps selected keys stable across sorting and filtering', () => {
     const table = useIoiTable({
       rows: [
@@ -461,7 +502,7 @@ describe('useIoiTable', () => {
       columns: [{ field: 'user.profile' }]
     });
 
-    const csv = table.exportCSV({ scope: 'allLoaded' });
+    const csv = table.exportCSV({ scope: 'allLoaded', headerMode: 'header' });
 
     expect(csv).toBe('user.profile.name,user.profile.stats.score\nAlpha,12\nBeta,');
   });
@@ -476,7 +517,7 @@ describe('useIoiTable', () => {
       columns: [{ field: 'tags' }]
     });
 
-    const csv = table.exportCSV({ scope: 'allLoaded' });
+    const csv = table.exportCSV({ scope: 'allLoaded', headerMode: 'header' });
 
     expect(csv).toBe(
       'tags\n"[""alpha"",""beta""]"\n"[{""label"":""x""},99,true]"\n[]'
@@ -489,9 +530,41 @@ describe('useIoiTable', () => {
       columns: [{ field: 'note' }]
     });
 
-    const csv = table.exportCSV({ scope: 'allLoaded' });
+    const csv = table.exportCSV({ scope: 'allLoaded', headerMode: 'header' });
 
     expect(csv).toBe('note\n"Hello, ""World""\nLine 2"');
+  });
+
+  it('sanitizes formula-like CSV fields by default', () => {
+    const table = useIoiTable({
+      rows: [{ id: 1, note: '=SUM(A1:A2)' }, { id: 2, note: ' normal' }],
+      columns: [{ field: 'note', header: '+unsafe_header' }]
+    });
+
+    const csv = table.exportCSV({ scope: 'allLoaded', headerMode: 'header' });
+
+    expect(csv).toBe("'+unsafe_header\n'=SUM(A1:A2)\n normal");
+  });
+
+  it('allows opting out of formula sanitization and supports custom escape prefixes', () => {
+    const table = useIoiTable({
+      rows: [{ id: 1, note: '@cmd' }],
+      columns: [{ field: 'note', header: '-header' }]
+    });
+
+    const rawCsv = table.exportCSV({
+      scope: 'allLoaded',
+      sanitizeFormulas: false,
+      headerMode: 'header'
+    });
+    const tabEscapedCsv = table.exportCSV({
+      scope: 'allLoaded',
+      headerMode: 'header',
+      formulaEscapePrefix: '\t'
+    });
+
+    expect(rawCsv).toBe('-header\n@cmd');
+    expect(tabEscapedCsv).toBe('\t-header\n\t@cmd');
   });
 
   it('supports CSV scopes and preserves sorted order for filtered exports', () => {
@@ -609,6 +682,43 @@ describe('useIoiTable', () => {
     expect(limitedPreview.truncated).toBe(true);
   });
 
+  it('uses defaultCsvPreviewRowLimit from table options when parse options omit it', async () => {
+    const table = useIoiTable({
+      rows: [],
+      columns: [{ field: 'name', type: 'text' }],
+      defaultCsvPreviewRowLimit: 12
+    });
+    const dataRows = Array.from({ length: 20 }, (_, index) => `Name ${index + 1}`).join('\n');
+
+    const preview = await table.parseCSV(`name\n${dataRows}`);
+
+    expect(preview.previewRowLimit).toBe(12);
+    expect(preview.rows).toHaveLength(12);
+    expect(preview.truncated).toBe(true);
+  });
+
+  it('returns a fatalError preview instead of throwing when CSV source reading fails', async () => {
+    const table = useIoiTable({
+      rows: [],
+      columns: [{ field: 'name', type: 'text' }]
+    });
+    const failingSource = {
+      text: async () => {
+        throw new Error('boom');
+      }
+    } as unknown as Blob;
+
+    const preview = await table.parseCSV(failingSource);
+
+    expect(preview.fatalError).toBe('boom');
+    expect(preview.rows).toEqual([]);
+    expect(preview.totalRows).toBe(0);
+    expect(table.lastEvent.value?.type).toBe('data:extract');
+    expect((table.lastEvent.value?.payload as { reason?: string } | undefined)?.reason).toBe(
+      'parseCSVError'
+    );
+  });
+
   it('returns validation errors and commits nested paths via nestedPath.set', async () => {
     const table = useIoiTable({
       rows: [],
@@ -652,6 +762,28 @@ describe('useIoiTable', () => {
       },
       score: 10
     });
+  });
+
+  it('captures thrown validator errors as row validation errors', async () => {
+    const table = useIoiTable({
+      rows: [],
+      columns: [
+        {
+          field: 'score',
+          type: 'number',
+          validate: () => {
+            throw new Error('validator exploded');
+          }
+        }
+      ]
+    });
+
+    const preview = await table.parseCSV('score\n10');
+
+    expect(preview.rows[0]?.errors[0]?.message).toBe('validator exploded');
+    const result = table.commitCSVImport(preview.mapping);
+    expect(result.importedRowCount).toBe(0);
+    expect(result.errors[0]?.errors[0]?.message).toBe('validator exploded');
   });
 
   it('parses JSON-array-like cells and keeps invalid JSON-array text raw', async () => {
