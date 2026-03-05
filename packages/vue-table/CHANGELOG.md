@@ -1,5 +1,13 @@
 # @ioi-dev/vue-table
 
+## 0.1.6
+
+### Patch Changes
+
+- Add CSS compatibility export alias: `@ioi-dev/vue-table/style.css` now resolves to `dist/style.css` alongside the canonical `@ioi-dev/vue-table/styles.css`.
+- Add artifact verification gate (`verify:artifact`) and enforce it through `prepack` to prevent publishing stale `dist` bundles.
+- Add release hardening checks for pagination/header-filter runtime symbols and required package files.
+
 ## 0.1.5
 
 ### Patch Changes

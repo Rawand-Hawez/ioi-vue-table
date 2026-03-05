@@ -1,4 +1,6 @@
 import { describe, expect, it } from 'vitest';
+import { readFileSync } from 'node:fs';
+import { resolve } from 'node:path';
 import { DataTable, IoiTable, Table } from '../src';
 import { Table as UnstyledTable } from '../src/unstyled';
 import { useColumnState } from '../src/composables/useColumnState';
@@ -18,5 +20,15 @@ describe('public component exports', () => {
     expect(typeof get).toBe('function');
     expect(typeof set).toBe('function');
     expect(typeof has).toBe('function');
+  });
+
+  it('keeps CSS subpath exports aligned for styles.css and style.css', () => {
+    const packageJsonPath = resolve(process.cwd(), 'package.json');
+    const packageJson = JSON.parse(readFileSync(packageJsonPath, 'utf8')) as {
+      exports?: Record<string, unknown>;
+    };
+
+    expect(packageJson.exports?.['./styles.css']).toBe('./dist/style.css');
+    expect(packageJson.exports?.['./style.css']).toBe('./dist/style.css');
   });
 });

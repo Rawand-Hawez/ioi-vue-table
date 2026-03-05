@@ -10,6 +10,11 @@ npm install @ioi-dev/vue-table vue
 
 Default package entry imports library CSS. Use `@ioi-dev/vue-table/unstyled` for zero-CSS integration.
 
+CSS import paths:
+
+- Canonical: `@ioi-dev/vue-table/styles.css`
+- Compatibility alias: `@ioi-dev/vue-table/style.css`
+
 ## Quick Start
 
 ```vue

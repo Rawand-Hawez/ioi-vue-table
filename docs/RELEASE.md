@@ -26,6 +26,7 @@ This updates package versions and changelogs from `.changeset/*.md`.
 
 ```bash
 npm --workspace @ioi-dev/vue-table run build
+npm --workspace @ioi-dev/vue-table run verify:artifact
 npm_config_cache=/tmp/npm-cache npm --workspace @ioi-dev/vue-table pack
 ```
 
