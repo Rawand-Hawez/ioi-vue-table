@@ -16,6 +16,7 @@
     "build:wasm": "npm run build:wasm --workspace @ioi/vue-table-core"
   },
   "devDependencies": {
+    "@changesets/cli": "^2.30.0",
     "@typescript-eslint/eslint-plugin": "^8.24.1",
     "@typescript-eslint/parser": "^8.24.1",
     "@vitejs/plugin-vue": "^5.2.1",
