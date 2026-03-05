@@ -20,6 +20,7 @@ export interface ColumnDef<TRow = Record<string, unknown>> {
   field: keyof TRow | string;
   header?: string;
   type?: 'text' | 'number' | 'date';
+  headerFilter?: 'text' | 'select';
   validate?: (value: unknown, row: TRow) => true | string;
   comparator?: (
     valueA: unknown,
@@ -89,6 +90,22 @@ export interface EditingCellState {
 export interface ViewportState {
   scrollTop: number;
   viewportHeight: number;
+}
+
+export interface IoiPaginationState {
+  pageIndex: number;
+  pageSize: number;
+}
+
+export interface IoiPaginationOptions {
+  pageIndex?: number;
+  pageSize?: number;
+}
+
+export interface IoiPaginationChangePayload extends IoiPaginationState {
+  pageCount: number;
+  rowCount: number;
+  reason: 'setPageIndex' | 'setPageSize' | 'autoReset' | 'clamp' | 'resetState' | 'meta';
 }
 
 export type SelectionMode = 'single' | 'multi';
@@ -179,6 +196,8 @@ export interface IoiTableOptions<TRow = Record<string, unknown>> {
   rowHeight?: number;
   overscan?: number;
   viewportHeight?: number;
+  pagination?: IoiPaginationOptions;
+  onPaginationChange?: (payload: IoiPaginationChangePayload) => void;
   onCellCommit?: (payload: IoiCellCommitPayload<TRow>) => void;
   onRowUpdate?: (payload: IoiCellCommitPayload<TRow>) => void;
 }
@@ -215,6 +234,9 @@ export interface IoiTableActions<TRow = Record<string, unknown>> {
   clearColumnFilter: (field: string) => void;
   setGlobalSearch: (text: string) => void;
   clearAllFilters: () => void;
+  setPageIndex: (pageIndex: number) => void;
+  setPageSize: (pageSize: number) => void;
+  getColumnFacetOptions: (field: string) => string[];
   toggleRow: (key: string | number, options?: ToggleRowOptions) => void;
   isSelected: (key: string | number) => boolean;
   clearSelection: () => void;
@@ -249,6 +271,10 @@ export interface IoiTableApi<TRow = Record<string, unknown>> extends IoiTableAct
   state: Ref<IoiTableState>;
   editingDraft: Ref<unknown>;
   editingError: Ref<string | null>;
+  paginationEnabled: ComputedRef<boolean>;
+  pageIndex: ComputedRef<number>;
+  pageSize: ComputedRef<number>;
+  pageCount: ComputedRef<number>;
   totalRows: ComputedRef<number>;
   totalHeight: ComputedRef<number>;
   baseIndices: ComputedRef<number[]>;
@@ -274,6 +300,16 @@ export interface CellSlotProps<TRow = Record<string, unknown>> {
 export interface HeaderSlotProps<TRow = Record<string, unknown>> {
   column: ColumnDef<TRow>;
   columnIndex: number;
+}
+
+export interface HeaderFilterSlotProps<TRow = Record<string, unknown>> {
+  column: ColumnDef<TRow>;
+  columnIndex: number;
+  mode: 'text' | 'select';
+  value: string;
+  options?: string[];
+  setValue: (value: string) => void;
+  clear: () => void;
 }
 
 export interface RowClickPayload<TRow = Record<string, unknown>> {

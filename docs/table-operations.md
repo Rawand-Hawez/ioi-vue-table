@@ -7,21 +7,25 @@ This guide documents the current v1 behavior of `@ioi-dev/vue-table` and recomme
 Built in today:
 
 - Vertical virtualization (virtual scrolling)
+- Client-side pagination state (controlled) when `pageSize > 0`
 - Client-side sorting (`setSortState`, `toggleSort`)
 - Per-column filtering (`setColumnFilter`, `clearColumnFilter`, `clearAllFilters`)
 - Global search (`setGlobalSearch`)
+- Faceted select options via `getColumnFacetOptions(field)` (excludes the column’s own filter)
 
 Not built in yet:
 
-- Pagination state/UI APIs (you implement pagination in app code)
+- Pagination UI controls (you render buttons/selects in app code)
 
 Data pipeline order is fixed:
 
-`baseIndices -> filteredIndices -> sortedIndices -> visibleIndices`
+`baseIndices -> filteredIndices -> sortedIndices -> (virtual slice | page slice) -> visibleIndices`
 
 ## Virtual Scrolling
 
-Virtual scrolling is enabled by default in `<Table />`. There is no separate enable flag.
+Virtual scrolling is enabled by default in `<Table />` when pagination is not enabled.
+
+When `pageSize > 0` (pagination enabled), the table renders the current page and virtual scrolling is disabled.
 
 ```vue
 <Table
@@ -57,7 +61,7 @@ Troubleshooting:
 
 - Use `:height="420"` (number binding), not `height="100%"` (string).
 - Keep `overscan` relatively small (single-digit to low double-digit values for most cases).
-- Avoid overriding `.ioi-table__viewport` overflow/height rules in custom CSS.
+- If you are paginating (`pageSize > 0`), `height` is treated as a virtual scrolling concern and does not create an internal scroll viewport.
 
 ## Sort
 
@@ -154,6 +158,24 @@ tableRef.value?.clearColumnFilter('score');
 tableRef.value?.clearAllFilters();
 ```
 
+### Header filter UI in `<Table />` (headless)
+
+You can opt into simple, unstyled header filter controls per column:
+
+```ts
+const columns: ColumnDef<Row>[] = [
+  { field: 'status', header: 'Status', headerFilter: 'select' },
+  { field: 'owner', header: 'Owner', headerFilter: 'text' }
+];
+```
+
+Behavior:
+
+- `headerFilter: 'text'` renders an `<input>` and applies a text `contains` filter.
+- `headerFilter: 'select'` renders a `<select>` and applies a text `equals` filter.
+- Select options are derived from `getColumnFacetOptions(field)` using **other filters + global search** (excluding the column’s own filter).
+- Use the `header-filter` slot to render your own control with Tailwind/ShadCN/Bootstrap, etc.
+
 ### Filter semantics
 
 - Text defaults: `operator='contains'`, `caseSensitive=false`.
@@ -174,25 +196,23 @@ Rules:
 - Searches only visible columns (`hidden !== true`).
 - Composes with column filters (both must match).
 
-## Pagination Patterns (Recommended)
+## Pagination
 
-`@ioi-dev/vue-table` currently does not provide built-in page state or page controls. Use one of these patterns.
+Pagination is a client-side view over the fully filtered + sorted dataset.
 
-### Pattern A: Server-side pagination (recommended for large datasets)
+Rules:
 
-- Keep `page`, `pageSize`, `sort`, `filters`, `globalSearch` in your app state.
-- Send these to your backend and fetch only current page rows.
-- Pass fetched rows into `<Table />`.
-- Reset `page` to `1` whenever sort/filter/search changes.
+- `pageIndex` is **0-based**.
+- Enable pagination by setting `pageSize > 0`.
+- When pagination is enabled, virtual scrolling is disabled and the table renders the current page rows.
+- Sort/filter/search auto-reset the page index to `0`.
 
-### Pattern B: Client-side pagination after sort/filter/search
-
-If you need local pagination over the fully filtered+sorted dataset, use `useIoiTable()` and page over `sortedIndices`.
+### Controlled pagination with `<Table />`
 
 ```vue
 <script setup lang="ts">
-import { computed, ref, watch } from 'vue';
-import { Table, useIoiTable, type ColumnDef } from '@ioi-dev/vue-table';
+import { ref } from 'vue';
+import { Table, type ColumnDef, type IoiPaginationChangePayload } from '@ioi-dev/vue-table';
 
 interface Row {
   id: number;
@@ -200,67 +220,51 @@ interface Row {
   score: number;
 }
 
-const sourceRows = ref<Row[]>([]);
+const rows = ref<Row[]>([]);
 const columns: ColumnDef<Row>[] = [
   { field: 'id', type: 'number' },
   { field: 'name', type: 'text' },
   { field: 'score', type: 'number' }
 ];
 
-const model = useIoiTable<Row>(
-  computed(() => ({
-    rows: sourceRows.value,
-    columns,
-    rowKey: 'id'
-  }))
-);
-
-const page = ref(1);
 const pageSize = ref(25);
+const pageIndex = ref(0);
+const pageCount = ref(1);
 
-const pageCount = computed(() =>
-  Math.max(1, Math.ceil(model.sortedIndices.value.length / pageSize.value))
-);
-
-const pagedRows = computed<Row[]>(() => {
-  const start = (page.value - 1) * pageSize.value;
-  const end = start + pageSize.value;
-
-  return model.sortedIndices.value
-    .slice(start, end)
-    .map((rowIndex) => model.rows.value[rowIndex])
-    .filter((row): row is Row => row !== undefined);
-});
-
-watch(
-  [() => model.state.value.sort, () => model.state.value.filters, () => model.state.value.globalSearch],
-  () => {
-    page.value = 1;
-  },
-  { deep: true }
-);
+function onPaginationChange(payload: IoiPaginationChangePayload): void {
+  pageCount.value = payload.pageCount;
+}
 
 function nextPage(): void {
-  if (page.value < pageCount.value) {
-    page.value += 1;
+  if (pageIndex.value < pageCount.value - 1) {
+    pageIndex.value += 1;
   }
 }
 </script>
 
 <template>
-  <!-- drive sort/filter/search from `model.*` actions -->
-  <Table :rows="pagedRows" :columns="columns" row-key="id" :height="360" />
+  <Table
+    v-model:pageIndex="pageIndex"
+    v-model:pageSize="pageSize"
+    :rows="rows"
+    :columns="columns"
+    row-key="id"
+    :height="360"
+    @pagination-change="onPaginationChange"
+  />
   <button type="button" @click="nextPage">Next</button>
 </template>
 ```
 
-Important in Pattern B:
+### Server-side pagination (still recommended for large datasets)
 
-- Drive sort/filter/search from `model` actions (`model.setSortState`, `model.setColumnFilter`, `model.setGlobalSearch`).
-- Avoid mixing those operations with a separate `<Table ref>` operation layer on `pagedRows`, or you will re-process already paged data.
+- Keep `pageIndex`, `pageSize`, `sort`, `filters`, `globalSearch` in your app state.
+- Fetch only the current page rows from your backend.
+- Pass fetched rows into `<Table />` and **do not enable client-side pagination** (omit `pageSize` or set `pageSize` to `0`).
 
 ## Common Mistakes
 
 - Applying global search to hidden columns: hidden columns are intentionally excluded.
-- Forgetting page reset: reset to first page when query/sort changes.
-- Using local pagination for very large data: prefer server-side pagination for scale.
+- Treating `pageIndex` as 1-based: it is 0-based.
+- Double paginating: don’t page rows in app code and also set `pageSize` on `<Table />`.
+- Using client-side pagination for very large data: prefer server-side pagination for scale.

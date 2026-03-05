@@ -1,5 +1,16 @@
 # @ioi-dev/vue-table
 
+## 0.1.4
+
+### Patch Changes
+
+- Add controlled pagination APIs with page metadata events and no-virtual-scroll paging behavior.
+- Add column header filters (`text` and `select`) with faceted dropdown options derived from table state.
+- Preserve headless usage by removing bundled component styles and exposing filter slot props for custom UI frameworks.
+- Improve pagination control semantics (partial controlled state support) and stabilize pagination meta emissions for external prop updates.
+- Expand table/composable test coverage for pagination, facet behavior, and duplicate-field filter handling.
+- Refresh README/docs and consolidate root technical docs under `docs/`.
+
 ## 0.1.2
 
 ### Patch Changes
@@ -26,7 +37,7 @@
 
 - d5aa4fe: Add index-based filtering and global search to `useIoiTable` with typed column filters (`text`, `number`, `date`), nested-path field access, and programmatic filter APIs.
 
-  Lock and document filter semantics in `SPEC.md`, including case-insensitive text search defaults, number/date operators, global-search column scope, and array matching behavior.
+  Lock and document filter semantics in `docs/SPEC.md`, including case-insensitive text search defaults, number/date operators, global-search column scope, and array matching behavior.
 
 - ff4b161: Add key-based row selection APIs to `useIoiTable`, including single/multi toggle behavior, shift-range selection over sorted+filtered order, and `selectAll` scopes (`visible`, `filtered`, `allLoaded`).
 

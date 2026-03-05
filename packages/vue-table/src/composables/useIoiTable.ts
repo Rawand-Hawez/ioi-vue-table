@@ -13,6 +13,7 @@ import type {
   ExportCsvHeaderMode,
   ExportCsvOptions,
   ExportCsvScope,
+  IoiPaginationChangePayload,
   IoiCellCommitPayload,
   IoiSemanticEvent,
   IoiSemanticEventType,
@@ -60,6 +61,36 @@ function normalizePositiveNumber(value: number | undefined, fallback: number): n
   }
 
   return value;
+}
+
+function normalizeNonNegativeInteger(value: unknown, fallback: number): number {
+  if (typeof value === 'number' && Number.isFinite(value) && value >= 0) {
+    return Math.floor(value);
+  }
+
+  if (typeof value === 'string') {
+    const parsed = Number(value.trim());
+    if (Number.isFinite(parsed) && parsed >= 0) {
+      return Math.floor(parsed);
+    }
+  }
+
+  return fallback;
+}
+
+function normalizePositiveInteger(value: unknown, fallback: number): number {
+  if (typeof value === 'number' && Number.isFinite(value) && value > 0) {
+    return Math.floor(value);
+  }
+
+  if (typeof value === 'string') {
+    const parsed = Number(value.trim());
+    if (Number.isFinite(parsed) && parsed > 0) {
+      return Math.floor(parsed);
+    }
+  }
+
+  return fallback;
 }
 
 function clamp(value: number, min: number, max: number): number {
@@ -133,6 +164,31 @@ function stringifyCsvValue(value: unknown): string {
   }
 
   return String(value);
+}
+
+function stringifyFacetValue(value: unknown): string {
+  if (value === null || value === undefined) {
+    return '';
+  }
+
+  if (typeof value === 'string') {
+    return value;
+  }
+
+  if (typeof value === 'number' || typeof value === 'boolean' || typeof value === 'bigint') {
+    return String(value);
+  }
+
+  if (value instanceof Date) {
+    const timestamp = value.getTime();
+    return Number.isFinite(timestamp) ? value.toISOString() : '';
+  }
+
+  try {
+    return JSON.stringify(value) ?? '';
+  } catch {
+    return String(value);
+  }
 }
 
 function encodeCsvField(value: unknown, delimiter: ',' | ';' | '\t'): string {
@@ -717,6 +773,22 @@ export function useIoiTable<TRow = Record<string, unknown>>(
   const editingDraft = ref<unknown>(null);
   const editingError = ref<string | null>(null);
   const csvImportSession = ref<ParsedCsvImportSession<TRow> | null>(null);
+  const uncontrolledPageIndex = ref(0);
+  const uncontrolledPageSize = ref(0);
+  const columnKeyMap = computed(() => {
+    const map = new Map<string, ColumnDef<TRow>>();
+
+    for (let index = 0; index < normalizedColumns.value.length; index += 1) {
+      const column = normalizedColumns.value[index];
+      map.set(String(column.field), column);
+
+      if (column.id) {
+        map.set(column.id, column);
+      }
+    }
+
+    return map;
+  });
 
   const totalRows = computed(() => normalizedRows.value.length);
   const baseIndices = computed<number[]>(() => toIndexArray(0, totalRows.value));
@@ -742,9 +814,41 @@ export function useIoiTable<TRow = Record<string, unknown>>(
   const processedRowCount = computed(() => sortedIndices.value.length);
   const totalHeight = computed(() => processedRowCount.value * rowHeight.value);
 
+  const paginationConfig = computed(() => resolvedOptions.value.pagination);
+  const isPageIndexControlled = computed(() => paginationConfig.value?.pageIndex !== undefined);
+  const isPageSizeControlled = computed(() => paginationConfig.value?.pageSize !== undefined);
+  const rawPageIndex = computed(() =>
+    normalizeNonNegativeInteger(
+      isPageIndexControlled.value ? paginationConfig.value?.pageIndex : uncontrolledPageIndex.value,
+      0
+    )
+  );
+  const rawPageSize = computed(() =>
+    normalizePositiveInteger(
+      isPageSizeControlled.value ? paginationConfig.value?.pageSize : uncontrolledPageSize.value,
+      0
+    )
+  );
+  const paginationEnabled = computed(() => rawPageSize.value > 0);
+  const pageCount = computed(() =>
+    paginationEnabled.value
+      ? Math.max(1, Math.ceil(processedRowCount.value / rawPageSize.value))
+      : 1
+  );
+  const pageIndex = computed(() =>
+    paginationEnabled.value ? clamp(rawPageIndex.value, 0, pageCount.value - 1) : 0
+  );
+  const pageSize = computed(() => rawPageSize.value);
+
   const virtualRange = computed<VirtualRange>(() => {
     if (processedRowCount.value === 0) {
       return { start: 0, end: 0 };
+    }
+
+    if (paginationEnabled.value) {
+      const start = clamp(pageIndex.value * rawPageSize.value, 0, processedRowCount.value);
+      const end = clamp(start + rawPageSize.value, start, processedRowCount.value);
+      return { start, end };
     }
 
     const viewportHeight = state.value.viewport.viewportHeight;
@@ -769,8 +873,14 @@ export function useIoiTable<TRow = Record<string, unknown>>(
       .filter((row): row is TRow => row !== undefined)
   );
 
-  const virtualPaddingTop = computed(() => virtualRange.value.start * rowHeight.value);
+  const virtualPaddingTop = computed(() =>
+    paginationEnabled.value ? 0 : virtualRange.value.start * rowHeight.value
+  );
   const virtualPaddingBottom = computed(() => {
+    if (paginationEnabled.value) {
+      return 0;
+    }
+
     const renderedHeight = visibleIndices.value.length * rowHeight.value;
     return Math.max(0, totalHeight.value - virtualPaddingTop.value - renderedHeight);
   });
@@ -994,6 +1104,198 @@ export function useIoiTable<TRow = Record<string, unknown>>(
     lastEvent.value = event;
     return event;
   }
+
+  function notifyPaginationChange(
+    nextPageIndex: number,
+    nextPageSize: number,
+    reason: IoiPaginationChangePayload['reason']
+  ): void {
+    const normalizedPageSize = normalizePositiveInteger(nextPageSize, 0);
+    const normalizedPageIndex = normalizeNonNegativeInteger(nextPageIndex, 0);
+    const rowCount = processedRowCount.value;
+    const nextPageCount =
+      normalizedPageSize > 0 ? Math.max(1, Math.ceil(rowCount / normalizedPageSize)) : 1;
+    const clampedPageIndex =
+      normalizedPageSize > 0 ? clamp(normalizedPageIndex, 0, nextPageCount - 1) : 0;
+
+    const payload: IoiPaginationChangePayload = {
+      pageIndex: clampedPageIndex,
+      pageSize: normalizedPageSize,
+      pageCount: nextPageCount,
+      rowCount,
+      reason
+    };
+
+    resolvedOptions.value.onPaginationChange?.(payload);
+
+    emitSemanticEvent('data:explore', {
+      reason: 'pagination',
+      action: payload.reason,
+      pageIndex: payload.pageIndex,
+      pageSize: payload.pageSize,
+      pageCount: payload.pageCount,
+      rowCount: payload.rowCount
+    });
+  }
+
+  function setPageIndex(nextPageIndex: number, reason: IoiPaginationChangePayload['reason'] = 'setPageIndex'): void {
+    if (rawPageSize.value <= 0) {
+      return;
+    }
+
+    const nextPageSize = rawPageSize.value;
+    const normalizedNextPageIndex = normalizeNonNegativeInteger(nextPageIndex, 0);
+    const nextPageCount =
+      nextPageSize > 0 ? Math.max(1, Math.ceil(processedRowCount.value / nextPageSize)) : 1;
+    const clampedNextPageIndex =
+      nextPageSize > 0 ? clamp(normalizedNextPageIndex, 0, nextPageCount - 1) : 0;
+
+    if (clampedNextPageIndex === pageIndex.value) {
+      return;
+    }
+
+    if (!isPageIndexControlled.value) {
+      uncontrolledPageIndex.value = clampedNextPageIndex;
+    }
+
+    if (!isPageSizeControlled.value) {
+      uncontrolledPageSize.value = nextPageSize;
+    }
+
+    notifyPaginationChange(clampedNextPageIndex, nextPageSize, reason);
+  }
+
+  function setPageSize(nextPageSize: number, reason: IoiPaginationChangePayload['reason'] = 'setPageSize'): void {
+    const normalizedNextPageSize = normalizePositiveInteger(nextPageSize, 0);
+    const nextPageIndex = 0;
+
+    if (normalizedNextPageSize === pageSize.value && pageIndex.value === nextPageIndex) {
+      return;
+    }
+
+    if (!isPageSizeControlled.value) {
+      uncontrolledPageSize.value = normalizedNextPageSize;
+    }
+
+    if (!isPageIndexControlled.value) {
+      uncontrolledPageIndex.value = nextPageIndex;
+    }
+
+    notifyPaginationChange(nextPageIndex, normalizedNextPageSize, reason);
+  }
+
+  function getColumnFacetOptions(field: string): string[] {
+    const normalizedKey = String(field);
+    if (!normalizedKey) {
+      return [];
+    }
+
+    const keyMap = columnKeyMap.value;
+    const targetColumn = keyMap.get(normalizedKey);
+    const targetFieldPath = targetColumn ? String(targetColumn.field) : normalizedKey;
+    const excludedKeys = new Set<string>([normalizedKey, targetFieldPath]);
+
+    if (targetColumn?.id) {
+      excludedKeys.add(targetColumn.id);
+    }
+
+    const otherFilters = state.value.filters.filter((entry) => {
+      if (excludedKeys.has(entry.field)) {
+        return false;
+      }
+
+      const resolvedColumn = keyMap.get(entry.field);
+      if (!resolvedColumn) {
+        return true;
+      }
+
+      if (excludedKeys.has(String(resolvedColumn.field))) {
+        return false;
+      }
+
+      if (resolvedColumn.id && excludedKeys.has(resolvedColumn.id)) {
+        return false;
+      }
+
+      return true;
+    });
+
+    const facetIndices = applyFilters(
+      baseIndices.value,
+      normalizedRows.value,
+      otherFilters,
+      state.value.globalSearch,
+      normalizedColumns.value,
+      getFieldValue
+    );
+
+    const optionSet = new Set<string>();
+
+    for (let index = 0; index < facetIndices.length; index += 1) {
+      const rowIndex = facetIndices[index];
+      const row = normalizedRows.value[rowIndex];
+
+      if (row === undefined) {
+        continue;
+      }
+
+      const value = getFieldValue(row, targetFieldPath);
+
+      if (Array.isArray(value)) {
+        for (let valueIndex = 0; valueIndex < value.length; valueIndex += 1) {
+          const candidate = stringifyFacetValue(value[valueIndex]).trim();
+          if (candidate.length > 0) {
+            optionSet.add(candidate);
+          }
+        }
+        continue;
+      }
+
+      const candidate = stringifyFacetValue(value).trim();
+      if (candidate.length > 0) {
+        optionSet.add(candidate);
+      }
+    }
+
+    const options = Array.from(optionSet);
+    options.sort((left, right) =>
+      left.localeCompare(right, undefined, { numeric: true, sensitivity: 'base' })
+    );
+    return options;
+  }
+
+  watch(
+    [() => state.value.sort, () => state.value.filters, () => state.value.globalSearch],
+    () => {
+      if (!paginationEnabled.value) {
+        return;
+      }
+
+      if (rawPageIndex.value === 0) {
+        return;
+      }
+
+      setPageIndex(0, 'autoReset');
+    },
+    { flush: 'sync' }
+  );
+
+  watch(
+    [processedRowCount, rawPageSize, rawPageIndex],
+    () => {
+      if (!paginationEnabled.value || rawPageSize.value <= 0) {
+        return;
+      }
+
+      const maxPageIndex = pageCount.value - 1;
+      if (rawPageIndex.value <= maxPageIndex) {
+        return;
+      }
+
+      setPageIndex(maxPageIndex, 'clamp');
+    },
+    { flush: 'sync' }
+  );
 
   function setRows(rows: TRow[]): void {
     normalizedRows.value = [...rows];
@@ -1265,6 +1567,15 @@ export function useIoiTable<TRow = Record<string, unknown>>(
     }
 
     const clampedIndex = clamp(index, 0, processedRowCount.value - 1);
+
+    if (paginationEnabled.value && rawPageSize.value > 0) {
+      const nextPageIndex = Math.floor(clampedIndex / rawPageSize.value);
+      setPageIndex(nextPageIndex);
+      const withinPageIndex = clampedIndex - nextPageIndex * rawPageSize.value;
+      setViewport(withinPageIndex * rowHeight.value, state.value.viewport.viewportHeight);
+      return;
+    }
+
     setViewport(clampedIndex * rowHeight.value, state.value.viewport.viewportHeight);
   }
 
@@ -1603,6 +1914,9 @@ export function useIoiTable<TRow = Record<string, unknown>>(
     clearColumnFilter,
     setGlobalSearch,
     clearAllFilters,
+    setPageIndex,
+    setPageSize,
+    getColumnFacetOptions,
     toggleRow,
     isSelected,
     clearSelection,
@@ -1631,6 +1945,10 @@ export function useIoiTable<TRow = Record<string, unknown>>(
     state,
     editingDraft,
     editingError,
+    paginationEnabled,
+    pageIndex,
+    pageSize,
+    pageCount,
     totalRows,
     totalHeight,
     baseIndices,

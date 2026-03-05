@@ -5,9 +5,9 @@
 Before implementing behavior, align with:
 
 - `AGENTS.md`
-- `SPEC.md`
-- `ARCHITECTURE.md`
-- `ROADMAP.md`
+- `docs/SPEC.md`
+- `docs/ARCHITECTURE.md`
+- `docs/ROADMAP.md`
 
 ## Modes
 

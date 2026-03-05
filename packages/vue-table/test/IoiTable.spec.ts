@@ -165,4 +165,95 @@ describe('IoiTable', () => {
     ).getColumnStateSnapshot();
     expect(snapshot.order).toEqual(['id', 'project', 'owner', 'status']);
   });
+
+  it('renders header filter controls and emits filter events', async () => {
+    const wrapper = mount(IoiTable, {
+      props: {
+        columns: [
+          { field: 'status', header: 'Status', headerFilter: 'select' },
+          { field: 'owner', header: 'Owner', headerFilter: 'text' }
+        ],
+        rows: [
+          { status: 'Queued', owner: 'A' },
+          { status: 'Done', owner: 'A' },
+          { status: 'Queued', owner: 'B' }
+        ]
+      }
+    });
+
+    const select = wrapper.find('select.ioi-table__filter-select');
+    const input = wrapper.find('input.ioi-table__filter-input');
+    expect(select.exists()).toBe(true);
+    expect(input.exists()).toBe(true);
+
+    const optionLabels = select.findAll('option').map((option) => option.text());
+    expect(optionLabels).toEqual(['All', 'Done', 'Queued']);
+
+    await select.setValue('Queued');
+    await nextTick();
+
+    await input.setValue('A');
+    await nextTick();
+
+    const emitted = wrapper.emitted('state-change') ?? [];
+    const eventTypes = emitted.map((entry) => (entry[0] as { type: string }).type);
+    expect(eventTypes).toContain('data:filter');
+  });
+
+  it('uses field keys for duplicate-column header filters', async () => {
+    const wrapper = mount(IoiTable, {
+      props: {
+        columns: [
+          { field: 'status', header: 'Primary Status', headerFilter: 'text' },
+          { field: 'status', header: 'Secondary Status', headerFilter: 'text' }
+        ],
+        rows: [
+          { status: 'Queued' },
+          { status: 'Done' }
+        ]
+      }
+    });
+
+    const inputs = wrapper.findAll('input.ioi-table__filter-input');
+    expect(inputs).toHaveLength(2);
+
+    await inputs[1]?.setValue('Queued');
+    await nextTick();
+
+    const filterEvents = (wrapper.emitted('state-change') ?? [])
+      .map((entry) => entry[0] as { type: string; payload?: { filters?: Array<{ field: string }> } })
+      .filter((event) => event.type === 'data:filter');
+    const lastFilterEvent = filterEvents[filterEvents.length - 1];
+
+    expect(lastFilterEvent?.payload?.filters?.[0]?.field).toBe('status');
+  });
+
+  it('emits pagination meta updates when controlled props change externally', async () => {
+    const wrapper = mount(IoiTable, {
+      props: {
+        columns: [{ field: 'id', header: 'ID' }],
+        rows: Array.from({ length: 8 }, (_, index) => ({ id: index + 1 })),
+        pageIndex: 0,
+        pageSize: 2
+      }
+    });
+
+    const initialPaginationEventCount = (wrapper.emitted('pagination-change') ?? []).length;
+    expect(initialPaginationEventCount).toBeGreaterThan(0);
+
+    await wrapper.setProps({ pageIndex: 1 });
+    await nextTick();
+
+    const paginationEvents = wrapper.emitted('pagination-change') ?? [];
+    const lastEvent = paginationEvents[paginationEvents.length - 1]?.[0] as {
+      pageIndex: number;
+      pageSize: number;
+      reason: string;
+    };
+
+    expect(paginationEvents.length).toBeGreaterThan(initialPaginationEventCount);
+    expect(lastEvent.pageIndex).toBe(1);
+    expect(lastEvent.pageSize).toBe(2);
+    expect(lastEvent.reason).toBe('meta');
+  });
 });

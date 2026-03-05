@@ -22,6 +22,9 @@ describe('useIoiTable', () => {
     expect(typeof table.clearColumnFilter).toBe('function');
     expect(typeof table.setGlobalSearch).toBe('function');
     expect(typeof table.clearAllFilters).toBe('function');
+    expect(typeof table.setPageIndex).toBe('function');
+    expect(typeof table.setPageSize).toBe('function');
+    expect(typeof table.getColumnFacetOptions).toBe('function');
     expect(typeof table.toggleRow).toBe('function');
     expect(typeof table.isSelected).toBe('function');
     expect(typeof table.clearSelection).toBe('function');
@@ -82,6 +85,84 @@ describe('useIoiTable', () => {
     expect(table.visibleIndices.value).toHaveLength(5);
     expect(table.virtualPaddingTop.value).toBe(60);
     expect(table.virtualPaddingBottom.value).toBe(1840);
+  });
+
+  it('slices visible indices via pagination and disables virtual paddings', () => {
+    const rows = Array.from({ length: 10 }, (_, index) => ({ id: index + 1 }));
+    const table = useIoiTable({
+      rows,
+      columns: [{ field: 'id', header: 'ID' }],
+      rowHeight: 20,
+      viewportHeight: 60,
+      pagination: {
+        pageIndex: 1,
+        pageSize: 3
+      }
+    });
+
+    expect(table.paginationEnabled.value).toBe(true);
+    expect(table.pageIndex.value).toBe(1);
+    expect(table.pageSize.value).toBe(3);
+    expect(table.pageCount.value).toBe(4);
+
+    expect(table.visibleIndices.value).toEqual([3, 4, 5]);
+    expect(table.virtualPaddingTop.value).toBe(0);
+    expect(table.virtualPaddingBottom.value).toBe(0);
+
+    table.setViewport(80, 60);
+    expect(table.visibleIndices.value).toEqual([3, 4, 5]);
+  });
+
+  it('supports partial pagination control when only pageSize is controlled', () => {
+    const onPaginationChange = vi.fn();
+    const rows = Array.from({ length: 6 }, (_, index) => ({ id: index + 1 }));
+    const table = useIoiTable({
+      rows,
+      columns: [{ field: 'id', header: 'ID' }],
+      pagination: {
+        pageSize: 2
+      },
+      onPaginationChange
+    });
+
+    expect(table.paginationEnabled.value).toBe(true);
+    expect(table.pageIndex.value).toBe(0);
+    expect(table.visibleIndices.value).toEqual([0, 1]);
+
+    table.setPageIndex(2);
+
+    expect(table.pageIndex.value).toBe(2);
+    expect(table.visibleIndices.value).toEqual([4, 5]);
+    expect(onPaginationChange).toHaveBeenCalledWith(
+      expect.objectContaining({
+        pageIndex: 2,
+        pageSize: 2,
+        reason: 'setPageIndex'
+      })
+    );
+  });
+
+  it('builds select facet options from other filters + global search (excluding itself)', () => {
+    const table = useIoiTable({
+      rows: [
+        { owner: 'A', status: 'Queued' },
+        { owner: 'A', status: 'Done' },
+        { owner: 'B', status: 'Queued' }
+      ],
+      columns: [
+        { field: 'owner', type: 'text' },
+        { field: 'status', type: 'text' }
+      ]
+    });
+
+    table.setColumnFilter('owner', { type: 'text', value: 'A', operator: 'equals' });
+    table.setColumnFilter('status', { type: 'text', value: 'Queued', operator: 'equals' });
+
+    expect(table.getColumnFacetOptions('status')).toEqual(['Done', 'Queued']);
+    expect(table.getColumnFacetOptions('owner')).toEqual(['A', 'B']);
+
+    table.setGlobalSearch('done');
+    expect(table.getColumnFacetOptions('status')).toEqual(['Done']);
   });
 
   it('sorts indices programmatically via sort state actions', () => {

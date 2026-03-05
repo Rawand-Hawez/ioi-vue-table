@@ -5,7 +5,9 @@ import { useIoiTable } from '../composables/useIoiTable';
 import type {
   CellSlotProps,
   ColumnDef,
+  HeaderFilterSlotProps,
   HeaderSlotProps,
+  IoiPaginationChangePayload,
   IoiSemanticEvent,
   IoiTableOptions,
   RowClickPayload
@@ -20,6 +22,8 @@ const props = withDefaults(
     rowHeight?: number;
     overscan?: number;
     height?: number;
+    pageIndex?: number;
+    pageSize?: number;
   }>(),
   {
     rows: () => [],
@@ -33,10 +37,14 @@ const props = withDefaults(
 const emit = defineEmits<{
   'row-click': [payload: RowClickPayload<TRow>];
   'state-change': [event: IoiSemanticEvent<unknown>];
+  'update:pageIndex': [value: number];
+  'update:pageSize': [value: number];
+  'pagination-change': [payload: IoiPaginationChangePayload];
 }>();
 
 defineSlots<{
   header?: (slotProps: HeaderSlotProps<TRow>) => unknown;
+  'header-filter'?: (slotProps: HeaderFilterSlotProps<TRow>) => unknown;
   cell?: (slotProps: CellSlotProps<TRow>) => unknown;
   empty?: () => unknown;
 }>();
@@ -75,11 +83,23 @@ function normalizeNonNegativeInteger(value: unknown, fallback: number): number {
   return fallback;
 }
 
+function buildPaginationEventKey(
+  pageIndex: number,
+  pageSize: number,
+  pageCount: number,
+  rowCount: number
+): string {
+  return `${pageIndex}:${pageSize}:${pageCount}:${rowCount}`;
+}
+
 const normalizedHeight = computed(() => normalizePositiveNumber(props.height, DEFAULT_HEIGHT));
 const normalizedRowHeight = computed(() => normalizePositiveNumber(props.rowHeight, DEFAULT_ROW_HEIGHT));
 const normalizedOverscan = computed(() =>
   normalizeNonNegativeInteger(props.overscan, DEFAULT_OVERSCAN)
 );
+const normalizedPageIndex = computed(() => normalizeNonNegativeInteger(props.pageIndex, 0));
+const normalizedPageSize = computed(() => Math.floor(normalizePositiveNumber(props.pageSize, 0)));
+const lastPaginationEventKey = ref('');
 
 const table = useIoiTable<TRow>(
   computed(() => ({
@@ -88,11 +108,41 @@ const table = useIoiTable<TRow>(
     rowKey: props.rowKey,
     rowHeight: normalizedRowHeight.value,
     overscan: normalizedOverscan.value,
-    viewportHeight: normalizedHeight.value
+    viewportHeight: normalizedHeight.value,
+    pagination:
+      normalizedPageSize.value > 0
+        ? { pageIndex: normalizedPageIndex.value, pageSize: normalizedPageSize.value }
+        : undefined,
+    onPaginationChange: (payload) => {
+      emit('update:pageIndex', payload.pageIndex);
+      emit('update:pageSize', payload.pageSize);
+      emit('pagination-change', payload);
+      lastPaginationEventKey.value = buildPaginationEventKey(
+        payload.pageIndex,
+        payload.pageSize,
+        payload.pageCount,
+        payload.rowCount
+      );
+    }
   }))
 );
 
 const viewportRef = ref<HTMLDivElement | null>(null);
+const viewportStyle = computed<Record<string, string>>(() => {
+  if (table.paginationEnabled.value) {
+    return {
+      overflowX: 'auto',
+      overflowY: 'visible',
+      maxHeight: 'none'
+    };
+  }
+
+  return {
+    maxHeight: `${normalizedHeight.value}px`,
+    overflowX: 'auto',
+    overflowY: 'auto'
+  };
+});
 const columnState = useColumnState<TRow>(
   computed(() => ({
     columns: table.columns.value
@@ -115,6 +165,25 @@ const visibleRowEntries = computed(() =>
     }))
     .filter((entry): entry is { row: TRow; rowIndex: number } => entry.row !== undefined)
 );
+const headerFacetOptionsByField = computed(() => {
+  const optionsByField = new Map<string, string[]>();
+
+  for (let index = 0; index < renderColumns.value.length; index += 1) {
+    const column = renderColumns.value[index];
+    if (!column || column.headerFilter !== 'select') {
+      continue;
+    }
+
+    const fieldKey = resolveHeaderFilterFieldKey(column);
+    if (optionsByField.has(fieldKey)) {
+      continue;
+    }
+
+    optionsByField.set(fieldKey, table.getColumnFacetOptions(fieldKey));
+  }
+
+  return optionsByField;
+});
 
 type PinGroup = 'left' | 'center' | 'right';
 
@@ -163,6 +232,42 @@ watch(
     }
   },
   { flush: 'post' }
+);
+
+watch(
+  [
+    () => table.paginationEnabled.value,
+    () => table.pageIndex.value,
+    () => table.pageSize.value,
+    () => table.pageCount.value,
+    () => table.sortedIndices.value.length
+  ],
+  ([enabled, nextPageIndex, nextPageSize, nextPageCount, nextRowCount]) => {
+    if (!enabled) {
+      lastPaginationEventKey.value = '';
+      return;
+    }
+
+    const nextKey = buildPaginationEventKey(
+      nextPageIndex,
+      nextPageSize,
+      nextPageCount,
+      nextRowCount
+    );
+    if (nextKey === lastPaginationEventKey.value) {
+      return;
+    }
+
+    lastPaginationEventKey.value = nextKey;
+    emit('pagination-change', {
+      pageIndex: nextPageIndex,
+      pageSize: nextPageSize,
+      pageCount: nextPageCount,
+      rowCount: nextRowCount,
+      reason: 'meta'
+    });
+  },
+  { immediate: true }
 );
 
 watch(
@@ -400,21 +505,37 @@ function getColumnStyle(
     maxWidth: column.maxWidth ? `${column.maxWidth}px` : ''
   };
 
+  if (section === 'header') {
+    style.position = 'relative';
+  }
+
   if (column.pin === 'left') {
     style.position = 'sticky';
     style.left = `${leftStickyOffsets.value.get(columnId) ?? 0}px`;
     style.zIndex = section === 'header' ? '4' : '2';
-    style.background = section === 'header' ? '#f7f9fc' : '#ffffff';
-    style.boxShadow = '2px 0 0 #eceff4';
   } else if (column.pin === 'right') {
     style.position = 'sticky';
     style.right = `${rightStickyOffsets.value.get(columnId) ?? 0}px`;
     style.zIndex = section === 'header' ? '4' : '2';
-    style.background = section === 'header' ? '#f7f9fc' : '#ffffff';
-    style.boxShadow = '-2px 0 0 #eceff4';
   }
 
   return style;
+}
+
+function getResizeHandleStyle(column: ColumnDef<TRow>): Record<string, string> {
+  const disabled = !isColumnResizable(column);
+
+  return {
+    position: 'absolute',
+    top: '0',
+    right: '-2px',
+    width: '8px',
+    height: '100%',
+    padding: '0',
+    border: '0',
+    background: 'transparent',
+    cursor: disabled ? 'default' : 'col-resize'
+  };
 }
 
 function getCellValue(row: TRow, field: string): unknown {
@@ -444,6 +565,75 @@ function onScroll(event: Event): void {
   table.setViewport(target.scrollTop, target.clientHeight || normalizedHeight.value);
 }
 
+function resolveHeaderFilterFieldKey(column: ColumnDef<TRow>): string {
+  return String(column.field);
+}
+
+function getHeaderFilterValue(column: ColumnDef<TRow>): string {
+  const fieldKey = resolveHeaderFilterFieldKey(column);
+  const filterState =
+    table.state.value.filters.find((entry) => entry.field === fieldKey) ??
+    table.state.value.filters.find((entry) => entry.field === String(column.id));
+
+  if (!filterState) {
+    return '';
+  }
+
+  const filter = filterState.filter;
+  if (filter.type !== 'text') {
+    return '';
+  }
+
+  return filter.value;
+}
+
+function clearHeaderFilter(column: ColumnDef<TRow>): void {
+  const fieldKey = resolveHeaderFilterFieldKey(column);
+  table.clearColumnFilter(fieldKey);
+
+  const columnId = String(column.id);
+  if (columnId !== fieldKey) {
+    table.clearColumnFilter(columnId);
+  }
+}
+
+function getHeaderFacetOptions(column: ColumnDef<TRow>): string[] {
+  const fieldKey = resolveHeaderFilterFieldKey(column);
+  return headerFacetOptionsByField.value.get(fieldKey) ?? [];
+}
+
+function setHeaderFilterValue(column: ColumnDef<TRow>, nextValue: string): void {
+  const fieldKey = resolveHeaderFilterFieldKey(column);
+  const value = nextValue ?? '';
+
+  if (value.trim().length === 0) {
+    clearHeaderFilter(column);
+    return;
+  }
+
+  const columnId = String(column.id);
+  if (columnId !== fieldKey) {
+    table.clearColumnFilter(columnId);
+  }
+
+  if (column.headerFilter === 'select') {
+    table.setColumnFilter(fieldKey, {
+      type: 'text',
+      operator: 'equals',
+      value,
+      caseSensitive: false
+    });
+    return;
+  }
+
+  table.setColumnFilter(fieldKey, {
+    type: 'text',
+    operator: 'contains',
+    value,
+    caseSensitive: false
+  });
+}
+
 defineExpose({
   scrollToRow: table.scrollToRow,
   exportCSV: table.exportCSV,
@@ -454,6 +644,9 @@ defineExpose({
   clearColumnFilter: table.clearColumnFilter,
   setGlobalSearch: table.setGlobalSearch,
   clearAllFilters: table.clearAllFilters,
+  setPageIndex: table.setPageIndex,
+  setPageSize: table.setPageSize,
+  getColumnFacetOptions: table.getColumnFacetOptions,
   setSortState: table.setSortState,
   toggleSort: table.toggleSort,
   toggleRow: table.toggleRow,
@@ -474,12 +667,13 @@ defineExpose({
 </script>
 
 <template>
-  <div class="ioi-table" :style="{ '--ioi-table-height': `${normalizedHeight}px` }">
+  <div class="ioi-table">
     <div
       ref="viewportRef"
       class="ioi-table__viewport"
       role="region"
       aria-label="IOI Table viewport"
+      :style="viewportStyle"
       @scroll="onScroll"
     >
       <table class="ioi-table__table" role="grid">
@@ -505,6 +699,47 @@ defineExpose({
                 <slot name="header" :column="column" :column-index="columnIndex">
                   <span class="ioi-table__header-label">{{ column.header ?? column.field }}</span>
                 </slot>
+                <div v-if="column.headerFilter" class="ioi-table__header-filter">
+                  <slot
+                    name="header-filter"
+                    :column="column"
+                    :column-index="columnIndex"
+                    :mode="column.headerFilter"
+                    :value="getHeaderFilterValue(column)"
+                    :options="column.headerFilter === 'select' ? getHeaderFacetOptions(column) : undefined"
+                    :set-value="(value) => setHeaderFilterValue(column, value)"
+                    :clear="() => clearHeaderFilter(column)"
+                  >
+                    <input
+                      v-if="column.headerFilter === 'text'"
+                      class="ioi-table__filter-input"
+                      draggable="false"
+                      type="text"
+                      :value="getHeaderFilterValue(column)"
+                      @mousedown.stop
+                      @click.stop
+                      @input="setHeaderFilterValue(column, ($event.target as HTMLInputElement).value)"
+                    >
+                    <select
+                      v-else
+                      class="ioi-table__filter-select"
+                      draggable="false"
+                      :value="getHeaderFilterValue(column)"
+                      @mousedown.stop
+                      @click.stop
+                      @change="setHeaderFilterValue(column, ($event.target as HTMLSelectElement).value)"
+                    >
+                      <option value="">All</option>
+                      <option
+                        v-for="option in getHeaderFacetOptions(column)"
+                        :key="option"
+                        :value="option"
+                      >
+                        {{ option }}
+                      </option>
+                    </select>
+                  </slot>
+                </div>
               </div>
               <button
                 type="button"
@@ -512,6 +747,7 @@ defineExpose({
                 :class="{ 'ioi-table__resize-handle--disabled': !isColumnResizable(column) }"
                 :aria-label="`Resize ${column.header ?? String(column.field)}`"
                 :disabled="!isColumnResizable(column)"
+                :style="getResizeHandleStyle(column)"
                 @mousedown="onResizeHandleMouseDown($event, column)"
               />
             </th>
@@ -525,7 +761,7 @@ defineExpose({
           >
             <td
               :colspan="Math.max(renderColumns.length, 1)"
-              :style="{ height: `${table.virtualPaddingTop.value}px` }"
+              :style="{ height: `${table.virtualPaddingTop.value}px`, padding: '0', border: '0' }"
             />
           </tr>
           <tr
@@ -559,7 +795,7 @@ defineExpose({
           >
             <td
               :colspan="Math.max(renderColumns.length, 1)"
-              :style="{ height: `${table.virtualPaddingBottom.value}px` }"
+              :style="{ height: `${table.virtualPaddingBottom.value}px`, padding: '0', border: '0' }"
             />
           </tr>
           <tr v-if="!table.totalRows.value">
@@ -572,114 +808,3 @@ defineExpose({
     </div>
   </div>
 </template>
-
-<style scoped>
-.ioi-table {
-  --ioi-table-height: 320px;
-  border: 1px solid #d7dbe2;
-  border-radius: 8px;
-  background: #ffffff;
-}
-
-.ioi-table__viewport {
-  max-height: var(--ioi-table-height);
-  overflow: auto;
-}
-
-.ioi-table__table {
-  width: 100%;
-  border-collapse: collapse;
-  table-layout: fixed;
-  font-size: 14px;
-  line-height: 1.4;
-}
-
-.ioi-table__table th,
-.ioi-table__table td {
-  position: relative;
-  padding: 10px 12px;
-  border-bottom: 1px solid #eceff4;
-  text-align: left;
-  background-clip: padding-box;
-}
-
-.ioi-table__table th {
-  background: #f7f9fc;
-  font-weight: 600;
-  user-select: none;
-}
-
-.ioi-table__header-content {
-  display: flex;
-  align-items: center;
-  min-height: 100%;
-  padding-right: 8px;
-}
-
-.ioi-table__header-label {
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-
-.ioi-table__resize-handle {
-  position: absolute;
-  top: 0;
-  right: -2px;
-  width: 8px;
-  height: 100%;
-  border: 0;
-  background: transparent;
-  cursor: col-resize;
-  z-index: 5;
-}
-
-.ioi-table__resize-handle::after {
-  content: '';
-  position: absolute;
-  top: 8px;
-  bottom: 8px;
-  left: 50%;
-  width: 2px;
-  transform: translateX(-50%);
-  border-radius: 2px;
-  background: #c4cfde;
-  opacity: 0;
-  transition: opacity 120ms ease;
-}
-
-.ioi-table__table th:hover .ioi-table__resize-handle::after,
-.ioi-table__resize-handle:focus-visible::after {
-  opacity: 1;
-}
-
-.ioi-table__resize-handle--disabled {
-  cursor: default;
-}
-
-.ioi-table__resize-handle--disabled::after {
-  opacity: 0;
-}
-
-.ioi-table__header--dragging {
-  opacity: 0.65;
-}
-
-.ioi-table__header--drag-target {
-  background: #e9f2ff;
-}
-
-.ioi-table__spacer td {
-  padding: 0;
-  border: 0;
-}
-
-.ioi-table__row {
-  box-sizing: border-box;
-}
-
-.ioi-table__empty {
-  color: #7a8598;
-  text-align: center;
-}
-</style>
