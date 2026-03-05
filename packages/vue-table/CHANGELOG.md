@@ -1,5 +1,12 @@
 # @ioi-dev/vue-table
 
+## 0.1.7
+
+### Patch Changes
+
+- Publish recovery release after `0.1.6` registry version conflict.
+- Keep `style.css` compatibility alias and artifact verification gate in release pipeline.
+
 ## 0.1.6
 
 ### Patch Changes
