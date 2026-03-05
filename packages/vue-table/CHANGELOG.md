@@ -1,5 +1,14 @@
 # @ioi-dev/vue-table
 
+## 0.1.2
+
+### Patch Changes
+
+- b08ef32: Include a package-level README in the published tarball so npm displays usage and installation docs.
+- ecaa8c2: Promote `Table` as the preferred component export name while keeping `IoiTable` and `DataTable` as backward-compatible aliases.
+
+  Documentation and playground examples now use `Table`.
+
 ## 0.1.0
 
 ### Minor Changes
