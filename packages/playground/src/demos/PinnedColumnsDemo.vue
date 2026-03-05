@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { ref } from 'vue';
-import { IoiTable } from '@ioi-dev/vue-table';
+import { Table } from '@ioi-dev/vue-table';
 import type { ColumnDef, ColumnStateSnapshot } from '@ioi-dev/vue-table';
 import { createPinnedColumns, createPinnedRows, type PinnedRow } from '../utils/demoData';
 
@@ -84,7 +84,7 @@ function toggleOwnerPin(): void {
       </div>
     </header>
 
-    <IoiTable
+    <Table
       ref="tableRef"
       :rows="rows"
       :columns="columns"

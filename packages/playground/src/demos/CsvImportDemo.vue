@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { computed, ref } from 'vue';
-import { IoiTable } from '@ioi-dev/vue-table';
+import { Table } from '@ioi-dev/vue-table';
 import type {
   ColumnDef,
   CsvImportMapping,
@@ -228,7 +228,7 @@ function commitPreviewImport(): void {
 
     <pre v-if="importResult" class="preview__result">{{ JSON.stringify(importResult, null, 2) }}</pre>
 
-    <IoiTable ref="tableRef" :rows="rows" :columns="columns" :height="420" :row-height="34" :overscan="5" />
+    <Table ref="tableRef" :rows="rows" :columns="columns" :height="420" :row-height="34" :overscan="5" />
   </section>
 </template>
 

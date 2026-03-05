@@ -12,7 +12,7 @@
 
 ## PR2 — @ioi-dev/vue-table skeleton (no features yet)
 - Implement minimal exports:
-  - Component: DataTable (or IoiTable) placeholder rendering header/body
+  - Component: Table (with `IoiTable` backward alias) placeholder rendering header/body
   - Composable: useIoiTable() returning stable API shape
   - Types: ColumnDef, DataTableOptions, TableState skeleton
 - Events and slots declared but minimal

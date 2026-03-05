@@ -12,7 +12,7 @@ npm install @ioi-dev/vue-table vue
 
 ```vue
 <script setup lang="ts">
-import { IoiTable, type ColumnDef } from '@ioi-dev/vue-table';
+import { Table, type ColumnDef } from '@ioi-dev/vue-table';
 
 interface UserRow {
   id: number;
@@ -33,9 +33,11 @@ const rows: UserRow[] = [
 </script>
 
 <template>
-  <IoiTable :rows="rows" :columns="columns" row-key="id" :height="320" />
+  <Table :rows="rows" :columns="columns" row-key="id" :height="320" />
 </template>
 ```
+
+`IoiTable` remains available as a backward-compatible alias.
 
 ## Docs
 

@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { ref } from 'vue';
-import { IoiTable } from '@ioi-dev/vue-table';
+import { Table } from '@ioi-dev/vue-table';
 import type { ColumnDef, ColumnFilter, SelectAllScope, SortState } from '@ioi-dev/vue-table';
 import { createOpsColumns, createOpsRows, type OpsRow } from '../utils/demoData';
 import { usePerfBaseline } from '../utils/perf';
@@ -115,7 +115,7 @@ function clearScenario(): void {
     </div>
 
     <div class="demo__layout">
-      <IoiTable
+      <Table
         ref="tableRef"
         :rows="rows"
         :columns="columns"

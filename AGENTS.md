@@ -54,12 +54,15 @@
 
 ## Naming Conventions (Locked)
 - Composable: useIoiTable()
-- Component (recommended): <IoiTable />
+- Component (recommended): <Table />
 - Internal identifiers: ioiTable* prefix
 - WASM artifacts:
   - vue_table_engine.wasm
   - vue_table_csv.wasm
   - vue_table_engine.js / vue_table_csv.js
+
+Backward compatibility:
+- `IoiTable` remains supported as an alias to `Table` in current v1.x releases.
 
 ## “Won’t Do” / Out of Scope (v1.x)
 - Pivoting, spreadsheet formulas, charts built-in, PDF export, print optimization, complex mobile gestures.

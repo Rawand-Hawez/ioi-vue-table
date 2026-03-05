@@ -1,6 +1,7 @@
 import IoiTable from './components/IoiTable.vue';
 
 export { IoiTable };
+export const Table = IoiTable;
 export const DataTable = IoiTable;
 
 export { useIoiTable } from './composables/useIoiTable';
