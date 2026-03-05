@@ -30,7 +30,8 @@
     }
   },
   "files": [
-    "dist"
+    "dist",
+    "README.md"
   ],
   "scripts": {
     "dev": "node ../../node_modules/vite/bin/vite.js --config vite.config.ts",
