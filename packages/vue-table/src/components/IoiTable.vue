@@ -1,5 +1,5 @@
 <script setup lang="ts" generic="TRow extends Record<string, unknown>">
-import { computed, onMounted, ref, watch } from 'vue';
+import { computed, onMounted, onUnmounted, ref, watch } from 'vue';
 import { useColumnState } from '../composables/useColumnState';
 import { useIoiTable } from '../composables/useIoiTable';
 import type {
@@ -76,6 +76,19 @@ const visibleRowEntries = computed(() =>
     .filter((entry): entry is { row: TRow; rowIndex: number } => entry.row !== undefined)
 );
 
+type PinGroup = 'left' | 'center' | 'right';
+
+interface ResizeState {
+  columnId: string;
+  startX: number;
+  startWidth: number;
+}
+
+const resizeState = ref<ResizeState | null>(null);
+const draggingColumnId = ref<string | null>(null);
+const draggingPinGroup = ref<PinGroup | null>(null);
+const dragTargetColumnId = ref<string | null>(null);
+
 const leftStickyOffsets = computed(() => {
   let offset = 0;
   const offsets = new Map<string, number>();
@@ -127,6 +140,11 @@ onMounted(() => {
   table.setViewport(viewportRef.value.scrollTop, viewportRef.value.clientHeight || props.height);
 });
 
+onUnmounted(() => {
+  window.removeEventListener('mousemove', onResizeMouseMove);
+  window.removeEventListener('mouseup', onResizeMouseUp);
+});
+
 function normalizeColumnWidth(width: number | string | undefined): string | undefined {
   if (typeof width === 'number') {
     return `${width}px`;
@@ -139,19 +157,41 @@ function normalizeColumnWidth(width: number | string | undefined): string | unde
   return undefined;
 }
 
-function getStickyWidth(column: ColumnDef<TRow>): number {
-  if (typeof column.width === 'number' && Number.isFinite(column.width)) {
-    return column.width;
+function resolveColumnId(column: ColumnDef<TRow>): string {
+  return String(column.id ?? column.field);
+}
+
+function parseNumericWidth(width: number | string | undefined): number | null {
+  if (typeof width === 'number' && Number.isFinite(width)) {
+    return width;
   }
 
-  if (typeof column.width === 'string') {
-    const normalized = column.width.trim();
-    if (normalized.endsWith('px')) {
-      const parsed = Number.parseFloat(normalized);
-      if (Number.isFinite(parsed)) {
-        return parsed;
-      }
-    }
+  if (typeof width !== 'string') {
+    return null;
+  }
+
+  const normalized = width.trim();
+  if (normalized.endsWith('%')) {
+    return null;
+  }
+
+  if (normalized.endsWith('px')) {
+    const parsed = Number.parseFloat(normalized);
+    return Number.isFinite(parsed) ? parsed : null;
+  }
+
+  const parsed = Number.parseFloat(normalized);
+  return Number.isFinite(parsed) ? parsed : null;
+}
+
+function isPercentWidth(width: number | string | undefined): boolean {
+  return typeof width === 'string' && width.trim().endsWith('%');
+}
+
+function getStickyWidth(column: ColumnDef<TRow>): number {
+  const parsedWidth = parseNumericWidth(column.width);
+  if (parsedWidth !== null) {
+    return parsedWidth;
   }
 
   if (typeof column.minWidth === 'number' && Number.isFinite(column.minWidth)) {
@@ -159,6 +199,150 @@ function getStickyWidth(column: ColumnDef<TRow>): number {
   }
 
   return 160;
+}
+
+function resolvePinGroup(column: ColumnDef<TRow>): PinGroup {
+  if (column.pin === 'left') {
+    return 'left';
+  }
+
+  if (column.pin === 'right') {
+    return 'right';
+  }
+
+  return 'center';
+}
+
+function isColumnResizable(column: ColumnDef<TRow>): boolean {
+  return !isPercentWidth(column.width);
+}
+
+function resolveResizableWidth(column: ColumnDef<TRow>): number {
+  const parsedWidth = parseNumericWidth(column.width);
+  if (parsedWidth !== null) {
+    return parsedWidth;
+  }
+
+  if (typeof column.minWidth === 'number' && Number.isFinite(column.minWidth)) {
+    return column.minWidth;
+  }
+
+  return 160;
+}
+
+function onResizeHandleMouseDown(event: MouseEvent, column: ColumnDef<TRow>): void {
+  if (!isColumnResizable(column) || event.button !== 0) {
+    return;
+  }
+
+  event.preventDefault();
+  event.stopPropagation();
+
+  resizeState.value = {
+    columnId: resolveColumnId(column),
+    startX: event.clientX,
+    startWidth: resolveResizableWidth(column)
+  };
+
+  window.addEventListener('mousemove', onResizeMouseMove);
+  window.addEventListener('mouseup', onResizeMouseUp);
+}
+
+function onResizeMouseMove(event: MouseEvent): void {
+  const activeResize = resizeState.value;
+  if (!activeResize) {
+    return;
+  }
+
+  const deltaX = event.clientX - activeResize.startX;
+  columnState.setColumnSizing(activeResize.columnId, {
+    width: activeResize.startWidth + deltaX
+  });
+}
+
+function onResizeMouseUp(): void {
+  if (!resizeState.value) {
+    return;
+  }
+
+  resizeState.value = null;
+  window.removeEventListener('mousemove', onResizeMouseMove);
+  window.removeEventListener('mouseup', onResizeMouseUp);
+}
+
+function onHeaderDragStart(event: DragEvent, column: ColumnDef<TRow>): void {
+  const columnId = resolveColumnId(column);
+  draggingColumnId.value = columnId;
+  draggingPinGroup.value = resolvePinGroup(column);
+  dragTargetColumnId.value = null;
+
+  if (event.dataTransfer) {
+    event.dataTransfer.effectAllowed = 'move';
+    event.dataTransfer.setData('text/plain', columnId);
+  }
+}
+
+function onHeaderDragOver(event: DragEvent, column: ColumnDef<TRow>): void {
+  if (!draggingColumnId.value || !draggingPinGroup.value) {
+    return;
+  }
+
+  if (resolvePinGroup(column) !== draggingPinGroup.value) {
+    dragTargetColumnId.value = null;
+    return;
+  }
+
+  event.preventDefault();
+  if (event.dataTransfer) {
+    event.dataTransfer.dropEffect = 'move';
+  }
+
+  dragTargetColumnId.value = resolveColumnId(column);
+}
+
+function onHeaderDrop(event: DragEvent, targetColumn: ColumnDef<TRow>): void {
+  event.preventDefault();
+  const sourceColumnId = draggingColumnId.value;
+  if (!sourceColumnId) {
+    return;
+  }
+
+  const sourceColumn = renderColumns.value.find((column) => resolveColumnId(column) === sourceColumnId);
+  if (!sourceColumn) {
+    return;
+  }
+
+  if (resolvePinGroup(sourceColumn) !== resolvePinGroup(targetColumn)) {
+    return;
+  }
+
+  const targetColumnId = resolveColumnId(targetColumn);
+  if (sourceColumnId === targetColumnId) {
+    return;
+  }
+
+  const snapshot = columnState.getSnapshot();
+  const nextOrder = [...snapshot.order];
+  const sourceIndex = nextOrder.indexOf(sourceColumnId);
+  const targetIndex = nextOrder.indexOf(targetColumnId);
+  if (sourceIndex === -1 || targetIndex === -1) {
+    return;
+  }
+
+  const [sourceEntry] = nextOrder.splice(sourceIndex, 1);
+  if (!sourceEntry) {
+    return;
+  }
+
+  const insertIndex = sourceIndex < targetIndex ? targetIndex - 1 : targetIndex;
+  nextOrder.splice(insertIndex, 0, sourceEntry);
+  columnState.setColumnOrder(nextOrder);
+}
+
+function onHeaderDragEnd(): void {
+  draggingColumnId.value = null;
+  draggingPinGroup.value = null;
+  dragTargetColumnId.value = null;
 }
 
 function getColumnStyle(
@@ -261,12 +445,32 @@ defineExpose({
             <th
               v-for="(column, columnIndex) in renderColumns"
               :key="column.id"
+              :class="{
+                'ioi-table__header--dragging': draggingColumnId === column.id,
+                'ioi-table__header--drag-target': dragTargetColumnId === column.id
+              }"
+              :data-column-id="column.id"
+              :draggable="true"
               :style="getColumnStyle(column, 'header')"
               scope="col"
+              @dragend="onHeaderDragEnd"
+              @dragover="onHeaderDragOver($event, column)"
+              @dragstart="onHeaderDragStart($event, column)"
+              @drop="onHeaderDrop($event, column)"
             >
-              <slot name="header" :column="column" :column-index="columnIndex">
-                {{ column.header ?? column.field }}
-              </slot>
+              <div class="ioi-table__header-content">
+                <slot name="header" :column="column" :column-index="columnIndex">
+                  <span class="ioi-table__header-label">{{ column.header ?? column.field }}</span>
+                </slot>
+              </div>
+              <button
+                type="button"
+                class="ioi-table__resize-handle"
+                :class="{ 'ioi-table__resize-handle--disabled': !isColumnResizable(column) }"
+                :aria-label="`Resize ${column.header ?? String(column.field)}`"
+                :disabled="!isColumnResizable(column)"
+                @mousedown="onResizeHandleMouseDown($event, column)"
+              />
             </th>
           </tr>
         </thead>
@@ -359,6 +563,67 @@ defineExpose({
 .ioi-table__table th {
   background: #f7f9fc;
   font-weight: 600;
+  user-select: none;
+}
+
+.ioi-table__header-content {
+  display: flex;
+  align-items: center;
+  min-height: 100%;
+  padding-right: 8px;
+}
+
+.ioi-table__header-label {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.ioi-table__resize-handle {
+  position: absolute;
+  top: 0;
+  right: -2px;
+  width: 8px;
+  height: 100%;
+  border: 0;
+  background: transparent;
+  cursor: col-resize;
+  z-index: 5;
+}
+
+.ioi-table__resize-handle::after {
+  content: '';
+  position: absolute;
+  top: 8px;
+  bottom: 8px;
+  left: 50%;
+  width: 2px;
+  transform: translateX(-50%);
+  border-radius: 2px;
+  background: #c4cfde;
+  opacity: 0;
+  transition: opacity 120ms ease;
+}
+
+.ioi-table__table th:hover .ioi-table__resize-handle::after,
+.ioi-table__resize-handle:focus-visible::after {
+  opacity: 1;
+}
+
+.ioi-table__resize-handle--disabled {
+  cursor: default;
+}
+
+.ioi-table__resize-handle--disabled::after {
+  opacity: 0;
+}
+
+.ioi-table__header--dragging {
+  opacity: 0.65;
+}
+
+.ioi-table__header--drag-target {
+  background: #e9f2ff;
 }
 
 .ioi-table__spacer td {

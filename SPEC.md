@@ -26,7 +26,17 @@ IOI Vue Table is a performance-first, AI-ready, open-source datatable for Vue 3 
 - Sticky pinning left/right
 - Pin partitions are derived as `pinnedLeft`, `center`, `pinnedRight`; horizontal windowing is not applied in v1 JS path
 - Drag-to-resize with persistence (adapter-based)
+- Width clamping and normalization (locked):
+  - numeric widths are rounded to integer pixels
+  - invalid widths (`NaN`, non-finite, `<= 0`) fall back to `minWidth` when present, otherwise default `160px`
+  - `minWidth` and `maxWidth` are normalized to positive integers; when `maxWidth < minWidth`, `maxWidth` is clamped up to `minWidth`
+- Percent width handling (locked):
+  - percent-width columns are non-resizable in v1 UI
+  - resize attempts on percent-width columns are ignored
 - Drag-to-reorder
+- Reorder rule across pin partitions (locked):
+  - header drag reorder is allowed only within the same pin group (`left`, `center`, `right`)
+  - cross-group drops are ignored (pin state is not auto-rewritten during reorder)
 
 ### Complex Data Handling
 - Nested object access via dot notation: user.profile.name

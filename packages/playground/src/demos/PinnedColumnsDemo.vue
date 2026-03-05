@@ -71,12 +71,16 @@ function toggleOwnerPin(): void {
     <header class="demo__header">
       <div>
         <h2>Pinned Columns</h2>
-        <p>Left + right pin partitions with programmatic sizing and reorder stress actions.</p>
+        <p>
+          Drag headers to reorder within the same pin group and drag right-edge handles to resize.
+          Cross-group reorder (left/center/right) is intentionally blocked in v1.
+        </p>
       </div>
       <div class="demo__actions">
         <button type="button" @click="rotateOrder">Rotate Order</button>
         <button type="button" @click="widenPinnedColumns">Widen Pins</button>
         <button type="button" @click="toggleOwnerPin">Toggle Owner Pin</button>
+        <button type="button" @click="captureSnapshot">Capture Snapshot</button>
       </div>
     </header>
 
