@@ -22,7 +22,7 @@ const routes: DemoRouteEntry[] = [
   {
     id: 'pinned-columns',
     label: 'Pinned Columns',
-    description: 'Left/right partitions with programmatic sizing and reorder actions.'
+    description: 'Left/right partitions with interactive resize and drag reorder.'
   },
   {
     id: 'ops-demo',
