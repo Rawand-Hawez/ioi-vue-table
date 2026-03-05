@@ -1,4 +1,4 @@
-import type { ColumnDef } from '@ioi/vue-table';
+import type { ColumnDef } from '@ioi-dev/vue-table';
 
 export type PrimitiveCell = string | number | boolean;
 export type PrimitiveRow = Record<string, PrimitiveCell>;

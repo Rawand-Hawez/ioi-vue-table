@@ -1,13 +1,13 @@
 <script setup lang="ts">
 import { computed, ref } from 'vue';
-import { IoiTable } from '@ioi/vue-table';
+import { IoiTable } from '@ioi-dev/vue-table';
 import type {
   ColumnDef,
   CsvImportMapping,
   CsvImportPreview,
   CsvImportResult,
   ParseCsvOptions
-} from '@ioi/vue-table';
+} from '@ioi-dev/vue-table';
 
 interface CsvImportRow {
   id: number | null;

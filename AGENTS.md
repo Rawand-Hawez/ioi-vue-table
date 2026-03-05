@@ -1,8 +1,8 @@
-# AGENTS.md — @ioi/vue-table (Codex / AI Agent Context)
+# AGENTS.md — @ioi-dev/vue-table (Codex / AI Agent Context)
 
 ## Project Identity
 - GitHub repo: ioi-vue-table
-- Package name (locked): @ioi/vue-table
+- Package name (locked): @ioi-dev/vue-table
 - Product name (docs): IOI Vue Table
 - Primary goal: performance-first Vue 3 datatable that stays approachable.
 - Positioning: “AG Grid performance without the bloat. TanStack flexibility without the complexity.”
@@ -10,7 +10,7 @@
 ## Support Policy (Locked)
 - Baseline: Vue 3.4+ stable (default build target).
 - Vue 3.6: track compatibility via CI, but do not hard-depend on 3.6 preview behavior.
-- Vapor Mode: NOT supported in v1.0. Plan as separate entry point later (e.g. @ioi/vue-table/vapor) using function renderers instead of slots.
+- Vapor Mode: NOT supported in v1.0. Plan as separate entry point later (e.g. @ioi-dev/vue-table/vapor) using function renderers instead of slots.
 
 ## Non-Negotiable Invariants
 1) JS fallback is first-class.
@@ -29,7 +29,7 @@
    - Include benchmark harness in repo; avoid marketing-only claims.
 
 ## Repo Structure (Target)
-- packages/vue-table            # published npm package @ioi/vue-table
+- packages/vue-table            # published npm package @ioi-dev/vue-table
 - packages/table-core           # Rust workspace (optional for local dev)
 - packages/mcp-server (later)   # optional addon package
 

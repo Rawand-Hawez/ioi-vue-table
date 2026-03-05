@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { ref } from 'vue';
-import { IoiTable } from '@ioi/vue-table';
-import type { ColumnDef, ColumnStateSnapshot } from '@ioi/vue-table';
+import { IoiTable } from '@ioi-dev/vue-table';
+import type { ColumnDef, ColumnStateSnapshot } from '@ioi-dev/vue-table';
 import { createPinnedColumns, createPinnedRows, type PinnedRow } from '../utils/demoData';
 
 const columns = ref<ColumnDef<PinnedRow>[]>(createPinnedColumns());

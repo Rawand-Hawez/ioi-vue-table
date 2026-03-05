@@ -1,5 +1,5 @@
 ---
-"@ioi/vue-table": minor
+"@ioi-dev/vue-table": minor
 ---
 
 Add index-based filtering and global search to `useIoiTable` with typed column filters (`text`, `number`, `date`), nested-path field access, and programmatic filter APIs.

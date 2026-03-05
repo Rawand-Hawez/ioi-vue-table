@@ -10,14 +10,14 @@ Performance-first Vue 3 data table with a small API surface and JS-first default
 ## Install
 
 ```bash
-npm install @ioi/vue-table vue
+npm install @ioi-dev/vue-table vue
 ```
 
 ## Quick Start
 
 ```vue
 <script setup lang="ts">
-import { IoiTable, type ColumnDef } from '@ioi/vue-table';
+import { IoiTable, type ColumnDef } from '@ioi-dev/vue-table';
 
 interface UserRow {
   id: number;
@@ -58,8 +58,8 @@ Playground routes (hash-based):
 
 ## Workspace Commands
 
-- `npm --workspace @ioi/vue-table run test`
-- `npm --workspace @ioi/vue-table run build`
+- `npm --workspace @ioi-dev/vue-table run test`
+- `npm --workspace @ioi-dev/vue-table run build`
 - `npm --workspace @ioi/vue-table-playground run build`
 - `npm --workspaces run lint`
 - `npm --workspaces run typecheck`

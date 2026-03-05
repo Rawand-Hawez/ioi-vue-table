@@ -60,5 +60,5 @@ All state-changing actions emit:
 
 ## 9) Vapor Plan (Later)
 - Vapor not supported in v1.0.
-- Plan: separate entry point @ioi/vue-table/vapor with function renderers instead of slots.
+- Plan: separate entry point @ioi-dev/vue-table/vapor with function renderers instead of slots.
 - Core composables must remain render-agnostic to enable this later.

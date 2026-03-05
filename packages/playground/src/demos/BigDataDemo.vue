@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { computed, ref } from 'vue';
-import { IoiTable } from '@ioi/vue-table';
-import type { ColumnDef } from '@ioi/vue-table';
+import { IoiTable } from '@ioi-dev/vue-table';
+import type { ColumnDef } from '@ioi-dev/vue-table';
 import { createBigDataColumns, createBigDataRows, type PrimitiveRow } from '../utils/demoData';
 
 const ROW_COUNT = 100_000;

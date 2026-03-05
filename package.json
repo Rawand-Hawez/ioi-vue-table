@@ -8,10 +8,10 @@
   ],
   "scripts": {
     "dev": "npm run dev --workspace @ioi/vue-table-playground",
-    "build": "npm run build --workspace @ioi/vue-table && npm run build --workspace @ioi/vue-table-playground",
-    "test": "npm run test --workspace @ioi/vue-table",
-    "typecheck": "npm run typecheck --workspace @ioi/vue-table && npm run typecheck --workspace @ioi/vue-table-playground",
-    "lint": "npm run lint --workspace @ioi/vue-table && npm run lint --workspace @ioi/vue-table-playground",
+    "build": "npm run build --workspace @ioi-dev/vue-table && npm run build --workspace @ioi/vue-table-playground",
+    "test": "npm run test --workspace @ioi-dev/vue-table",
+    "typecheck": "npm run typecheck --workspace @ioi-dev/vue-table && npm run typecheck --workspace @ioi/vue-table-playground",
+    "lint": "npm run lint --workspace @ioi-dev/vue-table && npm run lint --workspace @ioi/vue-table-playground",
     "ci": "npm run lint && npm run typecheck && npm run test && npm run build",
     "build:wasm": "npm run build:wasm --workspace @ioi/vue-table-core"
   },

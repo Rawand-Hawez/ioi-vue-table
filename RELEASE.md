@@ -1,10 +1,10 @@
-# RELEASE.md — @ioi/vue-table
+# RELEASE.md — @ioi-dev/vue-table
 
 This repository uses Changesets for versioning. Do not manually edit version numbers.
 
 ## 1) Create/Review Changesets
 
-Every PR that changes `@ioi/vue-table` must include a file in `.changeset/` with the intended bump (`patch`, `minor`, `major`).
+Every PR that changes `@ioi-dev/vue-table` must include a file in `.changeset/` with the intended bump (`patch`, `minor`, `major`).
 
 Before release, verify pending changesets:
 
@@ -25,18 +25,18 @@ This updates package versions and changelogs from `.changeset/*.md`.
 ## 3) Build and Validate Package Contents
 
 ```bash
-npm --workspace @ioi/vue-table run build
-npm_config_cache=/tmp/npm-cache npm --workspace @ioi/vue-table pack
+npm --workspace @ioi-dev/vue-table run build
+npm_config_cache=/tmp/npm-cache npm --workspace @ioi-dev/vue-table pack
 ```
 
 Verify the tarball contains `dist/` JS bundles plus declarations (`dist/index.d.ts`, etc.) and does not include playground sources.
 
 ## 4) Publish
 
-Scoped packages must be published with public access:
+This package defaults to public publishing via `publishConfig.access = "public"`:
 
 ```bash
-npm publish --workspace @ioi/vue-table --access public
+npm publish --workspace @ioi-dev/vue-table
 ```
 
 ## 5) Post-Publish
