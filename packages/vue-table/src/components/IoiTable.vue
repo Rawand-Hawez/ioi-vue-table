@@ -225,6 +225,8 @@ defineExpose({
   clearColumnFilter: table.clearColumnFilter,
   setGlobalSearch: table.setGlobalSearch,
   clearAllFilters: table.clearAllFilters,
+  setSortState: table.setSortState,
+  toggleSort: table.toggleSort,
   toggleRow: table.toggleRow,
   isSelected: table.isSelected,
   clearSelection: table.clearSelection,
