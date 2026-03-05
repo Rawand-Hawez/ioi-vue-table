@@ -6,3 +6,10 @@ coverage/
 *.tsbuildinfo
 .vscode/
 .idea/
+*.tgz
+tmp/
+temp/
+target/
+pkg/
+*.swp
+*.swo
