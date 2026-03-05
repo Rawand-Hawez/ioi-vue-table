@@ -9,6 +9,8 @@ coverage/
 *.tgz
 tmp/
 temp/
+.cache/
+packages/bench/output/
 target/
 pkg/
 *.swp

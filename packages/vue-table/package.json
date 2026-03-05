@@ -1,6 +1,6 @@
 {
   "name": "@ioi-dev/vue-table",
-  "version": "0.1.4",
+  "version": "0.1.5",
   "description": "IOI Vue Table package",
   "author": "Rawand Hawez",
   "contributors": [
@@ -22,11 +22,35 @@
   "main": "./dist/ioi-vue-table.cjs",
   "module": "./dist/ioi-vue-table.js",
   "types": "./dist/index.d.ts",
+  "sideEffects": [
+    "**/*.css"
+  ],
   "exports": {
     ".": {
       "types": "./dist/index.d.ts",
       "import": "./dist/ioi-vue-table.js",
       "require": "./dist/ioi-vue-table.cjs"
+    },
+    "./unstyled": {
+      "types": "./dist/unstyled.d.ts",
+      "import": "./dist/unstyled.js",
+      "require": "./dist/unstyled.cjs"
+    },
+    "./styles.css": "./dist/style.css",
+    "./utils/nestedPath": {
+      "types": "./dist/utils/nestedPath.d.ts",
+      "import": "./dist/utils/nestedPath.js",
+      "require": "./dist/utils/nestedPath.cjs"
+    },
+    "./composables/useIoiTable": {
+      "types": "./dist/composables/useIoiTable.d.ts",
+      "import": "./dist/composables/useIoiTable.js",
+      "require": "./dist/composables/useIoiTable.cjs"
+    },
+    "./composables/useColumnState": {
+      "types": "./dist/composables/useColumnState.d.ts",
+      "import": "./dist/composables/useColumnState.js",
+      "require": "./dist/composables/useColumnState.cjs"
     }
   },
   "files": [

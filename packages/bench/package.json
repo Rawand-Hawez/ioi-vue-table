@@ -1,0 +1,13 @@
+{
+  "name": "@ioi/vue-table-bench",
+  "private": true,
+  "version": "0.0.0",
+  "type": "module",
+  "scripts": {
+    "bench": "node bench.mjs"
+  },
+  "dependencies": {
+    "@ioi-dev/vue-table": "*",
+    "vue": "^3.4.0"
+  }
+}

@@ -6,9 +6,22 @@ export default defineConfig({
   plugins: [vue()],
   build: {
     lib: {
-      entry: resolve(__dirname, 'src/index.ts'),
+      entry: {
+        index: resolve(__dirname, 'src/index.ts'),
+        unstyled: resolve(__dirname, 'src/unstyled.ts'),
+        'utils/nestedPath': resolve(__dirname, 'src/utils/nestedPath.ts'),
+        'composables/useIoiTable': resolve(__dirname, 'src/composables/useIoiTable.ts'),
+        'composables/useColumnState': resolve(__dirname, 'src/composables/useColumnState.ts')
+      },
       name: 'IoiVueTable',
-      fileName: (format) => (format === 'es' ? 'ioi-vue-table.js' : 'ioi-vue-table.cjs'),
+      fileName: (format, entryName) => {
+        const extension = format === 'es' ? 'js' : 'cjs';
+        if (entryName === 'index') {
+          return `ioi-vue-table.${extension}`;
+        }
+
+        return `${entryName}.${extension}`;
+      },
       formats: ['es', 'cjs']
     },
     rollupOptions: {

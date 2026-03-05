@@ -1,5 +1,29 @@
 # @ioi-dev/vue-table
 
+## 0.1.5
+
+### Patch Changes
+
+- Security hardening:
+  - bound nested-path parser cache with LRU eviction (2048 entries)
+  - CSV formula-injection sanitization enabled by default (`sanitizeFormulas`, `formulaEscapePrefix`)
+- Reliability upgrades:
+  - `parseCSV()` now returns structured `fatalError` previews on source/parse failures
+  - CSV import validator exceptions are captured as row-level validation errors
+- Accessibility upgrades in `IoiTable.vue`:
+  - `aria-sort`, `aria-selected`, keyboard row interactions, and polite live-region announcements
+- New configuration options:
+  - `globalSearchDebounceMs`, `filterDebounceMs`, `defaultCsvPreviewRowLimit`
+- Packaging and exports:
+  - new `@ioi-dev/vue-table/unstyled` entrypoint
+  - subpath exports for composables and `utils/nestedPath`
+  - explicit CSS side-effect declaration
+- Internal architecture:
+  - split `useIoiTable` helper logic into `src/composables/ioiTable/*` modules
+- Tooling and performance:
+  - benchmark workspace (`packages/bench`) with JSON/Markdown report output
+  - CI now includes non-blocking benchmark reporting and TypeScript build-info caching
+
 ## 0.1.4
 
 ### Patch Changes
@@ -10,6 +34,13 @@
 - Improve pagination control semantics (partial controlled state support) and stabilize pagination meta emissions for external prop updates.
 - Expand table/composable test coverage for pagination, facet behavior, and duplicate-field filter handling.
 - Refresh README/docs and consolidate root technical docs under `docs/`.
+
+### Known Issues
+
+- npm `0.1.4` published artifact mismatch: the shipped runtime bundle may not contain pagination/internal header-filter code described in docs.
+- CSS path confusion in integrations: use `@ioi-dev/vue-table/styles.css` (export path), not `@ioi-dev/vue-table/style.css`.
+
+Fix target: `0.1.6`.
 
 ## 0.1.2
 

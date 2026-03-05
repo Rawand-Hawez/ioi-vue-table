@@ -18,6 +18,8 @@ IOI Vue Table is a performance-first Vue 3 data table with a small, stable publi
 npm install @ioi-dev/vue-table vue
 ```
 
+Default import includes library CSS. For zero-CSS usage, import from `@ioi-dev/vue-table/unstyled`.
+
 ## 60-Second Quick Start
 
 ```vue
@@ -94,6 +96,16 @@ The table ships headless-first. You can style it with Tailwind, shadCN, Bootstra
 - `.ioi-table__header-content`
 - `.ioi-table__filter-input` / `.ioi-table__filter-select`
 - `.ioi-table__row` / `.ioi-table__empty`
+- `.ioi-table__row--selected` / `.ioi-table__row--editing`
+- `.ioi-table__header--sorted-asc` / `.ioi-table__header--sorted-desc`
+- `.ioi-table__cell--editing`
+
+## CSV + Debounce Notes
+
+- `exportCSV()` sanitizes formula-like values by default (`sanitizeFormulas: true`).
+- You can opt out with `sanitizeFormulas: false`, or customize prefix with `formulaEscapePrefix: "'" | "\t"`.
+- `globalSearchDebounceMs` and `filterDebounceMs` are optional table/composable options (default `0`).
+- `rowHeight` and `overscan` are configurable in both component props and composable options.
 
 ## Performance Model
 
@@ -108,6 +120,7 @@ The table ships headless-first. You can style it with Tailwind, shadCN, Bootstra
 - [Architecture](docs/ARCHITECTURE.md)
 - [Specification](docs/SPEC.md)
 - [Roadmap](docs/ROADMAP.md)
+- [Benchmarks](docs/benchmarks.md)
 
 ## Run Playground
 

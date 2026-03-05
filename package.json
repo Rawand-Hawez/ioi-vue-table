@@ -13,6 +13,7 @@
     "typecheck": "npm run typecheck --workspace @ioi-dev/vue-table && npm run typecheck --workspace @ioi/vue-table-playground",
     "lint": "npm run lint --workspace @ioi-dev/vue-table && npm run lint --workspace @ioi/vue-table-playground",
     "ci": "npm run lint && npm run typecheck && npm run test && npm run build",
+    "bench": "npm run build --workspace @ioi-dev/vue-table && npm run bench --workspace @ioi/vue-table-bench",
     "build:wasm": "npm run build:wasm --workspace @ioi/vue-table-core"
   },
   "devDependencies": {

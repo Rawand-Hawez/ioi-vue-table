@@ -256,4 +256,106 @@ describe('IoiTable', () => {
     expect(lastEvent.pageSize).toBe(2);
     expect(lastEvent.reason).toBe('meta');
   });
+
+  it('sets aria-sort on sorted columns', async () => {
+    const wrapper = mount(IoiTable, {
+      props: {
+        columns: [
+          { field: 'id', header: 'ID' },
+          { field: 'name', header: 'Name' }
+        ],
+        rows: [
+          { id: 2, name: 'B' },
+          { id: 1, name: 'A' }
+        ]
+      }
+    });
+
+    const headersBefore = wrapper.findAll('thead th');
+    expect(headersBefore[0]?.attributes('aria-sort')).toBe('none');
+
+    (wrapper.vm as { setSortState: (state: Array<{ field: string; direction: 'asc' | 'desc' }>) => void })
+      .setSortState([{ field: 'id', direction: 'asc' }]);
+    await nextTick();
+
+    const headersAfter = wrapper.findAll('thead th');
+    expect(headersAfter[0]?.attributes('aria-sort')).toBe('ascending');
+    expect(headersAfter[1]?.attributes('aria-sort')).toBe('none');
+  });
+
+  it('adds aria-selected and selected-row class when rows are selected', async () => {
+    const wrapper = mount(IoiTable, {
+      props: {
+        columns: [{ field: 'name', header: 'Name' }],
+        rows: [
+          { id: 1, name: 'Alpha' },
+          { id: 2, name: 'Beta' }
+        ],
+        rowKey: 'id'
+      }
+    });
+
+    (wrapper.vm as { toggleRow: (key: string | number) => void }).toggleRow(1);
+    await nextTick();
+
+    const firstRow = wrapper.findAll('tbody tr.ioi-table__row')[0];
+    expect(firstRow?.attributes('aria-selected')).toBe('true');
+    expect(firstRow?.classes()).toContain('ioi-table__row--selected');
+  });
+
+  it('supports keyboard selection and row-to-row focus navigation', async () => {
+    const wrapper = mount(IoiTable, {
+      attachTo: document.body,
+      props: {
+        columns: [{ field: 'name', header: 'Name' }],
+        rows: [
+          { id: 1, name: 'Alpha' },
+          { id: 2, name: 'Beta' },
+          { id: 3, name: 'Gamma' }
+        ],
+        rowKey: 'id',
+        rowHeight: 24,
+        height: 120,
+        overscan: 0
+      }
+    });
+
+    const rows = wrapper.findAll('tbody tr.ioi-table__row');
+    expect(rows).toHaveLength(3);
+
+    await rows[0]?.trigger('keydown', { key: 'Enter' });
+    await nextTick();
+    expect((wrapper.vm as { getSelectedKeys: () => Array<string | number> }).getSelectedKeys()).toEqual([1]);
+
+    await rows[1]?.trigger('keydown', { key: ' ', shiftKey: true });
+    await nextTick();
+    expect((wrapper.vm as { getSelectedKeys: () => Array<string | number> }).getSelectedKeys()).toEqual([
+      1,
+      2
+    ]);
+
+    const firstRow = rows[0]?.element as HTMLTableRowElement;
+    firstRow.focus();
+    await rows[0]?.trigger('keydown', { key: 'ArrowDown' });
+    await nextTick();
+    expect(document.activeElement).toBe(rows[1]?.element);
+
+    wrapper.unmount();
+  });
+
+  it('updates the live region when semantic events are emitted', async () => {
+    const wrapper = mount(IoiTable, {
+      props: {
+        columns: [{ field: 'id', header: 'ID' }],
+        rows: [{ id: 1 }]
+      }
+    });
+
+    (wrapper.vm as { setSortState: (state: Array<{ field: string; direction: 'asc' | 'desc' }>) => void })
+      .setSortState([{ field: 'id', direction: 'desc' }]);
+    await nextTick();
+
+    const liveRegion = wrapper.find('.ioi-table__sr-only');
+    expect(liveRegion.text()).toContain('Sorting updated.');
+  });
 });

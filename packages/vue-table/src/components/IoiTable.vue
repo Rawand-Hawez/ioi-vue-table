@@ -13,6 +13,11 @@ import type {
   RowClickPayload
 } from '../types';
 import { get as getNestedPathValue } from '../utils/nestedPath';
+import {
+  normalizeNonNegativeInteger,
+  normalizePositiveInteger,
+  normalizePositiveNumber
+} from '../utils/number';
 
 const props = withDefaults(
   defineProps<{
@@ -24,13 +29,19 @@ const props = withDefaults(
     height?: number;
     pageIndex?: number;
     pageSize?: number;
+    globalSearchDebounceMs?: number;
+    filterDebounceMs?: number;
+    csvPreviewRowLimit?: number;
   }>(),
   {
     rows: () => [],
     columns: () => [],
     rowHeight: 36,
     overscan: 5,
-    height: 320
+    height: 320,
+    globalSearchDebounceMs: 0,
+    filterDebounceMs: 0,
+    csvPreviewRowLimit: 200
   }
 );
 
@@ -53,36 +64,6 @@ const DEFAULT_HEIGHT = 320;
 const DEFAULT_ROW_HEIGHT = 36;
 const DEFAULT_OVERSCAN = 5;
 
-function normalizePositiveNumber(value: unknown, fallback: number): number {
-  if (typeof value === 'number' && Number.isFinite(value) && value > 0) {
-    return value;
-  }
-
-  if (typeof value === 'string') {
-    const parsed = Number(value.trim());
-    if (Number.isFinite(parsed) && parsed > 0) {
-      return parsed;
-    }
-  }
-
-  return fallback;
-}
-
-function normalizeNonNegativeInteger(value: unknown, fallback: number): number {
-  if (typeof value === 'number' && Number.isFinite(value) && value >= 0) {
-    return Math.floor(value);
-  }
-
-  if (typeof value === 'string') {
-    const parsed = Number(value.trim());
-    if (Number.isFinite(parsed) && parsed >= 0) {
-      return Math.floor(parsed);
-    }
-  }
-
-  return fallback;
-}
-
 function buildPaginationEventKey(
   pageIndex: number,
   pageSize: number,
@@ -99,6 +80,15 @@ const normalizedOverscan = computed(() =>
 );
 const normalizedPageIndex = computed(() => normalizeNonNegativeInteger(props.pageIndex, 0));
 const normalizedPageSize = computed(() => Math.floor(normalizePositiveNumber(props.pageSize, 0)));
+const normalizedGlobalSearchDebounceMs = computed(() =>
+  normalizeNonNegativeInteger(props.globalSearchDebounceMs, 0)
+);
+const normalizedFilterDebounceMs = computed(() =>
+  normalizeNonNegativeInteger(props.filterDebounceMs, 0)
+);
+const normalizedCsvPreviewRowLimit = computed(() =>
+  normalizePositiveInteger(props.csvPreviewRowLimit, 200)
+);
 const lastPaginationEventKey = ref('');
 
 const table = useIoiTable<TRow>(
@@ -109,6 +99,9 @@ const table = useIoiTable<TRow>(
     rowHeight: normalizedRowHeight.value,
     overscan: normalizedOverscan.value,
     viewportHeight: normalizedHeight.value,
+    globalSearchDebounceMs: normalizedGlobalSearchDebounceMs.value,
+    filterDebounceMs: normalizedFilterDebounceMs.value,
+    defaultCsvPreviewRowLimit: normalizedCsvPreviewRowLimit.value,
     pagination:
       normalizedPageSize.value > 0
         ? { pageIndex: normalizedPageIndex.value, pageSize: normalizedPageSize.value }
@@ -183,6 +176,44 @@ const headerFacetOptionsByField = computed(() => {
   }
 
   return optionsByField;
+});
+const selectionEnabled = computed(() => props.rowKey !== undefined && props.rowKey !== null);
+const liveRegionMessage = computed(() => {
+  const event = table.lastEvent.value;
+  if (!event) {
+    return '';
+  }
+
+  if (event.type === 'data:filter') {
+    return 'Filters updated.';
+  }
+
+  if (event.type === 'data:sort') {
+    return 'Sorting updated.';
+  }
+
+  if (event.type === 'data:select') {
+    return 'Selection updated.';
+  }
+
+  if (event.type === 'data:modify') {
+    return 'Data updated.';
+  }
+
+  if (event.type === 'data:extract') {
+    const reason = (event.payload as { reason?: string } | undefined)?.reason;
+    if (reason === 'parseCSVError') {
+      return 'CSV parsing failed.';
+    }
+    if (reason === 'parseCSV') {
+      return 'CSV parsed.';
+    }
+    if (reason === 'exportCSV') {
+      return 'CSV exported.';
+    }
+  }
+
+  return 'Table updated.';
 });
 
 type PinGroup = 'left' | 'center' | 'right';
@@ -542,22 +573,127 @@ function getCellValue(row: TRow, field: string): unknown {
   return getNestedPathValue(row, field);
 }
 
-function resolveRowKey(row: TRow, index: number): string | number {
+function resolveRowSelectionKey(row: TRow, index: number): string | number | null {
   const { rowKey } = props;
 
   if (typeof rowKey === 'function') {
-    return rowKey(row, index);
+    const value = rowKey(row, index);
+    return typeof value === 'string' || typeof value === 'number' ? value : null;
   }
 
-  if (rowKey && row && typeof row === 'object') {
-    return String((row as Record<string, unknown>)[rowKey as string] ?? index);
+  if (rowKey !== undefined && rowKey !== null) {
+    const value = getNestedPathValue(row, String(rowKey));
+    return typeof value === 'string' || typeof value === 'number' ? value : null;
   }
 
-  return index;
+  return null;
+}
+
+function resolveRowKey(row: TRow, index: number): string | number {
+  return resolveRowSelectionKey(row, index) ?? index;
+}
+
+function isRowSelected(row: TRow, rowIndex: number): boolean {
+  if (!selectionEnabled.value) {
+    return false;
+  }
+
+  const rowKey = resolveRowSelectionKey(row, rowIndex);
+  if (rowKey === null) {
+    return false;
+  }
+
+  return table.isSelected(rowKey);
+}
+
+function isRowEditing(row: TRow, rowIndex: number): boolean {
+  const editingCell = table.state.value.editingCell;
+  if (!editingCell) {
+    return false;
+  }
+
+  if (editingCell.rowIndex !== undefined && editingCell.rowIndex !== null) {
+    return editingCell.rowIndex === rowIndex;
+  }
+
+  if (editingCell.rowKey !== undefined && editingCell.rowKey !== null) {
+    const rowKey = resolveRowSelectionKey(row, rowIndex);
+    return rowKey !== null && rowKey === editingCell.rowKey;
+  }
+
+  return false;
+}
+
+function isEditingCell(row: TRow, rowIndex: number, column: ColumnDef<TRow>): boolean {
+  const editingCell = table.state.value.editingCell;
+  if (!editingCell || editingCell.field !== String(column.field)) {
+    return false;
+  }
+
+  return isRowEditing(row, rowIndex);
+}
+
+function getSortDirection(column: ColumnDef<TRow>): 'asc' | 'desc' | null {
+  const field = String(column.field);
+  const columnId = String(column.id ?? '');
+  const activeSort = table.state.value.sort.find(
+    (entry) => entry.field === field || (columnId.length > 0 && entry.field === columnId)
+  );
+
+  if (!activeSort) {
+    return null;
+  }
+
+  return activeSort.direction;
+}
+
+function getHeaderAriaSort(column: ColumnDef<TRow>): 'ascending' | 'descending' | 'none' {
+  const direction = getSortDirection(column);
+  if (direction === 'asc') {
+    return 'ascending';
+  }
+  if (direction === 'desc') {
+    return 'descending';
+  }
+
+  return 'none';
 }
 
 function onRowClick(row: TRow, rowIndex: number): void {
   emit('row-click', { row, rowIndex });
+}
+
+function onRowKeydown(event: KeyboardEvent, row: TRow, rowIndex: number): void {
+  const key = event.key;
+  if (key === 'Enter' || key === ' ') {
+    const rowKey = resolveRowSelectionKey(row, rowIndex);
+    if (rowKey === null) {
+      return;
+    }
+
+    event.preventDefault();
+    table.toggleRow(rowKey, { shiftKey: event.shiftKey });
+    return;
+  }
+
+  if (key !== 'ArrowDown' && key !== 'ArrowUp') {
+    return;
+  }
+
+  event.preventDefault();
+
+  const currentRowElement = event.currentTarget as HTMLTableRowElement;
+  const renderedRows = Array.from(
+    currentRowElement.parentElement?.querySelectorAll<HTMLTableRowElement>('tr.ioi-table__row') ?? []
+  );
+  const currentIndex = renderedRows.indexOf(currentRowElement);
+  if (currentIndex === -1) {
+    return;
+  }
+
+  const offset = key === 'ArrowDown' ? 1 : -1;
+  const nextIndex = Math.min(Math.max(currentIndex + offset, 0), renderedRows.length - 1);
+  renderedRows[nextIndex]?.focus();
 }
 
 function onScroll(event: Event): void {
@@ -668,6 +804,7 @@ defineExpose({
 
 <template>
   <div class="ioi-table">
+    <div class="ioi-table__sr-only" aria-live="polite" aria-atomic="true">{{ liveRegionMessage }}</div>
     <div
       ref="viewportRef"
       class="ioi-table__viewport"
@@ -684,11 +821,14 @@ defineExpose({
               :key="column.id"
               :class="{
                 'ioi-table__header--dragging': draggingColumnId === column.id,
-                'ioi-table__header--drag-target': dragTargetColumnId === column.id
+                'ioi-table__header--drag-target': dragTargetColumnId === column.id,
+                'ioi-table__header--sorted-asc': getSortDirection(column) === 'asc',
+                'ioi-table__header--sorted-desc': getSortDirection(column) === 'desc'
               }"
               :data-column-id="column.id"
               :draggable="true"
               :style="getColumnStyle(column, 'header')"
+              :aria-sort="getHeaderAriaSort(column)"
               scope="col"
               @dragend="onHeaderDragEnd"
               @dragover="onHeaderDragOver($event, column)"
@@ -767,13 +907,24 @@ defineExpose({
           <tr
             v-for="entry in visibleRowEntries"
             :key="resolveRowKey(entry.row, entry.rowIndex)"
-            class="ioi-table__row"
+            :class="{
+              'ioi-table__row': true,
+              'ioi-table__row--selected': isRowSelected(entry.row, entry.rowIndex),
+              'ioi-table__row--editing': isRowEditing(entry.row, entry.rowIndex)
+            }"
+            :data-row-index="entry.rowIndex"
             :style="{ height: `${normalizedRowHeight}px` }"
+            :aria-selected="selectionEnabled ? isRowSelected(entry.row, entry.rowIndex) : undefined"
+            tabindex="0"
             @click="onRowClick(entry.row, entry.rowIndex)"
+            @keydown="onRowKeydown($event, entry.row, entry.rowIndex)"
           >
             <td
               v-for="(column, columnIndex) in renderColumns"
               :key="column.id"
+              :class="{
+                'ioi-table__cell--editing': isEditingCell(entry.row, entry.rowIndex, column)
+              }"
               :style="getColumnStyle(column)"
             >
               <slot
