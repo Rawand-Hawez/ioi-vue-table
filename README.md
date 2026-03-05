@@ -1,12 +1,68 @@
 # IOI Vue Table
 
-IOI Vue Table is a performance-first Vue 3 datatable designed to stay approachable.
+Performance-first Vue 3 data table with a small API surface and JS-first defaults.
 
-## Monorepo Layout
+## Status
 
-- `packages/vue-table` — publishable package (`@ioi/vue-table`)
-- `packages/playground` — local development playground
-- `packages/table-core` — Rust/WASM placeholder (optional, not required for default dev)
+- JS-first implementation is the active baseline and fully usable without Rust.
+- WASM acceleration is planned for a later phase and is not part of current releases.
+
+## Install
+
+```bash
+npm install @ioi/vue-table vue
+```
+
+## Quick Start
+
+```vue
+<script setup lang="ts">
+import { IoiTable, type ColumnDef } from '@ioi/vue-table';
+
+interface UserRow {
+  id: number;
+  name: string;
+  score: number;
+}
+
+const columns: ColumnDef<UserRow>[] = [
+  { field: 'id', header: 'ID', type: 'number', width: 90 },
+  { field: 'name', header: 'Name', type: 'text' },
+  { field: 'score', header: 'Score', type: 'number' }
+];
+
+const rows: UserRow[] = [
+  { id: 1, name: 'Alpha', score: 91 },
+  { id: 2, name: 'Beta', score: 77 }
+];
+</script>
+
+<template>
+  <IoiTable :rows="rows" :columns="columns" row-key="id" :height="320" />
+</template>
+```
+
+## Run Playground
+
+```bash
+npm install
+npm --workspace @ioi/vue-table-playground run dev
+```
+
+Playground routes (hash-based):
+
+- `#/big-data` — 100k x 50 virtualization stress.
+- `#/pinned-columns` — interactive pinned resize/reorder behavior.
+- `#/ops-demo` — sort/filter/search/selection perf panel.
+- `#/csv-import` — CSV preview + mapping + validation + commit.
+
+## Workspace Commands
+
+- `npm --workspace @ioi/vue-table run test`
+- `npm --workspace @ioi/vue-table run build`
+- `npm --workspace @ioi/vue-table-playground run build`
+- `npm --workspaces run lint`
+- `npm --workspaces run typecheck`
 
 ## Source-of-Truth Docs
 
@@ -14,33 +70,3 @@ IOI Vue Table is a performance-first Vue 3 datatable designed to stay approachab
 - `SPEC.md`
 - `ARCHITECTURE.md`
 - `ROADMAP.md`
-
-## Vue-only Quick Start (No Rust Required)
-
-1. `npm install`
-2. `npm run dev`
-
-Playground runs at `http://localhost:5173` by default.
-
-## Playground Demo Pages
-
-The playground includes route-style demo pages (hash routes):
-
-- `#/big-data` — 100,000 rows × 50 primitive columns for virtualization stress.
-- `#/pinned-columns` — pinned left/right partitions with sizing and order torture actions.
-- `#/ops-demo` — sort, filter, global search, and selection interactions with perf timing panel.
-
-## Scripts
-
-- `npm run dev` — starts playground in Vue-only mode
-- `npm run build` — builds package + playground
-- `npm run test` — runs package tests
-- `npm run typecheck` — checks package + playground
-- `npm run lint` — lints package + playground
-- `npm run ci` — runs lint + typecheck + test + build
-- `npm run build:wasm` — placeholder command (WASM intentionally not implemented)
-
-## Status
-
-- JS-first implementation is the active baseline and fully usable without Rust.
-- WASM acceleration is planned as a later parity phase; it is not required for current development.
