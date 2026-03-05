@@ -1,10 +1,11 @@
 <script setup lang="ts">
 import { computed, onMounted, onUnmounted, ref } from 'vue';
 import BigDataDemo from './demos/BigDataDemo.vue';
+import CsvImportDemo from './demos/CsvImportDemo.vue';
 import OpsDemo from './demos/OpsDemo.vue';
 import PinnedColumnsDemo from './demos/PinnedColumnsDemo.vue';
 
-type DemoRoute = 'big-data' | 'pinned-columns' | 'ops-demo';
+type DemoRoute = 'big-data' | 'pinned-columns' | 'ops-demo' | 'csv-import';
 
 interface DemoRouteEntry {
   id: DemoRoute;
@@ -27,13 +28,19 @@ const routes: DemoRouteEntry[] = [
     id: 'ops-demo',
     label: 'Ops Demo',
     description: 'Sort/filter/global-search/selection plus perf timing panel.'
+  },
+  {
+    id: 'csv-import',
+    label: 'CSV Import',
+    description: 'Preview, auto-map, and validate CSV rows before commit.'
   }
 ];
 
 const componentByRoute: Record<DemoRoute, unknown> = {
   'big-data': BigDataDemo,
   'pinned-columns': PinnedColumnsDemo,
-  'ops-demo': OpsDemo
+  'ops-demo': OpsDemo,
+  'csv-import': CsvImportDemo
 };
 
 function parseRoute(hash: string): DemoRoute {
@@ -131,7 +138,7 @@ onUnmounted(() => {
 
 .route-nav {
   display: grid;
-  grid-template-columns: repeat(3, minmax(0, 1fr));
+  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
   gap: 0.65rem;
 }
 

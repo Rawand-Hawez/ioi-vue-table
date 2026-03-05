@@ -88,8 +88,24 @@ NOTE: In server-mode v1, grouping/aggregation is either disabled or delegated to
 - CSV formatting (locked):
   - quote fields containing comma, quote, or newline (and delimiter-aware quoting when delimiter is overridden)
   - escape quotes by doubling (`"` → `""`)
-- Import: drag-drop; auto-map headers; preview; validation errors inline
-- Delimiter autodetect: comma/semicolon/tab
+- Import API (JS in v1 baseline):
+  - `parseCSV(fileOrText, options?)` returns preview model
+  - `commitCSVImport(mapping?, options?)` commits parsed rows
+- Import parse behavior (locked):
+  - delimiter autodetect supports comma/semicolon/tab
+  - first row is treated as headers by default (`hasHeader: true`)
+  - no-header mode is supported (`hasHeader: false`)
+  - default preview row limit is 200 (`previewRowLimit`)
+- Import mapping (locked):
+  - auto-map is case-insensitive header -> `column.field`
+  - mapping override model is supported before commit
+- Import validation (locked):
+  - each mapped value is validated by column type (`number`/`date`) and then `column.validate(value, row)` if defined
+  - preview returns row-level validation errors
+- Import array parsing (locked):
+  - if trimmed cell starts with `[` and ends with `]`, import attempts `JSON.parse`
+  - parse success with array result -> use parsed array
+  - parse failure -> keep original raw string
 
 ### Styling & Theming
 - Headless option: useIoiTable() composable
@@ -107,7 +123,7 @@ NOTE: In server-mode v1, grouping/aggregation is either disabled or delegated to
 - Full TypeScript inference on row type T
 - Slots: cell, header, empty, loading, expanded-row
 - Events: row-click, cell-update, selection-change, sort-change, filter-change, state-change
-- Exposed methods: scrollToRow(), exportCSV(), resetState(), setColumnFilter(), clearColumnFilter(), setGlobalSearch(), clearAllFilters(), toggleRow(), isSelected(), clearSelection(), selectAll(), getSelectedKeys()
+- Exposed methods: scrollToRow(), exportCSV(), parseCSV(), commitCSVImport(), resetState(), setColumnFilter(), clearColumnFilter(), setGlobalSearch(), clearAllFilters(), toggleRow(), isSelected(), clearSelection(), selectAll(), getSelectedKeys()
 
 ## 5) Out of Scope (Explicit)
 - Pivoting
