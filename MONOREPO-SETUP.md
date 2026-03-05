@@ -8,7 +8,7 @@
 /
   package.json               # root workspace config
   packages/
-    vue-table/               # @ioi/vue-table (published)
+    vue-table/               # @ioi-dev/vue-table (published)
     table-core/              # Rust workspace (optional local dev)
     playground/              # Vite demo app using local workspace package
 

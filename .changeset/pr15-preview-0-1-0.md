@@ -1,8 +1,8 @@
 ---
-"@ioi/vue-table": minor
+"@ioi-dev/vue-table": minor
 ---
 
-Prepare the first coherent preview release (`0.1.0` target) for `@ioi/vue-table` with the current JS-first feature set:
+Prepare the first coherent preview release (`0.1.0` target) for `@ioi-dev/vue-table` with the current JS-first feature set:
 
 - vertical virtualization with index-based processing pipeline
 - nested path read/write utilities

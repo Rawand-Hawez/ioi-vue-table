@@ -4,7 +4,7 @@
   "compilerOptions": {
     "baseUrl": ".",
     "paths": {
-      "@ioi/vue-table": ["../vue-table/src/index.ts"]
+      "@ioi-dev/vue-table": ["../vue-table/src/index.ts"]
     }
   }
 }

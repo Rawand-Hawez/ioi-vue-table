@@ -10,7 +10,7 @@
   - install, lint, typecheck, test (Vue-only)
 - Playground runs with `npm run dev` at repo root
 
-## PR2 — @ioi/vue-table skeleton (no features yet)
+## PR2 — @ioi-dev/vue-table skeleton (no features yet)
 - Implement minimal exports:
   - Component: DataTable (or IoiTable) placeholder rendering header/body
   - Composable: useIoiTable() returning stable API shape
