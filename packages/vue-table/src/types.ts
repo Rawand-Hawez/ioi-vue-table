@@ -95,6 +95,63 @@ export type SelectionMode = 'single' | 'multi';
 export type SelectAllScope = 'visible' | 'filtered' | 'allLoaded';
 export type ExportCsvScope = 'visible' | 'filtered' | 'selected' | 'allLoaded';
 export type ExportCsvHeaderMode = 'field' | 'header';
+export type CsvDelimiter = ',' | ';' | '\t';
+export type CsvImportSource = string | Blob;
+export type CsvImportMode = 'append' | 'replace';
+
+export interface ParseCsvOptions {
+  delimiter?: CsvDelimiter | 'auto';
+  hasHeader?: boolean;
+  previewRowLimit?: number;
+}
+
+export interface CsvImportValidationError {
+  columnId: string;
+  field: string;
+  message: string;
+  value: unknown;
+}
+
+export interface CsvImportPreviewColumn {
+  columnId: string;
+  field: string;
+  header: string;
+  sourceIndex: number | null;
+  sourceHeader: string | null;
+}
+
+export type CsvImportMapping = Record<string, number | null>;
+
+export interface CsvImportPreviewRow<TRow = Record<string, unknown>> {
+  rowNumber: number;
+  values: Partial<TRow>;
+  errors: CsvImportValidationError[];
+}
+
+export interface CsvImportPreview<TRow = Record<string, unknown>> {
+  delimiter: CsvDelimiter;
+  hasHeader: boolean;
+  headers: string[];
+  totalRows: number;
+  previewRowLimit: number;
+  truncated: boolean;
+  mapping: CsvImportMapping;
+  columns: CsvImportPreviewColumn[];
+  rows: CsvImportPreviewRow<TRow>[];
+}
+
+export interface CommitCsvImportOptions {
+  mode?: CsvImportMode;
+  skipInvalidRows?: boolean;
+}
+
+export interface CsvImportResult<TRow = Record<string, unknown>> {
+  importedRowCount: number;
+  skippedRowCount: number;
+  totalRows: number;
+  mode: CsvImportMode;
+  errors: CsvImportPreviewRow<TRow>[];
+}
 
 export interface ToggleRowOptions {
   shiftKey?: boolean;
@@ -171,6 +228,11 @@ export interface IoiTableActions<TRow = Record<string, unknown>> {
   commitEdit: () => boolean;
   cancelEdit: () => void;
   exportCSV: (options?: ExportCsvOptions) => string;
+  parseCSV: (
+    fileOrText: CsvImportSource,
+    options?: ParseCsvOptions
+  ) => Promise<CsvImportPreview<TRow>>;
+  commitCSVImport: (mapping?: CsvImportMapping, options?: CommitCsvImportOptions) => CsvImportResult<TRow>;
   resetState: () => void;
   emitSemanticEvent: <TPayload>(
     type: IoiSemanticEventType,

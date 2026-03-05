@@ -35,11 +35,15 @@ describe('useIoiTable', () => {
     expect(typeof table.commitEdit).toBe('function');
     expect(typeof table.cancelEdit).toBe('function');
     expect(typeof table.exportCSV).toBe('function');
+    expect(typeof table.parseCSV).toBe('function');
+    expect(typeof table.commitCSVImport).toBe('function');
     expect(typeof table.resetState).toBe('function');
     expect(typeof table.emitSemanticEvent).toBe('function');
     expect(table.editingDraft.value).toBeNull();
     expect(table.editingError.value).toBeNull();
     expect(typeof table.actions.exportCSV).toBe('function');
+    expect(typeof table.actions.parseCSV).toBe('function');
+    expect(typeof table.actions.commitCSVImport).toBe('function');
   });
 
   it('captures semantic events with schemaVersion', () => {
@@ -453,6 +457,148 @@ describe('useIoiTable', () => {
     expect(withHiddenAndHeaders).toBe(
       'ID,Group,Score,Secret\n1,A,10,s1\n2,B,99,s2\n3,A,30,s3\n4,A,20,s4'
     );
+  });
+
+  it('autodetects CSV delimiters (comma/semicolon/tab)', async () => {
+    const table = useIoiTable({
+      rows: [],
+      columns: [
+        { field: 'name', type: 'text' },
+        { field: 'score', type: 'number' }
+      ]
+    });
+
+    const commaPreview = await table.parseCSV('name,score\nAlpha,10');
+    const semicolonPreview = await table.parseCSV('name;score\nAlpha;10');
+    const tabPreview = await table.parseCSV('name\tscore\nAlpha\t10');
+
+    expect(commaPreview.delimiter).toBe(',');
+    expect(semicolonPreview.delimiter).toBe(';');
+    expect(tabPreview.delimiter).toBe('\t');
+  });
+
+  it('uses first-row headers by default and auto-maps fields case-insensitively', async () => {
+    const table = useIoiTable({
+      rows: [],
+      columns: [
+        { field: 'user.profile.name', type: 'text' },
+        { field: 'score', type: 'number' }
+      ]
+    });
+
+    const withHeader = await table.parseCSV('USER.PROFILE.NAME,SCORE\nAlpha,11');
+    const withoutHeader = await table.parseCSV('Alpha,11\nBeta,12', {
+      hasHeader: false
+    });
+
+    expect(withHeader.hasHeader).toBe(true);
+    expect(withHeader.headers).toEqual(['USER.PROFILE.NAME', 'SCORE']);
+    expect(withHeader.mapping).toEqual({
+      'user.profile.name': 0,
+      score: 1
+    });
+
+    expect(withoutHeader.hasHeader).toBe(false);
+    expect(withoutHeader.headers).toEqual(['column_1', 'column_2']);
+    expect(withoutHeader.mapping).toEqual({
+      'user.profile.name': 0,
+      score: 1
+    });
+  });
+
+  it('limits preview rows to 200 by default and supports override', async () => {
+    const table = useIoiTable({
+      rows: [],
+      columns: [{ field: 'name', type: 'text' }]
+    });
+    const dataRows = Array.from({ length: 250 }, (_, index) => `Name ${index + 1}`).join('\n');
+
+    const defaultPreview = await table.parseCSV(`name\n${dataRows}`);
+    const limitedPreview = await table.parseCSV(`name\n${dataRows}`, {
+      previewRowLimit: 50
+    });
+
+    expect(defaultPreview.totalRows).toBe(250);
+    expect(defaultPreview.previewRowLimit).toBe(200);
+    expect(defaultPreview.rows).toHaveLength(200);
+    expect(defaultPreview.truncated).toBe(true);
+
+    expect(limitedPreview.previewRowLimit).toBe(50);
+    expect(limitedPreview.rows).toHaveLength(50);
+    expect(limitedPreview.truncated).toBe(true);
+  });
+
+  it('returns validation errors and commits nested paths via nestedPath.set', async () => {
+    const table = useIoiTable({
+      rows: [],
+      columns: [
+        { field: 'user.profile.name', type: 'text' },
+        {
+          field: 'score',
+          type: 'number',
+          validate: (value) =>
+            typeof value === 'number' && value >= 0 ? true : 'Score must be non-negative'
+        }
+      ]
+    });
+    const preview = await table.parseCSV(
+      'user.profile.name,score\nAlpha,10\nBeta,-5\nGamma,invalid'
+    );
+
+    expect(preview.rows[0]?.values).toEqual({
+      user: {
+        profile: {
+          name: 'Alpha'
+        }
+      },
+      score: 10
+    });
+    expect(preview.rows[0]?.errors).toEqual([]);
+    expect(preview.rows[1]?.errors[0]?.message).toBe('Score must be non-negative');
+    expect(preview.rows[2]?.errors[0]?.message).toBe('Expected number value');
+
+    const result = table.commitCSVImport(preview.mapping);
+
+    expect(result.importedRowCount).toBe(1);
+    expect(result.skippedRowCount).toBe(2);
+    expect(result.errors.map((entry) => entry.rowNumber)).toEqual([3, 4]);
+    expect(table.rows.value).toHaveLength(1);
+    expect(table.rows.value[0]).toEqual({
+      user: {
+        profile: {
+          name: 'Alpha'
+        }
+      },
+      score: 10
+    });
+  });
+
+  it('parses JSON-array-like cells and keeps invalid JSON-array text raw', async () => {
+    const table = useIoiTable<{ tags: unknown; score: number | null }>({
+      rows: [],
+      columns: [
+        { field: 'tags', type: 'text' },
+        { field: 'score', type: 'number' }
+      ]
+    });
+    const preview = await table.parseCSV(
+      'tags,score\n"[""alpha"",""beta""]",10\n"[a,b]",20'
+    );
+
+    expect(preview.delimiter).toBe(',');
+    expect(preview.rows[0]?.values).toEqual({
+      tags: ['alpha', 'beta'],
+      score: 10
+    });
+    expect(preview.rows[1]?.values).toEqual({
+      tags: '[a,b]',
+      score: 20
+    });
+
+    const result = table.commitCSVImport(preview.mapping);
+    expect(result.importedRowCount).toBe(2);
+    expect(table.rows.value[0]?.tags).toEqual(['alpha', 'beta']);
+    expect(table.rows.value[1]?.tags).toBe('[a,b]');
   });
 
   it('stages edits without mutating row data until commit', () => {

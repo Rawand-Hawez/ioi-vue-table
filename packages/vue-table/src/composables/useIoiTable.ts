@@ -1,8 +1,15 @@
 import { computed, ref, shallowRef, unref, watch } from 'vue';
 import type { MaybeRef } from 'vue';
 import type {
+  CommitCsvImportOptions,
   ColumnFilter,
   ColumnDef,
+  CsvDelimiter,
+  CsvImportMapping,
+  CsvImportPreview,
+  CsvImportResult,
+  CsvImportSource,
+  CsvImportValidationError,
   ExportCsvHeaderMode,
   ExportCsvOptions,
   ExportCsvScope,
@@ -12,6 +19,7 @@ import type {
   IoiTableApi,
   IoiTableOptions,
   IoiTableState,
+  ParseCsvOptions,
   SelectAllScope,
   SelectionMode,
   SortState,
@@ -27,6 +35,8 @@ const SCHEMA_VERSION = 1 as const;
 const DEFAULT_ROW_HEIGHT = 36;
 const DEFAULT_OVERSCAN = 5;
 const DEFAULT_VIEWPORT_HEIGHT = 320;
+const DEFAULT_CSV_PREVIEW_ROW_LIMIT = 200;
+const CSV_DELIMITERS: CsvDelimiter[] = [',', ';', '\t'];
 const SELECTION_ROW_KEY_WARNING =
   '[IOI Table] Selection is disabled because `rowKey` is not configured.';
 
@@ -165,6 +175,24 @@ interface ExportColumn {
   header: string;
 }
 
+interface ImportColumnBinding<TRow> {
+  columnId: string;
+  field: string;
+  header: string;
+  column: Pick<ColumnDef<TRow>, 'type' | 'validate'>;
+}
+
+interface ParsedCsvImportSession<TRow> {
+  delimiter: CsvDelimiter;
+  hasHeader: boolean;
+  headers: string[];
+  dataRows: string[][];
+  previewRowLimit: number;
+  maxColumnCount: number;
+  columns: ImportColumnBinding<TRow>[];
+  mapping: CsvImportMapping;
+}
+
 function resolveExportColumns<TRow>(
   rows: readonly TRow[],
   rowIndices: readonly number[],
@@ -247,6 +275,432 @@ function normalizeSelectedKeys(keys: Array<string | number>): Array<string | num
   return normalized;
 }
 
+function normalizeCsvPreviewRowLimit(previewRowLimit: number | undefined): number {
+  if (typeof previewRowLimit !== 'number' || Number.isNaN(previewRowLimit)) {
+    return DEFAULT_CSV_PREVIEW_ROW_LIMIT;
+  }
+
+  return Math.max(1, Math.floor(previewRowLimit));
+}
+
+function normalizeCsvDelimiter(value: CsvDelimiter | 'auto' | undefined): CsvDelimiter | 'auto' {
+  if (value === ',' || value === ';' || value === '\t') {
+    return value;
+  }
+
+  return 'auto';
+}
+
+function detectCsvDelimiter(text: string): CsvDelimiter {
+  const delimiterHits = new Map<CsvDelimiter, number>(
+    CSV_DELIMITERS.map((delimiter) => [delimiter, 0])
+  );
+  let inQuotes = false;
+  let sampledRows = 0;
+  const maxSampledRows = 30;
+
+  for (let index = 0; index < text.length; index += 1) {
+    const char = text[index];
+    if (!char) {
+      continue;
+    }
+
+    if (char === '"') {
+      if (inQuotes && text[index + 1] === '"') {
+        index += 1;
+        continue;
+      }
+
+      inQuotes = !inQuotes;
+      continue;
+    }
+
+    if (inQuotes) {
+      continue;
+    }
+
+    if (char === '\n') {
+      sampledRows += 1;
+      if (sampledRows >= maxSampledRows) {
+        break;
+      }
+      continue;
+    }
+
+    if (char === '\r') {
+      continue;
+    }
+
+    for (let delimiterIndex = 0; delimiterIndex < CSV_DELIMITERS.length; delimiterIndex += 1) {
+      const delimiter = CSV_DELIMITERS[delimiterIndex];
+      if (char === delimiter) {
+        delimiterHits.set(delimiter, (delimiterHits.get(delimiter) ?? 0) + 1);
+      }
+    }
+  }
+
+  let bestDelimiter: CsvDelimiter = ',';
+  let bestScore = -1;
+
+  for (let delimiterIndex = 0; delimiterIndex < CSV_DELIMITERS.length; delimiterIndex += 1) {
+    const delimiter = CSV_DELIMITERS[delimiterIndex];
+    const score = delimiterHits.get(delimiter) ?? 0;
+    if (score > bestScore) {
+      bestScore = score;
+      bestDelimiter = delimiter;
+    }
+  }
+
+  return bestDelimiter;
+}
+
+function resolveCsvDelimiter(
+  text: string,
+  delimiterOption: CsvDelimiter | 'auto' | undefined
+): CsvDelimiter {
+  const normalizedDelimiter = normalizeCsvDelimiter(delimiterOption);
+  return normalizedDelimiter === 'auto' ? detectCsvDelimiter(text) : normalizedDelimiter;
+}
+
+function parseCsvRows(text: string, delimiter: CsvDelimiter): string[][] {
+  const rows: string[][] = [];
+  let row: string[] = [];
+  let field = '';
+  let inQuotes = false;
+
+  for (let index = 0; index < text.length; index += 1) {
+    const char = text[index];
+    if (!char) {
+      continue;
+    }
+
+    if (inQuotes) {
+      if (char === '"') {
+        if (text[index + 1] === '"') {
+          field += '"';
+          index += 1;
+          continue;
+        }
+
+        inQuotes = false;
+        continue;
+      }
+
+      field += char;
+      continue;
+    }
+
+    if (char === '"') {
+      inQuotes = true;
+      continue;
+    }
+
+    if (char === delimiter) {
+      row.push(field);
+      field = '';
+      continue;
+    }
+
+    if (char === '\n' || char === '\r') {
+      if (char === '\r' && text[index + 1] === '\n') {
+        index += 1;
+      }
+
+      row.push(field);
+      rows.push(row);
+      row = [];
+      field = '';
+      continue;
+    }
+
+    field += char;
+  }
+
+  if (field.length > 0 || row.length > 0) {
+    row.push(field);
+    rows.push(row);
+  }
+
+  return rows;
+}
+
+function normalizeCsvHeader(header: string): string {
+  return header.trim().toLowerCase();
+}
+
+function resolveImportColumnBindings<TRow>(
+  columns: readonly ColumnDef<TRow>[]
+): ImportColumnBinding<TRow>[] {
+  const usageCount = new Map<string, number>();
+  const bindings: ImportColumnBinding<TRow>[] = [];
+
+  for (let index = 0; index < columns.length; index += 1) {
+    const column = columns[index];
+    const field = String(column.field);
+    const baseId = column.id ? String(column.id) : field;
+    const seenCount = usageCount.get(baseId) ?? 0;
+    usageCount.set(baseId, seenCount + 1);
+
+    bindings.push({
+      columnId: seenCount === 0 ? baseId : `${baseId}#${index}`,
+      field,
+      header: column.header ?? field,
+      column: {
+        type: column.type,
+        validate: column.validate
+      }
+    });
+  }
+
+  return bindings;
+}
+
+function createAutoImportMapping<TRow>(
+  hasHeader: boolean,
+  headers: readonly string[],
+  columns: readonly ImportColumnBinding<TRow>[]
+): CsvImportMapping {
+  const mapping: CsvImportMapping = {};
+
+  if (hasHeader) {
+    const headerIndexByKey = new Map<string, number>();
+
+    for (let headerIndex = 0; headerIndex < headers.length; headerIndex += 1) {
+      const key = normalizeCsvHeader(headers[headerIndex]);
+      if (key.length === 0 || headerIndexByKey.has(key)) {
+        continue;
+      }
+
+      headerIndexByKey.set(key, headerIndex);
+    }
+
+    for (let columnIndex = 0; columnIndex < columns.length; columnIndex += 1) {
+      const column = columns[columnIndex];
+      const headerMatch = headerIndexByKey.get(normalizeCsvHeader(column.field));
+      mapping[column.columnId] = headerMatch ?? null;
+    }
+  } else {
+    for (let columnIndex = 0; columnIndex < columns.length; columnIndex += 1) {
+      mapping[columns[columnIndex].columnId] = columnIndex < headers.length ? columnIndex : null;
+    }
+  }
+
+  return mapping;
+}
+
+function tryParseJsonArray(rawCell: string): { parsed: boolean; value: unknown } {
+  const trimmed = rawCell.trim();
+  if (!trimmed.startsWith('[') || !trimmed.endsWith(']')) {
+    return {
+      parsed: false,
+      value: rawCell
+    };
+  }
+
+  try {
+    const parsed = JSON.parse(trimmed);
+    if (Array.isArray(parsed)) {
+      return {
+        parsed: true,
+        value: parsed
+      };
+    }
+  } catch {
+    return {
+      parsed: false,
+      value: rawCell
+    };
+  }
+
+  return {
+    parsed: false,
+    value: rawCell
+  };
+}
+
+function coerceCsvImportValue(
+  rawCell: string,
+  columnType: ColumnDef['type']
+): { value: unknown; typeError: string | null } {
+  const trimmed = rawCell.trim();
+  if (trimmed.length === 0) {
+    return {
+      value: null,
+      typeError: null
+    };
+  }
+
+  const parsedArray = tryParseJsonArray(rawCell);
+  const baseValue = parsedArray.value;
+
+  if (columnType === 'number') {
+    if (typeof baseValue === 'number' && Number.isFinite(baseValue)) {
+      return {
+        value: baseValue,
+        typeError: null
+      };
+    }
+
+    if (typeof baseValue === 'string') {
+      const parsedNumber = Number(baseValue.trim());
+      if (Number.isFinite(parsedNumber)) {
+        return {
+          value: parsedNumber,
+          typeError: null
+        };
+      }
+    }
+
+    return {
+      value: baseValue,
+      typeError: 'Expected number value'
+    };
+  }
+
+  if (columnType === 'date') {
+    if (typeof baseValue === 'string') {
+      const normalizedDate = baseValue.trim();
+      const timestamp = Date.parse(normalizedDate);
+      if (!Number.isNaN(timestamp)) {
+        return {
+          value: normalizedDate,
+          typeError: null
+        };
+      }
+    }
+
+    return {
+      value: baseValue,
+      typeError: 'Expected date value'
+    };
+  }
+
+  return {
+    value: baseValue,
+    typeError: null
+  };
+}
+
+function normalizeImportMapping<TRow>(
+  mapping: CsvImportMapping | undefined,
+  session: ParsedCsvImportSession<TRow>
+): CsvImportMapping {
+  const normalized: CsvImportMapping = {};
+  const incomingMapping = mapping ?? session.mapping;
+
+  for (let columnIndex = 0; columnIndex < session.columns.length; columnIndex += 1) {
+    const columnId = session.columns[columnIndex].columnId;
+    const rawIndex = incomingMapping[columnId];
+    if (typeof rawIndex !== 'number' || !Number.isFinite(rawIndex)) {
+      normalized[columnId] = null;
+      continue;
+    }
+
+    const normalizedIndex = Math.floor(rawIndex);
+    normalized[columnId] =
+      normalizedIndex >= 0 && normalizedIndex < session.maxColumnCount ? normalizedIndex : null;
+  }
+
+  return normalized;
+}
+
+function buildCsvImportRows<TRow>(
+  dataRows: readonly string[][],
+  hasHeader: boolean,
+  columns: readonly ImportColumnBinding<TRow>[],
+  mapping: CsvImportMapping
+): Array<{
+  values: Partial<TRow>;
+  errors: CsvImportValidationError[];
+  rowNumber: number;
+}> {
+  const previewRows: Array<{
+    values: Partial<TRow>;
+    errors: CsvImportValidationError[];
+    rowNumber: number;
+  }> = [];
+
+  for (let rowIndex = 0; rowIndex < dataRows.length; rowIndex += 1) {
+    const sourceRow = dataRows[rowIndex];
+    const values = {} as Partial<TRow>;
+    const errors: CsvImportValidationError[] = [];
+    const valueByColumnId = new Map<string, unknown>();
+    const typeErrorByColumnId = new Map<string, string>();
+
+    for (let columnIndex = 0; columnIndex < columns.length; columnIndex += 1) {
+      const binding = columns[columnIndex];
+      const sourceIndex = mapping[binding.columnId];
+      if (sourceIndex === null || sourceIndex === undefined) {
+        continue;
+      }
+
+      const rawCell = sourceRow[sourceIndex] ?? '';
+      const { value, typeError } = coerceCsvImportValue(rawCell, binding.column.type);
+      valueByColumnId.set(binding.columnId, value);
+      if (typeError) {
+        typeErrorByColumnId.set(binding.columnId, typeError);
+      }
+
+      setNestedPathValue(values, binding.field, value);
+    }
+
+    for (let columnIndex = 0; columnIndex < columns.length; columnIndex += 1) {
+      const binding = columns[columnIndex];
+      const sourceIndex = mapping[binding.columnId];
+      if (sourceIndex === null || sourceIndex === undefined) {
+        continue;
+      }
+
+      const value = valueByColumnId.get(binding.columnId);
+      const typeError = typeErrorByColumnId.get(binding.columnId);
+      if (typeError) {
+        errors.push({
+          columnId: binding.columnId,
+          field: binding.field,
+          message: typeError,
+          value
+        });
+        continue;
+      }
+
+      if (binding.column.validate) {
+        const validationResult = binding.column.validate(value, values as TRow);
+        if (validationResult !== true) {
+          errors.push({
+            columnId: binding.columnId,
+            field: binding.field,
+            message:
+              typeof validationResult === 'string' && validationResult.length > 0
+                ? validationResult
+                : 'Invalid value',
+            value
+          });
+        }
+      }
+    }
+
+    previewRows.push({
+      rowNumber: hasHeader ? rowIndex + 2 : rowIndex + 1,
+      values,
+      errors
+    });
+  }
+
+  return previewRows;
+}
+
+async function readCsvImportSource(fileOrText: CsvImportSource): Promise<string> {
+  if (typeof fileOrText === 'string') {
+    return fileOrText;
+  }
+
+  if (fileOrText && typeof fileOrText.text === 'function') {
+    return fileOrText.text();
+  }
+
+  return '';
+}
+
 export function useIoiTable<TRow = Record<string, unknown>>(
   options: MaybeRef<IoiTableOptions<TRow>> = {}
 ): IoiTableApi<TRow> {
@@ -262,6 +716,7 @@ export function useIoiTable<TRow = Record<string, unknown>>(
   const lastSelectedKey = ref<string | number | null>(null);
   const editingDraft = ref<unknown>(null);
   const editingError = ref<string | null>(null);
+  const csvImportSession = ref<ParsedCsvImportSession<TRow> | null>(null);
 
   const totalRows = computed(() => normalizedRows.value.length);
   const baseIndices = computed<number[]>(() => toIndexArray(0, totalRows.value));
@@ -1005,11 +1460,138 @@ export function useIoiTable<TRow = Record<string, unknown>>(
     return csv;
   }
 
+  async function parseCSV(
+    fileOrText: CsvImportSource,
+    options: ParseCsvOptions = {}
+  ): Promise<CsvImportPreview<TRow>> {
+    const text = await readCsvImportSource(fileOrText);
+    const hasHeader = options.hasHeader ?? true;
+    const delimiter = resolveCsvDelimiter(text, options.delimiter);
+    const parsedRows = parseCsvRows(text, delimiter);
+    const previewRowLimit = normalizeCsvPreviewRowLimit(options.previewRowLimit);
+    const maxColumnCount = parsedRows.reduce(
+      (maxCount, row) => Math.max(maxCount, row.length),
+      0
+    );
+    const headers =
+      hasHeader && parsedRows.length > 0
+        ? [...parsedRows[0]]
+        : Array.from(
+            { length: maxColumnCount },
+            (_, index) => `column_${index + 1}`
+          );
+    const dataRows = hasHeader ? parsedRows.slice(1) : parsedRows;
+    const importColumns = resolveImportColumnBindings(normalizedColumns.value);
+    const autoMapping = createAutoImportMapping(hasHeader, headers, importColumns);
+    const previewRows = buildCsvImportRows(dataRows, hasHeader, importColumns, autoMapping);
+    const previewRowsLimited = previewRows.slice(0, previewRowLimit);
+
+    const preview: CsvImportPreview<TRow> = {
+      delimiter,
+      hasHeader,
+      headers,
+      totalRows: dataRows.length,
+      previewRowLimit,
+      truncated: dataRows.length > previewRowLimit,
+      mapping: { ...autoMapping },
+      columns: importColumns.map((column) => ({
+        columnId: column.columnId,
+        field: column.field,
+        header: column.header,
+        sourceIndex: autoMapping[column.columnId] ?? null,
+        sourceHeader:
+          autoMapping[column.columnId] !== null && autoMapping[column.columnId] !== undefined
+            ? headers[autoMapping[column.columnId] ?? 0] ?? null
+            : null
+      })),
+      rows: previewRowsLimited
+    };
+
+    csvImportSession.value = {
+      delimiter,
+      hasHeader,
+      headers,
+      dataRows,
+      previewRowLimit,
+      maxColumnCount,
+      columns: importColumns,
+      mapping: { ...autoMapping }
+    };
+
+    emitSemanticEvent('data:extract', {
+      reason: 'parseCSV',
+      delimiter,
+      hasHeader,
+      totalRows: dataRows.length,
+      previewRowLimit
+    });
+
+    return preview;
+  }
+
+  function commitCSVImport(
+    mapping?: CsvImportMapping,
+    options: CommitCsvImportOptions = {}
+  ): CsvImportResult<TRow> {
+    const mode = options.mode === 'replace' ? 'replace' : 'append';
+    const skipInvalidRows = options.skipInvalidRows ?? true;
+    const session = csvImportSession.value;
+
+    if (!session) {
+      return {
+        importedRowCount: 0,
+        skippedRowCount: 0,
+        totalRows: 0,
+        mode,
+        errors: []
+      };
+    }
+
+    const resolvedMapping = normalizeImportMapping(mapping, session);
+    const importRows = buildCsvImportRows(
+      session.dataRows,
+      session.hasHeader,
+      session.columns,
+      resolvedMapping
+    );
+
+    const errorRows = importRows.filter((row) => row.errors.length > 0);
+    const validRows = importRows.filter((row) => row.errors.length === 0);
+    const rowsToCommit =
+      !skipInvalidRows && errorRows.length > 0 ? [] : validRows.map((row) => row.values as TRow);
+
+    if (mode === 'replace') {
+      normalizedRows.value = [...rowsToCommit];
+    } else if (rowsToCommit.length > 0) {
+      normalizedRows.value = [...normalizedRows.value, ...rowsToCommit];
+    }
+
+    const result: CsvImportResult<TRow> = {
+      importedRowCount: rowsToCommit.length,
+      skippedRowCount: importRows.length - rowsToCommit.length,
+      totalRows: importRows.length,
+      mode,
+      errors: errorRows
+    };
+
+    emitSemanticEvent('data:modify', {
+      reason: 'commitCSVImport',
+      mode,
+      skipInvalidRows,
+      importedRowCount: result.importedRowCount,
+      skippedRowCount: result.skippedRowCount,
+      totalRows: result.totalRows
+    });
+
+    return result;
+  }
+
   function resetState(): void {
     const viewportHeight = state.value.viewport.viewportHeight;
     state.value = createInitialState(viewportHeight);
     editingDraft.value = null;
     editingError.value = null;
+    csvImportSession.value = null;
     emitSemanticEvent('data:explore', { reason: 'resetState' });
   }
 
@@ -1034,6 +1616,8 @@ export function useIoiTable<TRow = Record<string, unknown>>(
     commitEdit,
     cancelEdit,
     exportCSV,
+    parseCSV,
+    commitCSVImport,
     resetState,
     emitSemanticEvent
   };

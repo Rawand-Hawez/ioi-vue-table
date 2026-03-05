@@ -220,6 +220,8 @@ function onScroll(event: Event): void {
 defineExpose({
   scrollToRow: table.scrollToRow,
   exportCSV: table.exportCSV,
+  parseCSV: table.parseCSV,
+  commitCSVImport: table.commitCSVImport,
   resetState: table.resetState,
   setColumnFilter: table.setColumnFilter,
   clearColumnFilter: table.clearColumnFilter,
