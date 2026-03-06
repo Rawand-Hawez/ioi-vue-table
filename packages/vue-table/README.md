@@ -24,7 +24,7 @@ vue, vue3, vuejs, vue-3, table, datatable, data-table, grid, data-grid, table-co
 ## Installation
 
 ```bash
-npm install @ioi-dev/vue-table vue
+npm install @ioi-dev/vue-table
 ```
 
 ### CSS Integration

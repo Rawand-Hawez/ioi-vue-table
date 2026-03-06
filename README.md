@@ -22,7 +22,7 @@ IOI Vue Table provides a lightweight yet powerful solution for rendering large d
 ## Installation
 
 ```bash
-npm install @ioi-dev/vue-table vue
+npm install @ioi-dev/vue-table
 ```
 
 ### CSS Integration
