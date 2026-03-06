@@ -698,6 +698,33 @@ export function useIoiTable<TRow = Record<string, unknown>>(
     { flush: 'sync' }
   );
 
+  watch(
+    [() => normalizedRows.value, () => resolvedOptions.value.rowKey],
+    () => {
+      if (state.value.expandedRowKeys.length === 0) {
+        return;
+      }
+
+      const availableKeys = new Set(
+        sortedIndices.value
+          .map((idx) => resolveSelectionKeyByIndex(idx))
+          .filter((key): key is string | number => key !== null)
+      );
+
+      const nextExpandedKeys = state.value.expandedRowKeys.filter((key) => 
+        availableKeys.has(key)
+      );
+
+      if (nextExpandedKeys.length !== state.value.expandedRowKeys.length) {
+        state.value = {
+          ...state.value,
+          expandedRowKeys: nextExpandedKeys
+        };
+      }
+    },
+    { flush: 'sync' }
+  );
+
   function emitSemanticEvent<TPayload>(
     type: IoiSemanticEventType,
     payload: TPayload
@@ -980,12 +1007,36 @@ export function useIoiTable<TRow = Record<string, unknown>>(
       nextFilters.push(nextFilterState);
     } else {
       const existing = nextFilters[existingIndex];
-      if (
-        existing &&
-        existing.field === normalizedField &&
-        JSON.stringify(existing.filter) === JSON.stringify(filter)
-      ) {
-        return;
+      if (existing && existing.field === normalizedField) {
+        const existingFilter = existing.filter;
+        const isSameType = existingFilter.type === filter.type;
+        
+        let isSameFilter = false;
+        if (isSameType) {
+          if (filter.type === 'text') {
+            const tf = filter as import('../types').TextColumnFilter;
+            const ef = existingFilter as import('../types').TextColumnFilter;
+            isSameFilter = ef.value === tf.value && 
+              ef.operator === tf.operator &&
+              ef.caseSensitive === tf.caseSensitive;
+          } else if (filter.type === 'number') {
+            const nf = filter as import('../types').NumberColumnFilter;
+            const ef = existingFilter as import('../types').NumberColumnFilter;
+            if (nf.operator === 'between' && ef.operator === 'between') {
+              isSameFilter = ef.min === nf.min && ef.max === nf.max;
+            } else if (nf.operator !== 'between' && ef.operator !== 'between') {
+              isSameFilter = ef.value === nf.value && ef.operator === nf.operator;
+            }
+          } else if (filter.type === 'date') {
+            const df = filter as import('../types').DateColumnFilter;
+            const ef = existingFilter as import('../types').DateColumnFilter;
+            isSameFilter = ef.value === df.value && ef.operator === df.operator;
+          }
+        }
+        
+        if (isSameFilter) {
+          return;
+        }
       }
 
       nextFilters[existingIndex] = nextFilterState;
@@ -1217,10 +1268,16 @@ export function useIoiTable<TRow = Record<string, unknown>>(
 
   function toggleRowExpansion(key: string | number): void {
     const currentKeys = state.value.expandedRowKeys;
-    const isExpanded = currentKeys.includes(key);
-    const nextKeys = isExpanded
-      ? currentKeys.filter((expandedKey) => expandedKey !== key)
-      : [...currentKeys, key];
+    const keySet = new Set(currentKeys);
+    const wasExpanded = keySet.has(key);
+    
+    if (wasExpanded) {
+      keySet.delete(key);
+    } else {
+      keySet.add(key);
+    }
+    
+    const nextKeys = Array.from(keySet);
 
     state.value = {
       ...state.value,
@@ -1238,7 +1295,7 @@ export function useIoiTable<TRow = Record<string, unknown>>(
         row,
         rowIndex,
         rowKey: key,
-        expanded: !isExpanded
+        expanded: !wasExpanded
       });
     }
   }
@@ -1392,7 +1449,9 @@ export function useIoiTable<TRow = Record<string, unknown>>(
     }
 
     const oldValue = getFieldValue(row, field);
-    const updatedRow = structuredClone(row) as TRow;
+    const updatedRow = (typeof structuredClone === 'function'
+      ? structuredClone(row)
+      : JSON.parse(JSON.stringify(row))) as TRow;
     setNestedPathValue(updatedRow, field, draftValue);
     const nextRows = [...normalizedRows.value];
     nextRows[rowIndex] = updatedRow;
