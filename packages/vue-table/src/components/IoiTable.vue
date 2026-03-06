@@ -35,6 +35,9 @@ const props = withDefaults(
     expandable?: boolean;
     rowExpandable?: IoiTableOptions<TRow>['rowExpandable'];
     expandedRowKeys?: Array<string | number>;
+    groupBy?: string | string[];
+    groupAggregations?: Record<string, import('../types').AggregationType[]>;
+    expandedGroupKeys?: Array<string>;
   }>(),
   {
     rows: () => [],
@@ -46,7 +49,10 @@ const props = withDefaults(
     filterDebounceMs: 0,
     csvPreviewRowLimit: 200,
     expandable: false,
-    expandedRowKeys: undefined
+    expandedRowKeys: undefined,
+    groupBy: undefined,
+    groupAggregations: undefined,
+    expandedGroupKeys: undefined
   }
 );
 
@@ -58,6 +64,8 @@ const emit = defineEmits<{
   'pagination-change': [payload: IoiPaginationChangePayload];
   'update:expandedRowKeys': [value: Array<string | number>];
   'row-expand': [payload: { row: TRow; rowIndex: number; rowKey: string | number; expanded: boolean }];
+  'update:expandedGroupKeys': [value: Array<string>];
+  'group-expand': [payload: { groupKey: string; groupValue: unknown; expanded: boolean; rowCount: number }];
 }>();
 
 defineSlots<{
@@ -65,6 +73,7 @@ defineSlots<{
   'header-filter'?: (slotProps: HeaderFilterSlotProps<TRow>) => unknown;
   cell?: (slotProps: CellSlotProps<TRow>) => unknown;
   'expanded-row'?: (slotProps: { row: TRow; rowIndex: number }) => unknown;
+  'group-header'?: (slotProps: { group: import('../types').GroupHeader; expanded: boolean }) => unknown;
   empty?: () => unknown;
 }>();
 
@@ -113,6 +122,9 @@ const table = useIoiTable<TRow>(
     expandable: props.expandable,
     rowExpandable: props.rowExpandable,
     expandedRowKeys: props.expandedRowKeys,
+    groupBy: props.groupBy,
+    groupAggregations: props.groupAggregations,
+    expandedGroupKeys: props.expandedGroupKeys,
     pagination:
       normalizedPageSize.value > 0
         ? { pageIndex: normalizedPageIndex.value, pageSize: normalizedPageSize.value }
@@ -131,6 +143,10 @@ const table = useIoiTable<TRow>(
     onRowExpand: (payload) => {
       emit('row-expand', payload);
       emit('update:expandedRowKeys', table.state.value.expandedRowKeys);
+    },
+    onGroupExpand: (payload) => {
+      emit('group-expand', payload);
+      emit('update:expandedGroupKeys', table.state.value.expandedGroupKeys);
     }
   }))
 );
