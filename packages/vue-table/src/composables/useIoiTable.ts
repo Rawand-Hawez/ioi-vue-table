@@ -1209,6 +1209,56 @@ export function useIoiTable<TRow = Record<string, unknown>>(
     return [...state.value.selectedRowKeys];
   }
 
+  function toggleRowExpansion(key: string | number): void {
+    const currentKeys = state.value.expandedRowKeys;
+    const isExpanded = currentKeys.includes(key);
+    const nextKeys = isExpanded
+      ? currentKeys.filter((expandedKey) => expandedKey !== key)
+      : [...currentKeys, key];
+
+    state.value = {
+      ...state.value,
+      expandedRowKeys: nextKeys
+    };
+
+    const rowIndex = sortedIndices.value.findIndex((idx) => {
+      const rowKey = resolveSelectionKeyByIndex(idx);
+      return rowKey === key;
+    });
+
+    if (rowIndex !== -1) {
+      const row = normalizedRows.value[sortedIndices.value[rowIndex]];
+      resolvedOptions.value.onRowExpand?.({
+        row,
+        rowIndex,
+        rowKey: key,
+        expanded: !isExpanded
+      });
+    }
+  }
+
+  function expandAllRows(): void {
+    const allKeys = sortedIndices.value
+      .map((idx) => resolveSelectionKeyByIndex(idx))
+      .filter((key): key is string | number => key !== null);
+
+    state.value = {
+      ...state.value,
+      expandedRowKeys: allKeys
+    };
+  }
+
+  function collapseAllRows(): void {
+    state.value = {
+      ...state.value,
+      expandedRowKeys: []
+    };
+  }
+
+  function isRowExpanded(key: string | number): boolean {
+    return state.value.expandedRowKeys.includes(key);
+  }
+
   function toggleSort(field: string, multi = false): void {
     const nextSortState = toggleSortState(state.value.sort, field, multi);
     setSortState(nextSortState);
@@ -1677,6 +1727,10 @@ export function useIoiTable<TRow = Record<string, unknown>>(
     exportCSV,
     parseCSV,
     commitCSVImport,
+    toggleRowExpansion,
+    expandAllRows,
+    collapseAllRows,
+    isRowExpanded,
     resetState,
     emitSemanticEvent
   };
