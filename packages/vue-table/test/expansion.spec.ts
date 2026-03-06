@@ -1,6 +1,6 @@
-import { describe, it, expect, beforeEach } from 'vitest';
+import { describe, it, expect } from 'vitest';
 import { useIoiTable } from '../src/composables/useIoiTable';
-import type { ColumnDef } from '../src/types';
+import type { ColumnDef, IoiRowExpandPayload } from '../src/types';
 
 interface TestRow {
   id: number;
@@ -137,7 +137,7 @@ describe('Row Expansion', () => {
 
   describe('Expansion Events', () => {
     it('should emit onRowExpand callback when row is expanded', () => {
-      let expandPayload: any = null;
+      let expandPayload: IoiRowExpandPayload<TestRow> | null = null;
       
       const table = useIoiTable({
         rows,
@@ -152,14 +152,14 @@ describe('Row Expansion', () => {
       table.toggleRowExpansion(1);
 
       expect(expandPayload).not.toBeNull();
-      expect(expandPayload.rowKey).toBe(1);
-      expect(expandPayload.expanded).toBe(true);
-      expect(expandPayload.row).toEqual(rows[0]);
-      expect(expandPayload.rowIndex).toBe(0);
+      expect(expandPayload!.rowKey).toBe(1);
+      expect(expandPayload!.expanded).toBe(true);
+      expect(expandPayload!.row).toEqual(rows[0]);
+      expect(expandPayload!.rowIndex).toBe(0);
     });
 
     it('should emit onRowExpand callback when row is collapsed', () => {
-      let expandPayload: any = null;
+      let expandPayload: IoiRowExpandPayload<TestRow> | null = null;
       
       const table = useIoiTable({
         rows,
