@@ -11,6 +11,7 @@ export function createInitialState(viewportHeight: number): IoiTableState {
       scrollTop: 0,
       viewportHeight
     },
-    expandedRowKeys: []
+    expandedRowKeys: [],
+    expandedGroupKeys: []
   };
 }

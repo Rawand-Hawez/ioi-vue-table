@@ -188,6 +188,16 @@ export interface IoiTableState {
   editingCell: EditingCellState | null;
   viewport: ViewportState;
   expandedRowKeys: Array<string | number>;
+  expandedGroupKeys: Array<string>;
+}
+
+export type AggregationType = 'sum' | 'avg' | 'count' | 'min' | 'max';
+
+export interface GroupHeader {
+  key: string;
+  value: unknown;
+  count: number;
+  aggregations: Record<string, number>;
 }
 
 export interface IoiTableOptions<TRow = Record<string, unknown>> {
@@ -214,11 +224,19 @@ export interface IoiTableOptions<TRow = Record<string, unknown>> {
   rowExpandable?: (row: TRow, index: number) => boolean;
   /** Expanded row keys for controlled mode. */
   expandedRowKeys?: Array<string | number>;
+  /** Column field(s) to group by. */
+  groupBy?: string | string[];
+  /** Aggregation functions to apply to groups. */
+  groupAggregations?: Record<string, AggregationType[]>;
+  /** Expanded group keys for controlled mode. */
+  expandedGroupKeys?: Array<string>;
   onPaginationChange?: (payload: IoiPaginationChangePayload) => void;
   onCellCommit?: (payload: IoiCellCommitPayload<TRow>) => void;
   onRowUpdate?: (payload: IoiCellCommitPayload<TRow>) => void;
   /** Callback when row expansion changes. */
   onRowExpand?: (payload: IoiRowExpandPayload<TRow>) => void;
+  /** Callback when group expansion changes. */
+  onGroupExpand?: (payload: IoiGroupExpandPayload) => void;
 }
 
 export interface ExportCsvOptions {
@@ -364,4 +382,11 @@ export interface IoiRowExpandPayload<TRow = Record<string, unknown>> {
   rowIndex: number;
   rowKey: string | number;
   expanded: boolean;
+}
+
+export interface IoiGroupExpandPayload {
+  groupKey: string;
+  groupValue: unknown;
+  expanded: boolean;
+  rowCount: number;
 }
