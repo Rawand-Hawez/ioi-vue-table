@@ -172,10 +172,10 @@ describe('Row Expansion', () => {
       });
 
       table.toggleRowExpansion(1);
-      expect(expandPayload.expanded).toBe(true);
+      expect(expandPayload!.expanded).toBe(true);
 
       table.toggleRowExpansion(1);
-      expect(expandPayload.expanded).toBe(false);
+      expect(expandPayload!.expanded).toBe(false);
     });
   });
 
