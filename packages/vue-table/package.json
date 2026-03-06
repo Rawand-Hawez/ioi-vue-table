@@ -89,6 +89,7 @@
     "verify:artifact": "node ./scripts/verify-artifact.mjs",
     "prepack": "npm run build && npm run verify:artifact",
     "test": "node ../../node_modules/vitest/vitest.mjs run --config vitest.config.ts",
+    "test:coverage": "node ../../node_modules/vitest/vitest.mjs run --config vitest.config.ts --coverage",
     "typecheck": "node ../../node_modules/vue-tsc/bin/vue-tsc.js --noEmit -p tsconfig.json",
     "lint": "node ../../node_modules/eslint/bin/eslint.js \"src/**/*.{ts,vue}\" \"test/**/*.ts\""
   },
@@ -99,6 +100,7 @@
     "@typescript-eslint/eslint-plugin": "^8.24.1",
     "@typescript-eslint/parser": "^8.24.1",
     "@vitejs/plugin-vue": "^5.2.1",
+    "@vitest/coverage-v8": "^2.1.9",
     "@vue/test-utils": "^2.4.6",
     "eslint": "^8.57.1",
     "eslint-plugin-vue": "^9.32.0",
