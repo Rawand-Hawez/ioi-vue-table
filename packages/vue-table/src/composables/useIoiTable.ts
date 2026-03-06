@@ -1,4 +1,4 @@
-import { computed, ref, shallowRef, unref, watch } from 'vue';
+import { computed, getCurrentScope, onScopeDispose, ref, shallowRef, unref, watch } from 'vue';
 import type { MaybeRef } from 'vue';
 import type {
   CommitCsvImportOptions,
@@ -953,6 +953,10 @@ export function useIoiTable<TRow = Record<string, unknown>>(
     }
   }
 
+  if (getCurrentScope()) {
+    onScopeDispose(clearAllDebounceTimers);
+  }
+
   function applyColumnFilter(field: string, filter: ColumnFilter): void {
     const normalizedField = String(field);
     if (!normalizedField) {
@@ -1324,11 +1328,14 @@ export function useIoiTable<TRow = Record<string, unknown>>(
     }
 
     const oldValue = getFieldValue(row, field);
-    setNestedPathValue(row, field, draftValue);
-    normalizedRows.value = [...normalizedRows.value];
+    const updatedRow = structuredClone(row) as TRow;
+    setNestedPathValue(updatedRow, field, draftValue);
+    const nextRows = [...normalizedRows.value];
+    nextRows[rowIndex] = updatedRow;
+    normalizedRows.value = nextRows;
 
     const payload: IoiCellCommitPayload<TRow> = {
-      row,
+      row: updatedRow,
       rowIndex,
       rowKey: resolveSelectionKeyByIndex(rowIndex),
       field,
