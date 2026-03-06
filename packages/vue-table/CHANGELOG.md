@@ -1,5 +1,16 @@
 # @ioi-dev/vue-table
 
+## 0.1.17
+
+### Patch Changes
+
+- Comprehensive README overhaul with professional UK English documentation
+- Added detailed feature overview and configuration options table
+- Improved code examples with better context and explanations
+- Added comprehensive keywords for enhanced npm discoverability
+- Added requirements, contributing, and license sections
+- Enhanced documentation structure with clear sections and professional formatting
+
 ## 0.1.7
 
 ### Patch Changes

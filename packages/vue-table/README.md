@@ -1,16 +1,41 @@
 # @ioi-dev/vue-table
 
-Performance-first Vue 3 data table with a small API surface and JS-first defaults.
+A performance-first Vue 3 data table component with a streamlined API surface and JavaScript-first defaults. Designed to deliver enterprise-grade performance without the complexity of larger alternatives.
 
-## Install
+## Overview
+
+IOI Vue Table provides a lightweight yet powerful solution for rendering large datasets in Vue 3 applications. It combines virtual scrolling, efficient sorting and filtering, and flexible customisation options whilst maintaining a small bundle footprint.
+
+### Key Features
+
+- **Performance-First Architecture**: Optimised for rendering thousands of rows with minimal overhead
+- **Virtual Scrolling**: Built-in virtualisation for smooth scrolling through large datasets
+- **Flexible Column Definitions**: Strongly-typed column configuration with support for various data types
+- **Headless Pagination**: Full control over pagination state with reactive bindings
+- **Header Filters**: Built-in support for text and select-based column filtering
+- **CSV Export**: Secure data export with formula sanitisation to prevent injection attacks
+- **TypeScript Support**: Comprehensive type definitions for enhanced developer experience
+- **Zero-Dependency Core**: Minimal external dependencies to reduce bundle size
+
+## Keywords
+
+vue, vue3, vuejs, vue-3, table, datatable, data-table, grid, data-grid, table-component, vue-component, virtual-scroll, virtualization, virtual-list, sorting, filtering, pagination, typescript, ts, performance, lightweight, enterprise, responsive, csv-export, headless, reactive, composition-api, vue-composition-api, frontend, ui-component, data-display, spreadsheet, ag-grid-alternative, tanstack-alternative
+
+## Installation
 
 ```bash
 npm install @ioi-dev/vue-table vue
 ```
 
-Default package entry imports library CSS. Use `@ioi-dev/vue-table/unstyled` for zero-CSS integration.
+### CSS Integration
 
-CSS import paths:
+The default package entry includes library CSS. For zero-CSS integration, use the unstyled entry point:
+
+```bash
+@ioi-dev/vue-table/unstyled
+```
+
+**Available CSS import paths:**
 
 - Canonical: `@ioi-dev/vue-table/styles.css`
 - Compatibility alias: `@ioi-dev/vue-table/style.css`
@@ -44,9 +69,13 @@ const rows: UserRow[] = [
 </template>
 ```
 
-`IoiTable` remains available as a backward-compatible alias.
+> **Note**: `IoiTable` remains available as a backward-compatible alias for `Table`.
 
-## Pagination + Header Filters (Headless)
+## Advanced Usage
+
+### Pagination with Header Filters
+
+This example demonstrates headless pagination with reactive state management and built-in header filters:
 
 ```vue
 <script setup lang="ts">
@@ -81,14 +110,33 @@ const columns: ColumnDef<UserRow>[] = [
 </template>
 ```
 
-## Docs
+## Configuration Options
 
-- Repository: <https://github.com/Rawand-Hawez/ioi-vue-table>
-- Full guide: <https://github.com/Rawand-Hawez/ioi-vue-table#readme>
-- [Sort/filter/search/pagination + virtual scrolling guide](https://github.com/Rawand-Hawez/ioi-vue-table/blob/main/docs/table-operations.md)
+### Behaviour Defaults
 
-## Behavior Defaults
+| Option | Default | Description |
+|--------|---------|-------------|
+| `sanitizeFormulas` | `true` | Sanitises formula-like prefixes in CSV exports to prevent injection attacks |
+| `globalSearchDebounceMs` | `0` | Debounce interval for global search input (milliseconds) |
+| `filterDebounceMs` | `0` | Debounce interval for filter operations (milliseconds) |
+| `rowHeight` | Configurable | Height of each row for virtualisation calculations |
+| `overscan` | Configurable | Number of extra rows to render outside viewport for smoother scrolling |
 
-- CSV export sanitizes formula-like prefixes by default (`sanitizeFormulas: true`).
-- Optional debounce: `globalSearchDebounceMs` and `filterDebounceMs` (default `0`).
-- Virtualization knobs remain configurable via `rowHeight` and `overscan`.
+## Documentation
+
+- **Repository**: [https://github.com/Rawand-Hawez/ioi-vue-table](https://github.com/Rawand-Hawez/ioi-vue-table)
+- **Full Guide**: [https://github.com/Rawand-Hawez/ioi-vue-table#readme](https://github.com/Rawand-Hawez/ioi-vue-table#readme)
+- **Operations Guide**: [Sort, Filter, Search, Pagination and Virtual Scrolling](https://github.com/Rawand-Hawez/ioi-vue-table/blob/main/docs/table-operations.md)
+
+## Requirements
+
+- Vue 3.4 or higher
+- Modern browser with ES2020 support
+
+## License
+
+MIT
+
+## Contributing
+
+Contributions are welcome. Please refer to the repository guidelines for submission requirements and coding standards.
