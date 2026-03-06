@@ -355,6 +355,12 @@ export function useIoiTable<TRow = Record<string, unknown>>(
   const rowHeight = ref(DEFAULT_ROW_HEIGHT);
   const overscan = ref(DEFAULT_OVERSCAN);
   const state = ref<IoiTableState>(createInitialState(DEFAULT_VIEWPORT_HEIGHT));
+  
+  // Initialize expandedRowKeys from options if provided
+  if (resolvedOptions.value.expandedRowKeys) {
+    state.value.expandedRowKeys = [...resolvedOptions.value.expandedRowKeys];
+  }
+  
   const lastEvent = ref<IoiSemanticEvent<unknown> | null>(null);
   const hasWarnedSelectionDisabled = ref(false);
   const lastSelectedKey = ref<string | number | null>(null);
@@ -1239,6 +1245,14 @@ export function useIoiTable<TRow = Record<string, unknown>>(
 
   function expandAllRows(): void {
     const allKeys = sortedIndices.value
+      .filter((idx) => {
+        // Check if row is expandable
+        if (resolvedOptions.value.rowExpandable) {
+          const row = normalizedRows.value[idx];
+          return resolvedOptions.value.rowExpandable(row, idx);
+        }
+        return true;
+      })
       .map((idx) => resolveSelectionKeyByIndex(idx))
       .filter((key): key is string | number => key !== null);
 
