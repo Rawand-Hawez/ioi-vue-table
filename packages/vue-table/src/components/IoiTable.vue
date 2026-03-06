@@ -32,6 +32,9 @@ const props = withDefaults(
     globalSearchDebounceMs?: number;
     filterDebounceMs?: number;
     csvPreviewRowLimit?: number;
+    expandable?: boolean;
+    rowExpandable?: IoiTableOptions<TRow>['rowExpandable'];
+    expandedRowKeys?: Array<string | number>;
   }>(),
   {
     rows: () => [],
@@ -41,7 +44,9 @@ const props = withDefaults(
     height: 320,
     globalSearchDebounceMs: 0,
     filterDebounceMs: 0,
-    csvPreviewRowLimit: 200
+    csvPreviewRowLimit: 200,
+    expandable: false,
+    expandedRowKeys: undefined
   }
 );
 
@@ -51,12 +56,15 @@ const emit = defineEmits<{
   'update:pageIndex': [value: number];
   'update:pageSize': [value: number];
   'pagination-change': [payload: IoiPaginationChangePayload];
+  'update:expandedRowKeys': [value: Array<string | number>];
+  'row-expand': [payload: { row: TRow; rowIndex: number; rowKey: string | number; expanded: boolean }];
 }>();
 
 defineSlots<{
   header?: (slotProps: HeaderSlotProps<TRow>) => unknown;
   'header-filter'?: (slotProps: HeaderFilterSlotProps<TRow>) => unknown;
   cell?: (slotProps: CellSlotProps<TRow>) => unknown;
+  'expanded-row'?: (slotProps: { row: TRow; rowIndex: number }) => unknown;
   empty?: () => unknown;
 }>();
 
@@ -102,6 +110,9 @@ const table = useIoiTable<TRow>(
     globalSearchDebounceMs: normalizedGlobalSearchDebounceMs.value,
     filterDebounceMs: normalizedFilterDebounceMs.value,
     defaultCsvPreviewRowLimit: normalizedCsvPreviewRowLimit.value,
+    expandable: props.expandable,
+    rowExpandable: props.rowExpandable,
+    expandedRowKeys: props.expandedRowKeys,
     pagination:
       normalizedPageSize.value > 0
         ? { pageIndex: normalizedPageIndex.value, pageSize: normalizedPageSize.value }
@@ -116,6 +127,10 @@ const table = useIoiTable<TRow>(
         payload.pageCount,
         payload.rowCount
       );
+    },
+    onRowExpand: (payload) => {
+      emit('row-expand', payload);
+      emit('update:expandedRowKeys', table.state.value.expandedRowKeys);
     }
   }))
 );
@@ -633,6 +648,40 @@ function isEditingCell(row: TRow, rowIndex: number, column: ColumnDef<TRow>): bo
   return isRowEditing(row, rowIndex);
 }
 
+function isRowExpandable(row: TRow, rowIndex: number): boolean {
+  if (!props.expandable) {
+    return false;
+  }
+
+  if (props.rowExpandable) {
+    return props.rowExpandable(row, rowIndex);
+  }
+
+  return true;
+}
+
+function isRowExpanded(row: TRow, rowIndex: number): boolean {
+  if (!props.expandable) {
+    return false;
+  }
+
+  const rowKey = resolveRowSelectionKey(row, rowIndex);
+  if (rowKey === null) {
+    return false;
+  }
+
+  return table.isRowExpanded(rowKey);
+}
+
+function toggleRowExpansion(row: TRow, rowIndex: number): void {
+  const rowKey = resolveRowSelectionKey(row, rowIndex);
+  if (rowKey === null) {
+    return;
+  }
+
+  table.toggleRowExpansion(rowKey);
+}
+
 function getSortDirection(column: ColumnDef<TRow>): 'asc' | 'desc' | null {
   const field = String(column.field);
   const columnId = String(column.id ?? '');
@@ -665,15 +714,24 @@ function onRowClick(row: TRow, rowIndex: number): void {
 
 function onRowKeydown(event: KeyboardEvent, row: TRow, rowIndex: number): void {
   const key = event.key;
+  
   if (key === 'Enter' || key === ' ') {
     const rowKey = resolveRowSelectionKey(row, rowIndex);
     if (rowKey === null) {
       return;
     }
 
-    event.preventDefault();
-    table.toggleRow(rowKey, { shiftKey: event.shiftKey });
-    return;
+    if (props.expandable && isRowExpandable(row, rowIndex)) {
+      event.preventDefault();
+      toggleRowExpansion(row, rowIndex);
+      return;
+    }
+
+    if (selectionEnabled.value) {
+      event.preventDefault();
+      table.toggleRow(rowKey, { shiftKey: event.shiftKey });
+      return;
+    }
   }
 
   if (key !== 'ArrowDown' && key !== 'ArrowUp') {
@@ -790,6 +848,10 @@ defineExpose({
   clearSelection: table.clearSelection,
   selectAll: table.selectAll,
   getSelectedKeys: table.getSelectedKeys,
+  toggleRowExpansion: table.toggleRowExpansion,
+  expandAllRows: table.expandAllRows,
+  collapseAllRows: table.collapseAllRows,
+  isRowExpanded: table.isRowExpanded,
   startEdit: table.startEdit,
   setEditDraft: table.setEditDraft,
   commitEdit: table.commitEdit,
@@ -910,15 +972,32 @@ defineExpose({
             :class="{
               'ioi-table__row': true,
               'ioi-table__row--selected': isRowSelected(entry.row, entry.rowIndex),
-              'ioi-table__row--editing': isRowEditing(entry.row, entry.rowIndex)
+              'ioi-table__row--editing': isRowEditing(entry.row, entry.rowIndex),
+              'ioi-table__row--expanded': isRowExpanded(entry.row, entry.rowIndex)
             }"
             :data-row-index="entry.rowIndex"
             :style="{ height: `${normalizedRowHeight}px` }"
             :aria-selected="selectionEnabled ? isRowSelected(entry.row, entry.rowIndex) : undefined"
+            :aria-expanded="expandable && isRowExpandable(entry.row, entry.rowIndex) ? isRowExpanded(entry.row, entry.rowIndex) : undefined"
             tabindex="0"
             @click="onRowClick(entry.row, entry.rowIndex)"
             @keydown="onRowKeydown($event, entry.row, entry.rowIndex)"
           >
+            <td
+              v-if="expandable"
+              class="ioi-table__cell ioi-table__cell--expand"
+              :style="{ width: '40px', textAlign: 'center' }"
+            >
+              <button
+                v-if="isRowExpandable(entry.row, entry.rowIndex)"
+                type="button"
+                class="ioi-table__expand-icon"
+                :aria-label="isRowExpanded(entry.row, entry.rowIndex) ? 'Collapse row' : 'Expand row'"
+                @click.stop="toggleRowExpansion(entry.row, entry.rowIndex)"
+              >
+                {{ isRowExpanded(entry.row, entry.rowIndex) ? '▼' : '▶' }}
+              </button>
+            </td>
             <td
               v-for="(column, columnIndex) in renderColumns"
               :key="column.id"
@@ -937,6 +1016,23 @@ defineExpose({
               >
                 {{ getCellValue(entry.row, String(column.field)) }}
               </slot>
+            </td>
+          </tr>
+          <tr
+            v-for="entry in visibleRowEntries.filter(e => isRowExpanded(e.row, e.rowIndex))"
+            :key="`expanded-${resolveRowKey(entry.row, entry.rowIndex)}`"
+            class="ioi-table__expanded-row"
+            :data-row-index="entry.rowIndex"
+          >
+            <td
+              :colspan="expandable ? renderColumns.length + 1 : renderColumns.length"
+              class="ioi-table__expanded-content"
+            >
+              <slot
+                name="expanded-row"
+                :row="entry.row"
+                :row-index="entry.rowIndex"
+              />
             </td>
           </tr>
           <tr

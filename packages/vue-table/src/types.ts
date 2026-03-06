@@ -187,6 +187,7 @@ export interface IoiTableState {
   selectedRowKeys: Array<string | number>;
   editingCell: EditingCellState | null;
   viewport: ViewportState;
+  expandedRowKeys: Array<string | number>;
 }
 
 export interface IoiTableOptions<TRow = Record<string, unknown>> {
@@ -207,9 +208,17 @@ export interface IoiTableOptions<TRow = Record<string, unknown>> {
   /** Default CSV preview limit when parse options omit previewRowLimit. */
   defaultCsvPreviewRowLimit?: number;
   pagination?: IoiPaginationOptions;
+  /** Enable row expansion feature. */
+  expandable?: boolean;
+  /** Function to determine if a row is expandable. */
+  rowExpandable?: (row: TRow, index: number) => boolean;
+  /** Expanded row keys for controlled mode. */
+  expandedRowKeys?: Array<string | number>;
   onPaginationChange?: (payload: IoiPaginationChangePayload) => void;
   onCellCommit?: (payload: IoiCellCommitPayload<TRow>) => void;
   onRowUpdate?: (payload: IoiCellCommitPayload<TRow>) => void;
+  /** Callback when row expansion changes. */
+  onRowExpand?: (payload: IoiRowExpandPayload<TRow>) => void;
 }
 
 export interface ExportCsvOptions {
@@ -279,6 +288,14 @@ export interface IoiTableActions<TRow = Record<string, unknown>> {
   ) => Promise<CsvImportPreview<TRow>>;
   /** Commits the most recent CSV parse session. */
   commitCSVImport: (mapping?: CsvImportMapping, options?: CommitCsvImportOptions) => CsvImportResult<TRow>;
+  /** Toggles row expansion state. */
+  toggleRowExpansion: (key: string | number) => void;
+  /** Expands all rows. */
+  expandAllRows: () => void;
+  /** Collapses all rows. */
+  collapseAllRows: () => void;
+  /** Checks if a row is expanded. */
+  isRowExpanded: (key: string | number) => boolean;
   resetState: () => void;
   /** Emits a schema-versioned semantic event. */
   emitSemanticEvent: <TPayload>(
@@ -340,4 +357,11 @@ export interface HeaderFilterSlotProps<TRow = Record<string, unknown>> {
 export interface RowClickPayload<TRow = Record<string, unknown>> {
   row: TRow;
   rowIndex: number;
+}
+
+export interface IoiRowExpandPayload<TRow = Record<string, unknown>> {
+  row: TRow;
+  rowIndex: number;
+  rowKey: string | number;
+  expanded: boolean;
 }

@@ -124,6 +124,7 @@ const columns: ColumnDef<UserRow>[] = [
 
 ## Documentation
 
+- **[API Reference](./API-REFERENCE.md)** - Complete API documentation with examples
 - **Repository**: [https://github.com/Rawand-Hawez/ioi-vue-table](https://github.com/Rawand-Hawez/ioi-vue-table)
 - **Full Guide**: [https://github.com/Rawand-Hawez/ioi-vue-table#readme](https://github.com/Rawand-Hawez/ioi-vue-table#readme)
 - **Operations Guide**: [Sort, Filter, Search, Pagination and Virtual Scrolling](https://github.com/Rawand-Hawez/ioi-vue-table/blob/main/docs/table-operations.md)
