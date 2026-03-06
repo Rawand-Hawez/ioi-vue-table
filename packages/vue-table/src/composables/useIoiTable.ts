@@ -49,6 +49,11 @@ import {
   sanitizeCsvText
 } from './ioiTable/csv';
 import {
+  calculateGroups,
+  calculateGroupAggregations,
+  type GroupInfo
+} from './ioiTable/grouping';
+import {
   DEFAULT_CSV_PREVIEW_ROW_LIMIT,
   DEFAULT_OVERSCAN,
   DEFAULT_ROW_HEIGHT,
@@ -405,6 +410,15 @@ export function useIoiTable<TRow = Record<string, unknown>>(
       getFieldValue
     )
   );
+  
+  const groups = computed<GroupInfo[]>(() => {
+    const groupBy = resolvedOptions.value.groupBy;
+    if (!groupBy) {
+      return [];
+    }
+    return calculateGroups(sortedIndices.value, normalizedRows.value, groupBy);
+  });
+
   const processedRowCount = computed(() => sortedIndices.value.length);
   const totalHeight = computed(() => processedRowCount.value * rowHeight.value);
 
@@ -1330,6 +1344,52 @@ export function useIoiTable<TRow = Record<string, unknown>>(
     return state.value.expandedRowKeys.includes(key);
   }
 
+  function toggleGroupExpansion(groupKey: string): void {
+    const currentKeys = state.value.expandedGroupKeys;
+    const keySet = new Set(currentKeys);
+    const wasExpanded = keySet.has(groupKey);
+    
+    if (wasExpanded) {
+      keySet.delete(groupKey);
+    } else {
+      keySet.add(groupKey);
+    }
+    
+    state.value = {
+      ...state.value,
+      expandedGroupKeys: Array.from(keySet)
+    };
+
+    const group = groups.value.find((g) => g.key === groupKey);
+    if (group) {
+      resolvedOptions.value.onGroupExpand?.({
+        groupKey,
+        groupValue: group.value,
+        expanded: !wasExpanded,
+        rowCount: group.indices.length
+      });
+    }
+  }
+
+  function expandAllGroups(): void {
+    const allGroupKeys = groups.value.map((g) => g.key);
+    state.value = {
+      ...state.value,
+      expandedGroupKeys: allGroupKeys
+    };
+  }
+
+  function collapseAllGroups(): void {
+    state.value = {
+      ...state.value,
+      expandedGroupKeys: []
+    };
+  }
+
+  function isGroupExpanded(groupKey: string): boolean {
+    return state.value.expandedGroupKeys.includes(groupKey);
+  }
+
   function toggleSort(field: string, multi = false): void {
     const nextSortState = toggleSortState(state.value.sort, field, multi);
     setSortState(nextSortState);
@@ -1804,6 +1864,10 @@ export function useIoiTable<TRow = Record<string, unknown>>(
     expandAllRows,
     collapseAllRows,
     isRowExpanded,
+    toggleGroupExpansion,
+    expandAllGroups,
+    collapseAllGroups,
+    isGroupExpanded,
     resetState,
     emitSemanticEvent
   };

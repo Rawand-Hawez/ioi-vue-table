@@ -314,6 +314,14 @@ export interface IoiTableActions<TRow = Record<string, unknown>> {
   collapseAllRows: () => void;
   /** Checks if a row is expanded. */
   isRowExpanded: (key: string | number) => boolean;
+  /** Toggles group expansion state. */
+  toggleGroupExpansion: (groupKey: string) => void;
+  /** Expands all groups. */
+  expandAllGroups: () => void;
+  /** Collapses all groups. */
+  collapseAllGroups: () => void;
+  /** Checks if a group is expanded. */
+  isGroupExpanded: (groupKey: string) => boolean;
   resetState: () => void;
   /** Emits a schema-versioned semantic event. */
   emitSemanticEvent: <TPayload>(
