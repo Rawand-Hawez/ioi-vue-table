@@ -1,26 +1,39 @@
 # IOI Vue Table
 
-AG Grid performance without the bloat. TanStack flexibility without the complexity.
+A performance-first Vue 3 data table component with a streamlined, stable public API designed for enterprise applications.
 
-IOI Vue Table is a performance-first Vue 3 data table with a small, stable public API:
+## Overview
 
-- JS-first baseline, fully usable without Rust or WASM
-- Headless rendering with slot APIs and framework-friendly class hooks
-- Built-in sorting, column filters, global search, selection, editing, and CSV workflows
-- Virtualized rendering by default, with controlled pagination when virtual scroll is off
-- Semantic events for state changes (`schemaVersion` + machine-readable payloads)
+IOI Vue Table provides a lightweight yet powerful solution for rendering large datasets in Vue 3 applications. Built with performance and developer experience at its core, it offers comprehensive data table functionality whilst maintaining a small bundle footprint and intuitive API surface.
 
-`IoiTable` remains available as a backward-compatible alias to `Table` in v1.x.
+### Key Features
 
-## Install
+- **JavaScript-First Architecture**: Fully functional without requiring Rust or WASM dependencies
+- **Headless Rendering**: Slot-based APIs and framework-friendly class hooks for complete styling control
+- **Comprehensive Data Operations**: Built-in sorting, column filters, global search, selection, and editing workflows
+- **Virtualised Rendering**: Default virtualisation for smooth performance with large datasets
+- **Controlled Pagination**: Full pagination control when virtual scroll is disabled
+- **CSV Workflows**: Import and export capabilities with security sanitisation
+- **Semantic Events**: Versioned, machine-readable payloads for state changes
+- **TypeScript Support**: Comprehensive type definitions for enhanced developer experience
+
+> **Note**: `IoiTable` remains available as a backward-compatible alias to `Table` in v1.x releases.
+
+## Installation
 
 ```bash
 npm install @ioi-dev/vue-table vue
 ```
 
-Default import includes library CSS. For zero-CSS usage, import from `@ioi-dev/vue-table/unstyled`.
+### CSS Integration
 
-## 60-Second Quick Start
+The default import includes library CSS. For zero-CSS integration:
+
+```javascript
+import { Table } from '@ioi-dev/vue-table/unstyled'
+```
+
+## Quick Start
 
 ```vue
 <script setup lang="ts">
@@ -49,7 +62,11 @@ const rows: UserRow[] = [
 </template>
 ```
 
-## Controlled Pagination + Header Filters
+## Advanced Usage
+
+### Controlled Pagination with Header Filters
+
+This example demonstrates headless pagination with reactive state management and built-in header filters:
 
 ```vue
 <script setup lang="ts">
@@ -84,68 +101,122 @@ const columns: ColumnDef<UserRow>[] = [
 </template>
 ```
 
-`headerFilter: 'select'` options are faceted from current table context (other active filters + global search, excluding its own filter).
+> **Note**: `headerFilter: 'select'` options are faceted from current table context, considering other active filters and global search whilst excluding the column's own filter.
 
-## Headless Styling
+## Styling
 
-The table ships headless-first. You can style it with Tailwind, shadCN, Bootstrap, or plain CSS by targeting class hooks such as:
+### Headless-First Design
 
-- `.ioi-table`
-- `.ioi-table__viewport`
-- `.ioi-table__table`
-- `.ioi-table__header-content`
-- `.ioi-table__filter-input` / `.ioi-table__filter-select`
-- `.ioi-table__row` / `.ioi-table__empty`
-- `.ioi-table__row--selected` / `.ioi-table__row--editing`
-- `.ioi-table__header--sorted-asc` / `.ioi-table__header--sorted-desc`
-- `.ioi-table__cell--editing`
+The component ships with a headless-first architecture, enabling seamless integration with any styling solution:
 
-## CSV + Debounce Notes
+- **Tailwind CSS**: Direct class targeting
+- **shadCN/ui**: Compatible with component primitives
+- **Bootstrap**: Standard class overrides
+- **Custom CSS**: Full control via class hooks
 
-- `exportCSV()` sanitizes formula-like values by default (`sanitizeFormulas: true`).
-- You can opt out with `sanitizeFormulas: false`, or customize prefix with `formulaEscapePrefix: "'" | "\t"`.
-- `globalSearchDebounceMs` and `filterDebounceMs` are optional table/composable options (default `0`).
-- `rowHeight` and `overscan` are configurable in both component props and composable options.
+### Available Class Hooks
+
+| Class | Description |
+|-------|-------------|
+| `.ioi-table` | Root table container |
+| `.ioi-table__viewport` | Scrollable viewport |
+| `.ioi-table__table` | Inner table element |
+| `.ioi-table__header-content` | Header cell content |
+| `.ioi-table__filter-input` | Text filter inputs |
+| `.ioi-table__filter-select` | Select filter dropdowns |
+| `.ioi-table__row` | Table rows |
+| `.ioi-table__empty` | Empty state container |
+| `.ioi-table__row--selected` | Selected row state |
+| `.ioi-table__row--editing` | Editing row state |
+| `.ioi-table__header--sorted-asc` | Ascending sort indicator |
+| `.ioi-table__header--sorted-desc` | Descending sort indicator |
+| `.ioi-table__cell--editing` | Editing cell state |
+
+## Configuration Options
+
+### CSV Export
+
+| Option | Default | Description |
+|--------|---------|-------------|
+| `sanitizeFormulas` | `true` | Sanitises formula-like values to prevent injection attacks |
+| `formulaEscapePrefix` | `"'"` | Custom prefix for formula sanitisation (`"'"` or `"\t"`) |
+
+### Performance Tuning
+
+| Option | Default | Description |
+|--------|---------|-------------|
+| `globalSearchDebounceMs` | `0` | Debounce interval for global search (milliseconds) |
+| `filterDebounceMs` | `0` | Debounce interval for filter operations (milliseconds) |
+| `rowHeight` | Configurable | Row height for virtualisation calculations |
+| `overscan` | Configurable | Extra rows to render outside viewport for smoother scrolling |
 
 ## Performance Model
 
-- Current target: smooth client-side operation around ~1k rows with rich interactions
-- Large datasets: use virtualization and server-side data strategies
-- WASM remains an optional accelerator path; JS fallback is always first-class
-- WASM boundaries stay low-overhead (indices/ranges, no large object shuttling)
+### Current Capabilities
 
-## Docs
+- **Client-Side Operations**: Smooth performance with approximately 1,000 rows with rich interactions
+- **Large Datasets**: Utilise virtualisation and server-side data strategies for optimal performance
+- **WASM Acceleration**: Optional accelerator path available, with JavaScript fallback always first-class
+- **Low-Overhead Boundaries**: WASM integration uses indices and ranges, avoiding large object shuttling
 
-- [Table operations guide](docs/table-operations.md)
-- [Architecture](docs/ARCHITECTURE.md)
-- [Specification](docs/SPEC.md)
-- [Roadmap](docs/ROADMAP.md)
-- [Benchmarks](docs/benchmarks.md)
+## Documentation
 
-## Run Playground
+- [Table Operations Guide](docs/table-operations.md) - Comprehensive operations reference
+- [Architecture](docs/ARCHITECTURE.md) - System architecture and design decisions
+- [Specification](docs/SPEC.md) - API specification and contracts
+- [Roadmap](docs/ROADMAP.md) - Development roadmap and planned features
+- [Benchmarks](docs/benchmarks.md) - Performance benchmarks and metrics
+
+## Development
+
+### Running the Playground
 
 ```bash
 npm install
 npm --workspace @ioi/vue-table-playground run dev
 ```
 
-Playground routes (hash-based):
+### Available Routes
 
-- `#/big-data` for virtualization stress tests
-- `#/pinned-columns` for pinning + resize + reorder
-- `#/ops-demo` for sort/filter/search/selection
-- `#/csv-import` for CSV preview, validation, and commit
+The playground includes several demonstration routes:
 
-## Workspace Commands
+- `#/big-data` - Virtualisation stress tests
+- `#/pinned-columns` - Column pinning, resize, and reorder demonstrations
+- `#/ops-demo` - Sort, filter, search, and selection operations
+- `#/csv-import` - CSV preview, validation, and commit workflows
 
-- `npm --workspace @ioi-dev/vue-table run test`
-- `npm --workspace @ioi-dev/vue-table run build`
-- `npm --workspace @ioi/vue-table-playground run build`
-- `npm --workspaces run lint`
-- `npm --workspaces run typecheck`
+### Workspace Commands
+
+```bash
+# Testing
+npm --workspace @ioi-dev/vue-table run test
+
+# Building
+npm --workspace @ioi-dev/vue-table run build
+npm --workspace @ioi/vue-table-playground run build
+
+# Code Quality
+npm --workspaces run lint
+npm --workspaces run typecheck
+```
 
 ## Compatibility
 
-- Vue 3.4+ stable is the baseline target
-- Vue 3.6 compatibility is tracked in CI (no preview-only behavior dependency)
-- Vapor mode is intentionally out of scope for v1.0 and planned as a separate entry point later
+| Requirement | Support |
+|-------------|---------|
+| Vue 3.4+ | Full support (baseline target) |
+| Vue 3.6 | Compatibility tracked in CI |
+| Vapor Mode | Planned for future release (separate entry point) |
+
+## Requirements
+
+- Vue 3.4 or higher
+- Modern browser with ES2020 support
+
+## License
+
+MIT
+
+## Contributing
+
+Contributions are welcome. Please refer to the repository guidelines for submission requirements and coding standards.
