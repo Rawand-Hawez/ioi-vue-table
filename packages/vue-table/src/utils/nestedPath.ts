@@ -1,6 +1,7 @@
 type PathSegments = readonly string[];
 
 const PATH_CACHE_MAX_ENTRIES = 2048;
+const DANGEROUS_PATH_SEGMENTS = new Set(['__proto__', 'constructor', 'prototype']);
 const pathCache = new Map<string, PathSegments | null>();
 const dotCharCode = 46;
 const zeroCharCode = 48;
@@ -80,6 +81,10 @@ function parsePath(path: string): PathSegments | null {
   }
 
   segments.push(path.slice(segmentStart));
+  if (segments.some((segment) => DANGEROUS_PATH_SEGMENTS.has(segment))) {
+    setCachedPath(path, null);
+    return null;
+  }
   setCachedPath(path, segments);
 
   return segments;

@@ -10,16 +10,18 @@ IOI Vue Table provides a lightweight yet powerful solution for rendering large d
 
 - **Performance-First Architecture**: Optimised for rendering thousands of rows with minimal overhead
 - **Virtual Scrolling**: Built-in virtualisation for smooth scrolling through large datasets
+- **Row Grouping**: Group rows by single or multiple columns with aggregate calculations
 - **Flexible Column Definitions**: Strongly-typed column configuration with support for various data types
 - **Headless Pagination**: Full control over pagination state with reactive bindings
 - **Header Filters**: Built-in support for text and select-based column filtering
-- **CSV Export**: Secure data export with formula sanitisation to prevent injection attacks
+- **Row Expansion**: Expandable rows with custom content slots
+- **CSV Export/Import**: Secure data export with formula sanitisation and preview-based import
 - **TypeScript Support**: Comprehensive type definitions for enhanced developer experience
 - **Zero-Dependency Core**: Minimal external dependencies to reduce bundle size
 
 ## Keywords
 
-vue, vue3, vuejs, vue-3, table, datatable, data-table, grid, data-grid, table-component, vue-component, virtual-scroll, virtualization, virtual-list, sorting, filtering, pagination, typescript, ts, performance, lightweight, enterprise, responsive, csv-export, headless, reactive, composition-api, vue-composition-api, frontend, ui-component, data-display, spreadsheet, ag-grid-alternative, tanstack-alternative
+vue, vue3, vuejs, vue-3, table, datatable, data-table, grid, data-grid, table-component, vue-component, virtual-scroll, virtualization, virtual-list, sorting, filtering, pagination, grouping, row-groups, aggregations, group-by, row-expansion, csv-export, csv-import, typescript, ts, performance, lightweight, enterprise, responsive, headless, reactive, composition-api, vue-composition-api, frontend, ui-component, data-display, spreadsheet, ag-grid-alternative, tanstack-alternative
 
 ## Installation
 
@@ -110,6 +112,52 @@ const columns: ColumnDef<UserRow>[] = [
 </template>
 ```
 
+### Row Grouping
+
+Group rows by single or multiple columns with aggregate calculations:
+
+```vue
+<script setup lang="ts">
+import { ref } from 'vue';
+import { Table, type ColumnDef } from '@ioi-dev/vue-table';
+
+interface SalesRow {
+  id: number;
+  region: string;
+  product: string;
+  amount: number;
+}
+
+const rows = ref<SalesRow[]>([
+  { id: 1, region: 'North', product: 'Widget', amount: 100 },
+  { id: 2, region: 'North', product: 'Gadget', amount: 200 },
+  { id: 3, region: 'South', product: 'Widget', amount: 150 },
+  { id: 4, region: 'South', product: 'Gadget', amount: 250 }
+]);
+
+const expandedGroups = ref<string[]>(['North']);
+
+const groupAggregations = {
+  amount: ['sum', 'avg']
+};
+</script>
+
+<template>
+  <Table
+    v-model:expandedGroupKeys="expandedGroups"
+    :rows="rows"
+    :columns="[
+      { field: 'region', header: 'Region' },
+      { field: 'product', header: 'Product' },
+      { field: 'amount', header: 'Amount', type: 'number' }
+    ]"
+    row-key="id"
+    group-by="region"
+    :group-aggregations="groupAggregations"
+  />
+</template>
+```
+
 ## Configuration Options
 
 ### Behaviour Defaults
@@ -127,7 +175,6 @@ const columns: ColumnDef<UserRow>[] = [
 - **[API Reference](./API-REFERENCE.md)** - Complete API documentation with examples
 - **Repository**: [https://github.com/Rawand-Hawez/ioi-vue-table](https://github.com/Rawand-Hawez/ioi-vue-table)
 - **Full Guide**: [https://github.com/Rawand-Hawez/ioi-vue-table#readme](https://github.com/Rawand-Hawez/ioi-vue-table#readme)
-- **Operations Guide**: [Sort, Filter, Search, Pagination and Virtual Scrolling](https://github.com/Rawand-Hawez/ioi-vue-table/blob/main/docs/table-operations.md)
 
 ## Requirements
 

@@ -1,10 +1,9 @@
 import { computed, getCurrentScope, onScopeDispose, ref, shallowRef, unref, watch } from 'vue';
 import type { MaybeRef } from 'vue';
 import type {
-  CommitCsvImportOptions,
-  ColumnFilter,
   ColumnDef,
-  CsvDelimiter,
+  ColumnFilter,
+  CommitCsvImportOptions,
   CsvImportMapping,
   CsvImportPreview,
   CsvImportResult,
@@ -15,18 +14,21 @@ import type {
   ExportCsvScope,
   IoiPaginationChangePayload,
   IoiCellCommitPayload,
+  IoiRenderEntry,
   IoiSemanticEvent,
   IoiSemanticEventType,
   IoiTableApi,
   IoiTableOptions,
   IoiTableState,
+  NumberColumnFilter,
   ParseCsvOptions,
   SelectAllScope,
   SelectionMode,
-  SortState,
   StartEditOptions,
+  TextColumnFilter,
   ToggleRowOptions,
-  VirtualRange
+  VirtualRange,
+  DateColumnFilter
 } from '../types';
 import { applyFilters } from '../utils/filter';
 import { get as getNestedPathValue, set as setNestedPathValue } from '../utils/nestedPath';
@@ -35,8 +37,14 @@ import {
   normalizePositiveInteger,
   normalizePositiveNumber
 } from '../utils/number';
-import { applySort, toggleSortState } from '../utils/sort';
+import { applySort } from '../utils/sort';
+import { createSorting } from './ioiTable/sorting';
+import { createGroupExpansion } from './ioiTable/groupExpansion';
+import { createExpansion } from './ioiTable/expansion';
+import { createFacets } from './ioiTable/facets';
+import type { ExportColumn, ImportColumnBinding, ParsedCsvImportSession } from './ioiTable/types';
 import {
+  CSV_MAX_ROWS_EXCEEDED_ERROR,
   coerceCsvImportValue,
   encodeCsvField,
   encodeCsvText,
@@ -49,6 +57,12 @@ import {
   sanitizeCsvText
 } from './ioiTable/csv';
 import {
+  calculateGroups,
+  type GroupInfo
+} from './ioiTable/grouping';
+import {
+  DEFAULT_CSV_MAX_ROWS,
+  DEFAULT_CSV_MAX_SIZE_BYTES,
   DEFAULT_CSV_PREVIEW_ROW_LIMIT,
   DEFAULT_OVERSCAN,
   DEFAULT_ROW_HEIGHT,
@@ -61,33 +75,10 @@ import { createSemanticEvent } from './ioiTable/events';
 import { buildPaginationPayload } from './ioiTable/pagination';
 import { normalizeSelectedKeys } from './ioiTable/selection';
 import { createInitialState } from './ioiTable/state';
-import { clamp, collectNestedObjectLeafPaths, isPlainObject, stringifyFacetValue, toIndexArray } from './ioiTable/utils';
+import { clamp, collectNestedObjectLeafPaths, isPlainObject, toIndexArray } from './ioiTable/utils';
 
 function getFieldValue<TRow>(row: TRow, field: string): unknown {
   return getNestedPathValue(row, field);
-}
-
-interface ExportColumn {
-  fieldPath: string;
-  header: string;
-}
-
-interface ImportColumnBinding<TRow> {
-  columnId: string;
-  field: string;
-  header: string;
-  column: Pick<ColumnDef<TRow>, 'type' | 'validate'>;
-}
-
-interface ParsedCsvImportSession<TRow> {
-  delimiter: CsvDelimiter;
-  hasHeader: boolean;
-  headers: string[];
-  dataRows: string[][];
-  previewRowLimit: number;
-  maxColumnCount: number;
-  columns: ImportColumnBinding<TRow>[];
-  mapping: CsvImportMapping;
 }
 
 function resolveExportColumns<TRow>(
@@ -345,6 +336,40 @@ async function readCsvImportSource(fileOrText: CsvImportSource): Promise<string>
   return '';
 }
 
+function estimateTextSizeBytes(text: string): number {
+  if (typeof TextEncoder === 'function') {
+    return new TextEncoder().encode(text).byteLength;
+  }
+
+  return text.length;
+}
+
+function getCsvImportSourceSizeBytes(fileOrText: CsvImportSource): number | null {
+  if (typeof fileOrText === 'string') {
+    return estimateTextSizeBytes(fileOrText);
+  }
+
+  if (typeof fileOrText?.size === 'number' && Number.isFinite(fileOrText.size) && fileOrText.size >= 0) {
+    return Math.floor(fileOrText.size);
+  }
+
+  return null;
+}
+
+function formatCsvSizeLimit(bytes: number): string {
+  if (bytes >= 1024 * 1024) {
+    const megabytes = bytes / (1024 * 1024);
+    return `${megabytes % 1 === 0 ? megabytes.toFixed(0) : megabytes.toFixed(1)} MB`;
+  }
+
+  if (bytes >= 1024) {
+    const kilobytes = bytes / 1024;
+    return `${kilobytes % 1 === 0 ? kilobytes.toFixed(0) : kilobytes.toFixed(1)} KB`;
+  }
+
+  return `${bytes} bytes`;
+}
+
 export function useIoiTable<TRow = Record<string, unknown>>(
   options: MaybeRef<IoiTableOptions<TRow>> = {}
 ): IoiTableApi<TRow> {
@@ -355,12 +380,7 @@ export function useIoiTable<TRow = Record<string, unknown>>(
   const rowHeight = ref(DEFAULT_ROW_HEIGHT);
   const overscan = ref(DEFAULT_OVERSCAN);
   const state = ref<IoiTableState>(createInitialState(DEFAULT_VIEWPORT_HEIGHT));
-  
-  // Initialize expandedRowKeys from options if provided
-  if (resolvedOptions.value.expandedRowKeys) {
-    state.value.expandedRowKeys = [...resolvedOptions.value.expandedRowKeys];
-  }
-  
+
   const lastEvent = ref<IoiSemanticEvent<unknown> | null>(null);
   const hasWarnedSelectionDisabled = ref(false);
   const lastSelectedKey = ref<string | number | null>(null);
@@ -405,7 +425,62 @@ export function useIoiTable<TRow = Record<string, unknown>>(
       getFieldValue
     )
   );
-  const processedRowCount = computed(() => sortedIndices.value.length);
+  
+  const groups = computed<GroupInfo[]>(() => {
+    const groupBy = resolvedOptions.value.groupBy;
+    if (!groupBy) {
+      return [];
+    }
+    return calculateGroups(
+      sortedIndices.value,
+      normalizedRows.value,
+      groupBy,
+      resolvedOptions.value.groupAggregations
+    );
+  });
+
+  const groupedRenderEntries = computed<IoiRenderEntry<TRow>[]>(() => {
+    if (!resolvedOptions.value.groupBy) {
+      return [];
+    }
+
+    const expandedGroupKeys = new Set(state.value.expandedGroupKeys);
+    const entries: IoiRenderEntry<TRow>[] = [];
+
+    for (let groupIndex = 0; groupIndex < groups.value.length; groupIndex += 1) {
+      const group = groups.value[groupIndex];
+      entries.push({
+        type: 'group',
+        renderKey: `group:${group.key}`,
+        group
+      });
+
+      if (!expandedGroupKeys.has(group.key)) {
+        continue;
+      }
+
+      for (let rowIndex = 0; rowIndex < group.indices.length; rowIndex += 1) {
+        const rawRowIndex = group.indices[rowIndex];
+        const row = normalizedRows.value[rawRowIndex];
+        if (row === undefined) {
+          continue;
+        }
+
+        entries.push({
+          type: 'row',
+          renderKey: buildRenderRowKey(row, rawRowIndex),
+          row,
+          rowIndex: rawRowIndex
+        });
+      }
+    }
+
+    return entries;
+  });
+
+  const processedRowCount = computed(() =>
+    resolvedOptions.value.groupBy ? groupedRenderEntries.value.length : sortedIndices.value.length
+  );
   const totalHeight = computed(() => processedRowCount.value * rowHeight.value);
 
   const paginationConfig = computed(() => resolvedOptions.value.pagination);
@@ -445,6 +520,12 @@ export function useIoiTable<TRow = Record<string, unknown>>(
       DEFAULT_CSV_PREVIEW_ROW_LIMIT
     )
   );
+  const csvMaxRows = computed(() =>
+    normalizePositiveInteger(resolvedOptions.value.csvMaxRows, DEFAULT_CSV_MAX_ROWS)
+  );
+  const csvMaxSizeBytes = computed(() =>
+    normalizePositiveInteger(resolvedOptions.value.csvMaxSizeBytes, DEFAULT_CSV_MAX_SIZE_BYTES)
+  );
   const filterDebounceTimers = new Map<string, ReturnType<typeof setTimeout>>();
   let globalSearchDebounceTimer: ReturnType<typeof setTimeout> | null = null;
 
@@ -471,15 +552,61 @@ export function useIoiTable<TRow = Record<string, unknown>>(
     return { start, end };
   });
 
-  const visibleIndices = computed<number[]>(() =>
-    sortedIndices.value.slice(virtualRange.value.start, virtualRange.value.end)
-  );
+  const visibleGroupedRenderEntries = computed<IoiRenderEntry<TRow>[]>(() => {
+    if (!resolvedOptions.value.groupBy) {
+      return [];
+    }
+
+    return groupedRenderEntries.value.slice(virtualRange.value.start, virtualRange.value.end);
+  });
+
+  const visibleIndices = computed<number[]>(() => {
+    if (!resolvedOptions.value.groupBy) {
+      return sortedIndices.value.slice(virtualRange.value.start, virtualRange.value.end);
+    }
+
+    const indices: number[] = [];
+
+    for (let entryIndex = 0; entryIndex < visibleGroupedRenderEntries.value.length; entryIndex += 1) {
+      const entry = visibleGroupedRenderEntries.value[entryIndex];
+      if (entry?.type === 'row') {
+        indices.push(entry.rowIndex);
+      }
+    }
+
+    return indices;
+  });
 
   const visibleRows = computed<TRow[]>(() =>
     visibleIndices.value
       .map((rowIndex) => normalizedRows.value[rowIndex])
       .filter((row): row is TRow => row !== undefined)
   );
+
+  const renderEntries = computed<IoiRenderEntry<TRow>[]>(() => {
+    if (resolvedOptions.value.groupBy) {
+      return visibleGroupedRenderEntries.value;
+    }
+
+    const entries: IoiRenderEntry<TRow>[] = [];
+
+    for (let index = 0; index < visibleIndices.value.length; index += 1) {
+      const rowIndex = visibleIndices.value[index];
+      const row = normalizedRows.value[rowIndex];
+      if (row === undefined) {
+        continue;
+      }
+
+      entries.push({
+        type: 'row',
+        renderKey: buildRenderRowKey(row, rowIndex),
+        row,
+        rowIndex
+      });
+    }
+
+    return entries;
+  });
 
   const virtualPaddingTop = computed(() =>
     paginationEnabled.value ? 0 : virtualRange.value.start * rowHeight.value
@@ -489,7 +616,7 @@ export function useIoiTable<TRow = Record<string, unknown>>(
       return 0;
     }
 
-    const renderedHeight = visibleIndices.value.length * rowHeight.value;
+    const renderedHeight = renderEntries.value.length * rowHeight.value;
     return Math.max(0, totalHeight.value - virtualPaddingTop.value - renderedHeight);
   });
   const selectionMode = computed<SelectionMode>(() =>
@@ -530,6 +657,29 @@ export function useIoiTable<TRow = Record<string, unknown>>(
     }
 
     return resolveRowSelectionKey(row, index);
+  }
+
+  function buildRenderRowKey(row: TRow, index: number): string {
+    const rowKey = resolveRowSelectionKey(row, index);
+    return `row:${String(rowKey ?? index)}`;
+  }
+
+  function findGroupedRenderEntryIndex(rowIndex: number): number {
+    const expandedEntryIndex = groupedRenderEntries.value.findIndex(
+      (entry) => entry.type === 'row' && entry.rowIndex === rowIndex
+    );
+    if (expandedEntryIndex !== -1) {
+      return expandedEntryIndex;
+    }
+
+    const group = groups.value.find((entry) => entry.indices.includes(rowIndex));
+    if (!group) {
+      return -1;
+    }
+
+    return groupedRenderEntries.value.findIndex(
+      (entry) => entry.type === 'group' && entry.group.key === group.key
+    );
   }
 
   function findRowIndexByKey(targetKey: string | number): number {
@@ -706,7 +856,7 @@ export function useIoiTable<TRow = Record<string, unknown>>(
       }
 
       const availableKeys = new Set(
-        sortedIndices.value
+        baseIndices.value
           .map((idx) => resolveSelectionKeyByIndex(idx))
           .filter((key): key is string | number => key !== null)
       );
@@ -725,6 +875,44 @@ export function useIoiTable<TRow = Record<string, unknown>>(
     { flush: 'sync' }
   );
 
+  watch(
+    () => resolvedOptions.value.expandedRowKeys,
+    (nextKeys) => {
+      if (nextKeys !== undefined) {
+        const normalizedKeys = Array.isArray(nextKeys) ? [...nextKeys] : [];
+        if (
+          normalizedKeys.length !== state.value.expandedRowKeys.length ||
+          !normalizedKeys.every((key, idx) => key === state.value.expandedRowKeys[idx])
+        ) {
+          state.value = {
+            ...state.value,
+            expandedRowKeys: normalizedKeys
+          };
+        }
+      }
+    },
+    { immediate: true }
+  );
+
+  watch(
+    () => resolvedOptions.value.expandedGroupKeys,
+    (nextKeys) => {
+      if (nextKeys !== undefined) {
+        const normalizedKeys = Array.isArray(nextKeys) ? [...nextKeys] : [];
+        if (
+          normalizedKeys.length !== state.value.expandedGroupKeys.length ||
+          !normalizedKeys.every((key, idx) => key === state.value.expandedGroupKeys[idx])
+        ) {
+          state.value = {
+            ...state.value,
+            expandedGroupKeys: normalizedKeys
+          };
+        }
+      }
+    },
+    { immediate: true }
+  );
+
   function emitSemanticEvent<TPayload>(
     type: IoiSemanticEventType,
     payload: TPayload
@@ -733,6 +921,41 @@ export function useIoiTable<TRow = Record<string, unknown>>(
     lastEvent.value = event;
     return event;
   }
+
+  // Initialize feature modules
+  const sortingApi = createSorting(state, {}, emitSemanticEvent);
+  const groupExpansionApi = createGroupExpansion(state, groups, {
+    onGroupExpand: resolvedOptions.value.onGroupExpand
+  }, emitSemanticEvent);
+
+  // Row expansion module
+  const expansionApi = createExpansion(
+    {
+      state,
+      rows: normalizedRows,
+      sortedIndices,
+      resolveRowKey: resolveRowSelectionKey
+    },
+    {
+      expandable: computed(() => resolvedOptions.value.expandable ?? false),
+      rowExpandable: resolvedOptions.value.rowExpandable,
+      onRowExpand: resolvedOptions.value.onRowExpand
+    },
+    emitSemanticEvent
+  );
+
+  // Facets module
+  const facetsApi = createFacets(
+    {
+      rows: normalizedRows,
+      columns: normalizedColumns,
+      filters: computed(() => state.value.filters),
+      globalSearch: computed(() => state.value.globalSearch),
+      baseIndices,
+      columnKeyMap
+    },
+    getFieldValue
+  );
 
   function notifyPaginationChange(
     nextPageIndex: number,
@@ -806,86 +1029,6 @@ export function useIoiTable<TRow = Record<string, unknown>>(
     notifyPaginationChange(nextPageIndex, normalizedNextPageSize, reason);
   }
 
-  function getColumnFacetOptions(field: string): string[] {
-    const normalizedKey = String(field);
-    if (!normalizedKey) {
-      return [];
-    }
-
-    const keyMap = columnKeyMap.value;
-    const targetColumn = keyMap.get(normalizedKey);
-    const targetFieldPath = targetColumn ? String(targetColumn.field) : normalizedKey;
-    const excludedKeys = new Set<string>([normalizedKey, targetFieldPath]);
-
-    if (targetColumn?.id) {
-      excludedKeys.add(targetColumn.id);
-    }
-
-    const otherFilters = state.value.filters.filter((entry) => {
-      if (excludedKeys.has(entry.field)) {
-        return false;
-      }
-
-      const resolvedColumn = keyMap.get(entry.field);
-      if (!resolvedColumn) {
-        return true;
-      }
-
-      if (excludedKeys.has(String(resolvedColumn.field))) {
-        return false;
-      }
-
-      if (resolvedColumn.id && excludedKeys.has(resolvedColumn.id)) {
-        return false;
-      }
-
-      return true;
-    });
-
-    const facetIndices = applyFilters(
-      baseIndices.value,
-      normalizedRows.value,
-      otherFilters,
-      state.value.globalSearch,
-      normalizedColumns.value,
-      getFieldValue
-    );
-
-    const optionSet = new Set<string>();
-
-    for (let index = 0; index < facetIndices.length; index += 1) {
-      const rowIndex = facetIndices[index];
-      const row = normalizedRows.value[rowIndex];
-
-      if (row === undefined) {
-        continue;
-      }
-
-      const value = getFieldValue(row, targetFieldPath);
-
-      if (Array.isArray(value)) {
-        for (let valueIndex = 0; valueIndex < value.length; valueIndex += 1) {
-          const candidate = stringifyFacetValue(value[valueIndex]).trim();
-          if (candidate.length > 0) {
-            optionSet.add(candidate);
-          }
-        }
-        continue;
-      }
-
-      const candidate = stringifyFacetValue(value).trim();
-      if (candidate.length > 0) {
-        optionSet.add(candidate);
-      }
-    }
-
-    const options = Array.from(optionSet);
-    options.sort((left, right) =>
-      left.localeCompare(right, undefined, { numeric: true, sensitivity: 'base' })
-    );
-    return options;
-  }
-
   watch(
     [() => state.value.sort, () => state.value.filters, () => state.value.globalSearch],
     () => {
@@ -932,35 +1075,6 @@ export function useIoiTable<TRow = Record<string, unknown>>(
     emitSemanticEvent('data:explore', {
       reason: 'setColumns',
       columnCount: columns.length
-    });
-  }
-
-  function setSortState(sortState: SortState[]): void {
-    const nextSortState = sortState
-      .filter((entry) => entry.field && (entry.direction === 'asc' || entry.direction === 'desc'))
-      .map((entry) => ({
-        field: entry.field,
-        direction: entry.direction
-      })) as SortState[];
-
-    if (
-      nextSortState.length === state.value.sort.length &&
-      nextSortState.every(
-        (entry, index) =>
-          entry.field === state.value.sort[index]?.field &&
-          entry.direction === state.value.sort[index]?.direction
-      )
-    ) {
-      return;
-    }
-
-    state.value = {
-      ...state.value,
-      sort: nextSortState
-    };
-
-    emitSemanticEvent('data:sort', {
-      sort: nextSortState
     });
   }
 
@@ -1014,22 +1128,22 @@ export function useIoiTable<TRow = Record<string, unknown>>(
         let isSameFilter = false;
         if (isSameType) {
           if (filter.type === 'text') {
-            const tf = filter as import('../types').TextColumnFilter;
-            const ef = existingFilter as import('../types').TextColumnFilter;
+            const tf = filter as TextColumnFilter;
+            const ef = existingFilter as TextColumnFilter;
             isSameFilter = ef.value === tf.value && 
               ef.operator === tf.operator &&
               ef.caseSensitive === tf.caseSensitive;
           } else if (filter.type === 'number') {
-            const nf = filter as import('../types').NumberColumnFilter;
-            const ef = existingFilter as import('../types').NumberColumnFilter;
+            const nf = filter as NumberColumnFilter;
+            const ef = existingFilter as NumberColumnFilter;
             if (nf.operator === 'between' && ef.operator === 'between') {
               isSameFilter = ef.min === nf.min && ef.max === nf.max;
             } else if (nf.operator !== 'between' && ef.operator !== 'between') {
               isSameFilter = ef.value === nf.value && ef.operator === nf.operator;
             }
           } else if (filter.type === 'date') {
-            const df = filter as import('../types').DateColumnFilter;
-            const ef = existingFilter as import('../types').DateColumnFilter;
+            const df = filter as DateColumnFilter;
+            const ef = existingFilter as DateColumnFilter;
             isSameFilter = ef.value === df.value && ef.operator === df.operator;
           }
         }
@@ -1266,75 +1380,6 @@ export function useIoiTable<TRow = Record<string, unknown>>(
     return [...state.value.selectedRowKeys];
   }
 
-  function toggleRowExpansion(key: string | number): void {
-    const currentKeys = state.value.expandedRowKeys;
-    const keySet = new Set(currentKeys);
-    const wasExpanded = keySet.has(key);
-    
-    if (wasExpanded) {
-      keySet.delete(key);
-    } else {
-      keySet.add(key);
-    }
-    
-    const nextKeys = Array.from(keySet);
-
-    state.value = {
-      ...state.value,
-      expandedRowKeys: nextKeys
-    };
-
-    const rowIndex = sortedIndices.value.findIndex((idx) => {
-      const rowKey = resolveSelectionKeyByIndex(idx);
-      return rowKey === key;
-    });
-
-    if (rowIndex !== -1) {
-      const row = normalizedRows.value[sortedIndices.value[rowIndex]];
-      resolvedOptions.value.onRowExpand?.({
-        row,
-        rowIndex,
-        rowKey: key,
-        expanded: !wasExpanded
-      });
-    }
-  }
-
-  function expandAllRows(): void {
-    const allKeys = sortedIndices.value
-      .filter((idx) => {
-        // Check if row is expandable
-        if (resolvedOptions.value.rowExpandable) {
-          const row = normalizedRows.value[idx];
-          return resolvedOptions.value.rowExpandable(row, idx);
-        }
-        return true;
-      })
-      .map((idx) => resolveSelectionKeyByIndex(idx))
-      .filter((key): key is string | number => key !== null);
-
-    state.value = {
-      ...state.value,
-      expandedRowKeys: allKeys
-    };
-  }
-
-  function collapseAllRows(): void {
-    state.value = {
-      ...state.value,
-      expandedRowKeys: []
-    };
-  }
-
-  function isRowExpanded(key: string | number): boolean {
-    return state.value.expandedRowKeys.includes(key);
-  }
-
-  function toggleSort(field: string, multi = false): void {
-    const nextSortState = toggleSortState(state.value.sort, field, multi);
-    setSortState(nextSortState);
-  }
-
   function setViewport(scrollTop: number, viewportHeight = state.value.viewport.viewportHeight): void {
     const nextViewportHeight = normalizePositiveNumber(viewportHeight, DEFAULT_VIEWPORT_HEIGHT);
     const maxScrollTop = Math.max(0, totalHeight.value - nextViewportHeight);
@@ -1361,7 +1406,12 @@ export function useIoiTable<TRow = Record<string, unknown>>(
       return;
     }
 
-    const clampedIndex = clamp(index, 0, processedRowCount.value - 1);
+    const renderIndex = resolvedOptions.value.groupBy ? findGroupedRenderEntryIndex(index) : index;
+    if (renderIndex === -1) {
+      return;
+    }
+
+    const clampedIndex = clamp(renderIndex, 0, processedRowCount.value - 1);
 
     if (paginationEnabled.value && rawPageSize.value > 0) {
       const nextPageIndex = Math.floor(clampedIndex / rawPageSize.value);
@@ -1596,11 +1646,66 @@ export function useIoiTable<TRow = Record<string, unknown>>(
       options.previewRowLimit,
       defaultCsvPreviewRowLimit.value
     );
+    const maxRows = normalizePositiveInteger(options.maxRows, csvMaxRows.value);
+    const maxSizeBytes = normalizePositiveInteger(options.maxSizeBytes, csvMaxSizeBytes.value);
+    const importColumns = resolveImportColumnBindings(normalizedColumns.value);
+
+    const buildCsvImportErrorPreview = (fatalError: string): CsvImportPreview<TRow> => {
+      const normalizedDelimiter = normalizeCsvDelimiter(options.delimiter);
+      const fallbackDelimiter = normalizedDelimiter === 'auto' ? ',' : normalizedDelimiter;
+      const emptyMapping: CsvImportMapping = {};
+
+      for (let columnIndex = 0; columnIndex < importColumns.length; columnIndex += 1) {
+        emptyMapping[importColumns[columnIndex].columnId] = null;
+      }
+
+      csvImportSession.value = null;
+
+      emitSemanticEvent('data:extract', {
+        reason: 'parseCSVError',
+        delimiter: fallbackDelimiter,
+        hasHeader,
+        previewRowLimit,
+        message: fatalError
+      });
+
+      return {
+        delimiter: fallbackDelimiter,
+        hasHeader,
+        headers: [],
+        totalRows: 0,
+        previewRowLimit,
+        truncated: false,
+        mapping: emptyMapping,
+        columns: importColumns.map((column) => ({
+          columnId: column.columnId,
+          field: column.field,
+          header: column.header,
+          sourceIndex: null,
+          sourceHeader: null
+        })),
+        rows: [],
+        fatalError
+      };
+    };
+
+    const sourceSizeBytes = getCsvImportSourceSizeBytes(fileOrText);
+    if (sourceSizeBytes !== null && sourceSizeBytes > maxSizeBytes) {
+      return buildCsvImportErrorPreview(
+        `CSV input exceeds maximum size of ${formatCsvSizeLimit(maxSizeBytes)}.`
+      );
+    }
 
     try {
       const text = await readCsvImportSource(fileOrText);
+      if (estimateTextSizeBytes(text) > maxSizeBytes) {
+        return buildCsvImportErrorPreview(
+          `CSV input exceeds maximum size of ${formatCsvSizeLimit(maxSizeBytes)}.`
+        );
+      }
+
       const delimiter = resolveCsvDelimiter(text, options.delimiter);
-      const parsedRows = parseCsvRows(text, delimiter);
+      const parsedRows = parseCsvRows(text, delimiter, hasHeader ? maxRows + 1 : maxRows);
       const maxColumnCount = parsedRows.reduce(
         (maxCount, row) => Math.max(maxCount, row.length),
         0
@@ -1613,7 +1718,6 @@ export function useIoiTable<TRow = Record<string, unknown>>(
               (_, index) => `column_${index + 1}`
             );
       const dataRows = hasHeader ? parsedRows.slice(1) : parsedRows;
-      const importColumns = resolveImportColumnBindings(normalizedColumns.value);
       const autoMapping = createAutoImportMapping(hasHeader, headers, importColumns);
       const previewRows = buildCsvImportRows(dataRows, hasHeader, importColumns, autoMapping);
       const previewRowsLimited = previewRows.slice(0, previewRowLimit);
@@ -1661,48 +1765,13 @@ export function useIoiTable<TRow = Record<string, unknown>>(
 
       return preview;
     } catch (error) {
-      const normalizedDelimiter = normalizeCsvDelimiter(options.delimiter);
-      const fallbackDelimiter = normalizedDelimiter === 'auto' ? ',' : normalizedDelimiter;
-      const importColumns = resolveImportColumnBindings(normalizedColumns.value);
-      const emptyMapping: CsvImportMapping = {};
-
-      for (let columnIndex = 0; columnIndex < importColumns.length; columnIndex += 1) {
-        emptyMapping[importColumns[columnIndex].columnId] = null;
-      }
-
       const fatalError =
-        error instanceof Error && error.message.length > 0
-          ? error.message
+        error instanceof Error && error.message === CSV_MAX_ROWS_EXCEEDED_ERROR
+          ? `CSV input exceeds maximum row count of ${maxRows} rows.`
+          : error instanceof Error && error.message.length > 0
+            ? error.message
           : 'Failed to parse CSV input';
-
-      csvImportSession.value = null;
-
-      emitSemanticEvent('data:extract', {
-        reason: 'parseCSVError',
-        delimiter: fallbackDelimiter,
-        hasHeader,
-        previewRowLimit,
-        message: fatalError
-      });
-
-      return {
-        delimiter: fallbackDelimiter,
-        hasHeader,
-        headers: [],
-        totalRows: 0,
-        previewRowLimit,
-        truncated: false,
-        mapping: emptyMapping,
-        columns: importColumns.map((column) => ({
-          columnId: column.columnId,
-          field: column.field,
-          header: column.header,
-          sourceIndex: null,
-          sourceHeader: null
-        })),
-        rows: [],
-        fatalError
-      };
+      return buildCsvImportErrorPreview(fatalError);
     }
   }
 
@@ -1777,20 +1846,20 @@ export function useIoiTable<TRow = Record<string, unknown>>(
   const actions = {
     setRows,
     setColumns,
-    setSortState,
+    setSortState: sortingApi.setSortState,
     setColumnFilter,
     clearColumnFilter,
     setGlobalSearch,
     clearAllFilters,
     setPageIndex,
     setPageSize,
-    getColumnFacetOptions,
+    getColumnFacetOptions: facetsApi.getColumnFacetOptions,
     toggleRow,
     isSelected,
     clearSelection,
     selectAll,
     getSelectedKeys,
-    toggleSort,
+    toggleSort: sortingApi.toggleSort,
     setViewport,
     scrollToRow,
     startEdit,
@@ -1800,10 +1869,14 @@ export function useIoiTable<TRow = Record<string, unknown>>(
     exportCSV,
     parseCSV,
     commitCSVImport,
-    toggleRowExpansion,
-    expandAllRows,
-    collapseAllRows,
-    isRowExpanded,
+    toggleRowExpansion: expansionApi.toggleRowExpansion,
+    expandAllRows: expansionApi.expandAllRows,
+    collapseAllRows: expansionApi.collapseAllRows,
+    isRowExpanded: expansionApi.isRowExpanded,
+    toggleGroupExpansion: groupExpansionApi.toggleGroupExpansion,
+    expandAllGroups: groupExpansionApi.expandAllGroups,
+    collapseAllGroups: groupExpansionApi.collapseAllGroups,
+    isGroupExpanded: groupExpansionApi.isGroupExpanded,
     resetState,
     emitSemanticEvent
   };
@@ -1831,6 +1904,8 @@ export function useIoiTable<TRow = Record<string, unknown>>(
     virtualPaddingBottom,
     visibleIndices,
     visibleRows,
+    renderEntries,
+    groups,
     lastEvent,
     actions,
     ...actions

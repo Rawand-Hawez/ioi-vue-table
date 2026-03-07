@@ -120,6 +120,10 @@ export interface ParseCsvOptions {
   delimiter?: CsvDelimiter | 'auto';
   hasHeader?: boolean;
   previewRowLimit?: number;
+  /** Maximum number of imported data rows allowed for this parse. */
+  maxRows?: number;
+  /** Maximum CSV input size allowed for this parse, in bytes. */
+  maxSizeBytes?: number;
 }
 
 export interface CsvImportValidationError {
@@ -188,7 +192,34 @@ export interface IoiTableState {
   editingCell: EditingCellState | null;
   viewport: ViewportState;
   expandedRowKeys: Array<string | number>;
+  expandedGroupKeys: Array<string>;
 }
+
+export type AggregationType = 'sum' | 'avg' | 'count' | 'min' | 'max';
+
+export interface GroupHeader {
+  key: string;
+  value: unknown;
+  count: number;
+  aggregations: Record<string, number>;
+}
+
+export interface IoiGroupRenderEntry {
+  type: 'group';
+  renderKey: string;
+  group: GroupHeader;
+}
+
+export interface IoiRowRenderEntry<TRow = Record<string, unknown>> {
+  type: 'row';
+  renderKey: string;
+  row: TRow;
+  rowIndex: number;
+}
+
+export type IoiRenderEntry<TRow = Record<string, unknown>> =
+  | IoiGroupRenderEntry
+  | IoiRowRenderEntry<TRow>;
 
 export interface IoiTableOptions<TRow = Record<string, unknown>> {
   rows?: TRow[];
@@ -207,6 +238,10 @@ export interface IoiTableOptions<TRow = Record<string, unknown>> {
   filterDebounceMs?: number;
   /** Default CSV preview limit when parse options omit previewRowLimit. */
   defaultCsvPreviewRowLimit?: number;
+  /** Maximum number of CSV data rows allowed during import parsing. */
+  csvMaxRows?: number;
+  /** Maximum CSV input size allowed during import parsing, in bytes. */
+  csvMaxSizeBytes?: number;
   pagination?: IoiPaginationOptions;
   /** Enable row expansion feature. */
   expandable?: boolean;
@@ -214,11 +249,19 @@ export interface IoiTableOptions<TRow = Record<string, unknown>> {
   rowExpandable?: (row: TRow, index: number) => boolean;
   /** Expanded row keys for controlled mode. */
   expandedRowKeys?: Array<string | number>;
+  /** Column field(s) to group by. */
+  groupBy?: string | string[];
+  /** Aggregation functions to apply to groups. */
+  groupAggregations?: Record<string, AggregationType[]>;
+  /** Expanded group keys for controlled mode. */
+  expandedGroupKeys?: Array<string>;
   onPaginationChange?: (payload: IoiPaginationChangePayload) => void;
   onCellCommit?: (payload: IoiCellCommitPayload<TRow>) => void;
   onRowUpdate?: (payload: IoiCellCommitPayload<TRow>) => void;
   /** Callback when row expansion changes. */
   onRowExpand?: (payload: IoiRowExpandPayload<TRow>) => void;
+  /** Callback when group expansion changes. */
+  onGroupExpand?: (payload: IoiGroupExpandPayload) => void;
 }
 
 export interface ExportCsvOptions {
@@ -296,6 +339,14 @@ export interface IoiTableActions<TRow = Record<string, unknown>> {
   collapseAllRows: () => void;
   /** Checks if a row is expanded. */
   isRowExpanded: (key: string | number) => boolean;
+  /** Toggles group expansion state. */
+  toggleGroupExpansion: (groupKey: string) => void;
+  /** Expands all groups. */
+  expandAllGroups: () => void;
+  /** Collapses all groups. */
+  collapseAllGroups: () => void;
+  /** Checks if a group is expanded. */
+  isGroupExpanded: (groupKey: string) => boolean;
   resetState: () => void;
   /** Emits a schema-versioned semantic event. */
   emitSemanticEvent: <TPayload>(
@@ -327,6 +378,8 @@ export interface IoiTableApi<TRow = Record<string, unknown>> extends IoiTableAct
   virtualPaddingBottom: ComputedRef<number>;
   visibleIndices: ComputedRef<number[]>;
   visibleRows: ComputedRef<TRow[]>;
+  renderEntries: ComputedRef<IoiRenderEntry<TRow>[]>;
+  groups: ComputedRef<Array<{ key: string; value: unknown; indices: number[]; count: number; aggregations: Record<string, number> }>>;
   lastEvent: Ref<IoiSemanticEvent<unknown> | null>;
   actions: IoiTableActions<TRow>;
 }
@@ -364,4 +417,11 @@ export interface IoiRowExpandPayload<TRow = Record<string, unknown>> {
   rowIndex: number;
   rowKey: string | number;
   expanded: boolean;
+}
+
+export interface IoiGroupExpandPayload {
+  groupKey: string;
+  groupValue: unknown;
+  expanded: boolean;
+  rowCount: number;
 }

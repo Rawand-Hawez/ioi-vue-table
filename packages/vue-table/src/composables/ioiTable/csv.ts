@@ -1,10 +1,13 @@
 import type { ColumnDef, CsvDelimiter, ExportCsvHeaderMode } from '../../types';
 import { normalizePositiveInteger } from '../../utils/number';
 import {
+  CSV_DELIMITER_SAMPLE_ROWS,
   CSV_DELIMITERS,
   CSV_FORMULA_PREFIX_PATTERN,
   DEFAULT_CSV_PREVIEW_ROW_LIMIT
 } from './constants';
+
+export const CSV_MAX_ROWS_EXCEEDED_ERROR = 'CSV_MAX_ROWS_EXCEEDED';
 
 export function stringifyCsvValue(value: unknown): string {
   if (value === null || value === undefined) {
@@ -108,7 +111,6 @@ export function detectCsvDelimiter(text: string): CsvDelimiter {
   );
   let inQuotes = false;
   let sampledRows = 0;
-  const maxSampledRows = 30;
 
   for (let index = 0; index < text.length; index += 1) {
     const char = text[index];
@@ -132,7 +134,7 @@ export function detectCsvDelimiter(text: string): CsvDelimiter {
 
     if (char === '\n') {
       sampledRows += 1;
-      if (sampledRows >= maxSampledRows) {
+      if (sampledRows >= CSV_DELIMITER_SAMPLE_ROWS) {
         break;
       }
       continue;
@@ -173,11 +175,25 @@ export function resolveCsvDelimiter(
   return normalizedDelimiter === 'auto' ? detectCsvDelimiter(text) : normalizedDelimiter;
 }
 
-export function parseCsvRows(text: string, delimiter: CsvDelimiter): string[][] {
+export function parseCsvRows(
+  text: string,
+  delimiter: CsvDelimiter,
+  maxRows = Number.POSITIVE_INFINITY
+): string[][] {
   const rows: string[][] = [];
   let row: string[] = [];
   let field = '';
   let inQuotes = false;
+
+  function pushRow(): void {
+    row.push(field);
+    rows.push(row);
+    if (rows.length > maxRows) {
+      throw new Error(CSV_MAX_ROWS_EXCEEDED_ERROR);
+    }
+    row = [];
+    field = '';
+  }
 
   for (let index = 0; index < text.length; index += 1) {
     const char = text[index];
@@ -217,10 +233,7 @@ export function parseCsvRows(text: string, delimiter: CsvDelimiter): string[][] 
         index += 1;
       }
 
-      row.push(field);
-      rows.push(row);
-      row = [];
-      field = '';
+      pushRow();
       continue;
     }
 
@@ -228,8 +241,7 @@ export function parseCsvRows(text: string, delimiter: CsvDelimiter): string[][] 
   }
 
   if (field.length > 0 || row.length > 0) {
-    row.push(field);
-    rows.push(row);
+    pushRow();
   }
 
   return rows;

@@ -126,6 +126,29 @@ describe('nestedPath', () => {
     });
   });
 
+  it('treats dangerous path segments as unresolved and blocks prototype pollution writes', () => {
+    const row: Record<string, unknown> = { user: { name: 'Alpha' } };
+
+    try {
+      set(row, '__proto__.polluted', 'yes');
+      set(row, 'constructor.prototype.polluted', 'yes');
+      set(row, 'user.__proto__.name', 'Beta');
+
+      expect(get(row, '__proto__.polluted')).toBeUndefined();
+      expect(has(row, '__proto__.polluted')).toBe(false);
+      expect(get(row, 'constructor.prototype.polluted')).toBeUndefined();
+      expect(has(row, 'constructor.prototype.polluted')).toBe(false);
+      expect(({} as { polluted?: string }).polluted).toBeUndefined();
+      expect(row).toEqual({
+        user: {
+          name: 'Alpha'
+        }
+      });
+    } finally {
+      delete (Object.prototype as Record<string, unknown>).polluted;
+    }
+  });
+
   it('keeps the internal path cache bounded under high-cardinality paths', () => {
     const row: Record<string, unknown> = {};
 
