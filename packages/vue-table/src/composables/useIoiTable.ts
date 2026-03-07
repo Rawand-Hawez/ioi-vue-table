@@ -1895,6 +1895,7 @@ export function useIoiTable<TRow = Record<string, unknown>>(
     virtualPaddingBottom,
     visibleIndices,
     visibleRows,
+    groups,
     lastEvent,
     actions,
     ...actions

@@ -353,6 +353,7 @@ export interface IoiTableApi<TRow = Record<string, unknown>> extends IoiTableAct
   virtualPaddingBottom: ComputedRef<number>;
   visibleIndices: ComputedRef<number[]>;
   visibleRows: ComputedRef<TRow[]>;
+  groups: ComputedRef<Array<{ key: string; value: unknown; indices: number[] }>>;
   lastEvent: Ref<IoiSemanticEvent<unknown> | null>;
   actions: IoiTableActions<TRow>;
 }

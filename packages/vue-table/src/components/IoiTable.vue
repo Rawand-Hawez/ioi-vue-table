@@ -189,6 +189,38 @@ const visibleRowEntries = computed(() =>
     }))
     .filter((entry): entry is { row: TRow; rowIndex: number } => entry.row !== undefined)
 );
+
+const groups = computed(() => {
+  const groupBy = props.groupBy;
+  if (!groupBy) {
+    return [];
+  }
+  return table.groups.value;
+});
+
+const groupedRows = computed(() => {
+  if (!props.groupBy) {
+    return [];
+  }
+  
+  const result: Array<{ type: 'group' | 'row'; group?: any; row?: TRow; rowIndex?: number }> = [];
+  
+  for (const group of groups.value) {
+    result.push({ type: 'group', group });
+    
+    if (isGroupExpanded(group.key)) {
+      for (const idx of group.indices) {
+        const row = table.rows.value[idx];
+        if (row !== undefined) {
+          result.push({ type: 'row', row, rowIndex: idx });
+        }
+      }
+    }
+  }
+  
+  return result;
+});
+
 const headerFacetOptionsByField = computed(() => {
   const optionsByField = new Map<string, string[]>();
 
@@ -696,6 +728,18 @@ function toggleRowExpansion(row: TRow, rowIndex: number): void {
   }
 
   table.toggleRowExpansion(rowKey);
+}
+
+function isGroupExpandable(groupKey: string): boolean {
+  return true;
+}
+
+function isGroupExpanded(groupKey: string): boolean {
+  return table.isGroupExpanded(groupKey);
+}
+
+function toggleGroupExpansion(groupKey: string): void {
+  table.toggleGroupExpansion(groupKey);
 }
 
 function getSortDirection(column: ColumnDef<TRow>): 'asc' | 'desc' | null {
