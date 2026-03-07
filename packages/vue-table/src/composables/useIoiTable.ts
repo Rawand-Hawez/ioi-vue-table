@@ -42,6 +42,7 @@ import { createSorting } from './ioiTable/sorting';
 import { createGroupExpansion } from './ioiTable/groupExpansion';
 import { createExpansion } from './ioiTable/expansion';
 import { createFacets } from './ioiTable/facets';
+import { createDataFetching, type DataFetchingApi } from './ioiTable/dataFetching';
 import type { ExportColumn, ImportColumnBinding, ParsedCsvImportSession } from './ioiTable/types';
 import {
   CSV_MAX_ROWS_EXCEEDED_ERROR,
@@ -388,7 +389,25 @@ export function useIoiTable<TRow = Record<string, unknown>>(
   const editingError = ref<string | null>(null);
   const csvImportSession = ref<ParsedCsvImportSession<TRow> | null>(null);
   const uncontrolledPageIndex = ref(0);
-  const uncontrolledPageSize = ref(0);
+
+  const initialPageSize = computed(() => {
+    if (resolvedOptions.value.dataMode === 'server') {
+      return resolvedOptions.value.serverOptions?.initialPageSize ?? 50;
+    }
+    return 0;
+  });
+  const uncontrolledPageSize = ref(initialPageSize.value);
+
+  watch(
+    () => resolvedOptions.value.dataMode,
+    (newMode) => {
+      if (newMode === 'server') {
+        uncontrolledPageSize.value = resolvedOptions.value.serverOptions?.initialPageSize ?? 50;
+      } else {
+        uncontrolledPageSize.value = 0;
+      }
+    },
+  );
   const columnKeyMap = computed(() => {
     const map = new Map<string, ColumnDef<TRow>>();
 
@@ -404,27 +423,41 @@ export function useIoiTable<TRow = Record<string, unknown>>(
     return map;
   });
 
-  const totalRows = computed(() => normalizedRows.value.length);
-  const baseIndices = computed<number[]>(() => toIndexArray(0, totalRows.value));
-  const filteredIndices = computed<number[]>(() =>
-    applyFilters(
+  const dataMode = computed(() => resolvedOptions.value.dataMode ?? 'client');
+  const isServerMode = computed(() => dataMode.value === 'server');
+
+  const totalRows = computed(() => {
+    if (isServerMode.value && state.value.serverTotalRows !== null) {
+      return state.value.serverTotalRows;
+    }
+    return normalizedRows.value.length;
+  });
+  const baseIndices = computed<number[]>(() => toIndexArray(0, normalizedRows.value.length));
+  const filteredIndices = computed<number[]>(() => {
+    if (isServerMode.value) {
+      return baseIndices.value;
+    }
+    return applyFilters(
       baseIndices.value,
       normalizedRows.value,
       state.value.filters,
       state.value.globalSearch,
       normalizedColumns.value,
       getFieldValue
-    )
-  );
-  const sortedIndices = computed<number[]>(() =>
-    applySort(
+    );
+  });
+  const sortedIndices = computed<number[]>(() => {
+    if (isServerMode.value) {
+      return filteredIndices.value;
+    }
+    return applySort(
       filteredIndices.value,
       normalizedRows.value,
       state.value.sort,
       normalizedColumns.value,
       getFieldValue
-    )
-  );
+    );
+  });
   
   const groups = computed<GroupInfo[]>(() => {
     const groupBy = resolvedOptions.value.groupBy;
@@ -499,14 +532,24 @@ export function useIoiTable<TRow = Record<string, unknown>>(
     )
   );
   const paginationEnabled = computed(() => rawPageSize.value > 0);
-  const pageCount = computed(() =>
-    paginationEnabled.value
-      ? Math.max(1, Math.ceil(processedRowCount.value / rawPageSize.value))
-      : 1
-  );
-  const pageIndex = computed(() =>
-    paginationEnabled.value ? clamp(rawPageIndex.value, 0, pageCount.value - 1) : 0
-  );
+  const pageCount = computed(() => {
+    if (paginationEnabled.value) {
+      const rowCount = isServerMode.value && state.value.serverTotalRows !== null
+        ? state.value.serverTotalRows
+        : processedRowCount.value;
+      return Math.max(1, Math.ceil(rowCount / rawPageSize.value));
+    }
+    return 1;
+  });
+  const pageIndex = computed(() => {
+    if (!paginationEnabled.value) {
+      return 0;
+    }
+    if (isServerMode.value && state.value.serverTotalRows === null) {
+      return rawPageIndex.value;
+    }
+    return clamp(rawPageIndex.value, 0, pageCount.value - 1);
+  });
   const pageSize = computed(() => rawPageSize.value);
   const filterDebounceMs = computed(() =>
     normalizeNonNegativeInteger(resolvedOptions.value.filterDebounceMs, 0)
@@ -535,6 +578,13 @@ export function useIoiTable<TRow = Record<string, unknown>>(
     }
 
     if (paginationEnabled.value) {
+      if (isServerMode.value) {
+        // In server mode, show all loaded rows for infinite scroll support
+        // normalizedRows contains only the current page (page-based) or all loaded rows (infinite scroll)
+        const start = 0;
+        const end = processedRowCount.value;
+        return { start, end };
+      }
       const start = clamp(pageIndex.value * rawPageSize.value, 0, processedRowCount.value);
       const end = clamp(start + rawPageSize.value, start, processedRowCount.value);
       return { start, end };
@@ -957,6 +1007,36 @@ export function useIoiTable<TRow = Record<string, unknown>>(
     getFieldValue
   );
 
+  // Server-side data fetching module
+  let dataFetchingApi: DataFetchingApi | null = null;
+  
+  function handleServerRowsReceived(rows: TRow[], totalRows: number): void {
+    normalizedRows.value = [...rows];
+    state.value = {
+      ...state.value,
+      serverTotalRows: totalRows
+    };
+  }
+
+  function handleServerRowsAppend(rows: TRow[], totalRows: number): void {
+    normalizedRows.value = [...normalizedRows.value, ...rows];
+    state.value = {
+      ...state.value,
+      serverTotalRows: totalRows
+    };
+  }
+
+  if (isServerMode.value && resolvedOptions.value.serverOptions) {
+    dataFetchingApi = createDataFetching<TRow>({
+      serverOptions: resolvedOptions.value.serverOptions,
+      state,
+      pageIndex,
+      pageSize,
+      onRowsReceived: handleServerRowsReceived,
+      onAppendRows: handleServerRowsAppend
+    });
+  }
+
   function notifyPaginationChange(
     nextPageIndex: number,
     nextPageSize: number,
@@ -964,10 +1044,15 @@ export function useIoiTable<TRow = Record<string, unknown>>(
   ): void {
     const normalizedPageSize = normalizePositiveInteger(nextPageSize, 0);
     const normalizedPageIndex = normalizeNonNegativeInteger(nextPageIndex, 0);
+    
+    const effectiveRowCount = isServerMode.value && state.value.serverTotalRows !== null
+      ? state.value.serverTotalRows
+      : processedRowCount.value;
+    
     const payload = buildPaginationPayload(
       normalizedPageIndex,
       normalizedPageSize,
-      processedRowCount.value,
+      effectiveRowCount,
       reason
     );
 
@@ -990,10 +1075,17 @@ export function useIoiTable<TRow = Record<string, unknown>>(
 
     const nextPageSize = rawPageSize.value;
     const normalizedNextPageIndex = normalizeNonNegativeInteger(nextPageIndex, 0);
+    const effectiveRowCount = isServerMode.value && state.value.serverTotalRows !== null
+      ? state.value.serverTotalRows
+      : processedRowCount.value;
     const nextPageCount =
-      nextPageSize > 0 ? Math.max(1, Math.ceil(processedRowCount.value / nextPageSize)) : 1;
+      nextPageSize > 0 ? Math.max(1, Math.ceil(effectiveRowCount / nextPageSize)) : 1;
     const clampedNextPageIndex =
-      nextPageSize > 0 ? clamp(normalizedNextPageIndex, 0, nextPageCount - 1) : 0;
+      nextPageSize > 0
+        ? isServerMode.value && state.value.serverTotalRows === null
+          ? normalizedNextPageIndex
+          : clamp(normalizedNextPageIndex, 0, nextPageCount - 1)
+        : 0;
 
     if (clampedNextPageIndex === pageIndex.value) {
       return;
@@ -1049,6 +1141,10 @@ export function useIoiTable<TRow = Record<string, unknown>>(
     [processedRowCount, rawPageSize, rawPageIndex],
     () => {
       if (!paginationEnabled.value || rawPageSize.value <= 0) {
+        return;
+      }
+
+      if (isServerMode.value && state.value.serverTotalRows === null) {
         return;
       }
 
@@ -1843,6 +1939,12 @@ export function useIoiTable<TRow = Record<string, unknown>>(
     emitSemanticEvent('data:explore', { reason: 'resetState' });
   }
 
+  function refresh(): void {
+    if (dataFetchingApi) {
+      dataFetchingApi.refresh();
+    }
+  }
+
   const actions = {
     setRows,
     setColumns,
@@ -1877,7 +1979,9 @@ export function useIoiTable<TRow = Record<string, unknown>>(
     expandAllGroups: groupExpansionApi.expandAllGroups,
     collapseAllGroups: groupExpansionApi.collapseAllGroups,
     isGroupExpanded: groupExpansionApi.isGroupExpanded,
+    getRowKey: resolveSelectionKeyByIndex,
     resetState,
+    refresh,
     emitSemanticEvent
   };
 
@@ -1907,6 +2011,19 @@ export function useIoiTable<TRow = Record<string, unknown>>(
     renderEntries,
     groups,
     lastEvent,
+    loading: computed(() => state.value.loading),
+    error: computed(() => state.value.error),
+    fetchMore: async () => {
+      if (dataFetchingApi) {
+        await dataFetchingApi.fetchMore();
+      }
+    },
+    hasMore: computed(() => {
+      if (!isServerMode.value || !dataFetchingApi) {
+        return false;
+      }
+      return dataFetchingApi.hasMore.value;
+    }),
     actions,
     ...actions
   };

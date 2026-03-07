@@ -1,7 +1,7 @@
 # API Reference
 
 **Package**: @ioi-dev/vue-table  
-**Version**: 0.1.18+  
+**Version**: 0.2.0  
 **Last Updated**: 2026-03-07
 
 ---
@@ -85,6 +85,52 @@ const rows: UserRow[] = [
 | `rowHeight` | `number` | `36` | Row height in pixels |
 | `overscan` | `number` | `5` | Extra rows to render outside viewport |
 | `height` | `number` | `320` | Table viewport height |
+
+### Server-Side Props
+
+| Prop | Type | Default | Description |
+|------|------|---------|-------------|
+| `dataMode` | `'client' \| 'server'` | `'client'` | Data mode for the table |
+| `serverOptions` | `ServerDataOptions<TRow>` | - | Server-side configuration (required when `dataMode` is `'server'`) |
+
+#### ServerDataOptions
+
+```typescript
+interface ServerDataOptions<TRow> {
+  fetch: (params: ServerFetchParams) => Promise<ServerFetchResult<TRow>>;
+  debounceMs?: number;           // Default: 300
+  initialPageSize?: number;      // Default: 50
+  cursorMode?: boolean;          // Default: false
+  onFetchStart?: () => void;
+  onFetchSuccess?: (result: ServerFetchResult<TRow>) => void;
+  onFetchError?: (error: Error) => void;
+}
+```
+
+#### ServerFetchParams
+
+```typescript
+interface ServerFetchParams {
+  pageIndex: number;
+  pageSize: number;
+  sort: SortState[];
+  filters: FilterState[];
+  globalSearch: string;
+  cursor?: string | null;
+}
+```
+
+#### ServerFetchResult
+
+```typescript
+interface ServerFetchResult<TRow> {
+  rows: TRow[];
+  totalRows: number;
+  pageCount?: number;
+  nextCursor?: string | null;
+  hasMore?: boolean;
+}
+```
 
 ### Pagination Props
 
@@ -245,6 +291,9 @@ tableRef.value.toggleRowExpansion(rowKey);
 | `parseCSV` | `(source, options?) => Promise<CsvImportPreview>` | Parse CSV file |
 | `commitCSVImport` | `(mapping?, options?) => CsvImportResult` | Import CSV data |
 | `resetState` | `() => void` | Reset table state |
+| `refresh` | `() => void` | Refresh server-side data (server mode only) |
+| `fetchMore` | `() => Promise<void>` | Fetch more rows for infinite scroll (server mode only) |
+| `getRowKey` | `(rowIndex: number) => string \| number \| null` | Get row key by index |
 
 ### Filter Methods
 
@@ -828,6 +877,9 @@ table.exportCSV();
 | `virtualRange` | `ComputedRef<VirtualRange>` | Viewport range |
 | `lastEvent` | `Ref<IoiSemanticEvent>` | Last semantic event |
 | `actions` | `IoiTableActions` | All action methods |
+| `loading` | `ComputedRef<boolean>` | Loading state (server mode) |
+| `error` | `ComputedRef<string \| null>` | Error state (server mode) |
+| `hasMore` | `ComputedRef<boolean>` | Whether more rows available (server mode with cursorMode) |
 
 ### Render Entries API
 
@@ -948,20 +1000,80 @@ const aggregations: Record<string, AggregationType[]> = {
 
 ### Keyboard Navigation
 
+The table provides comprehensive keyboard navigation:
+
 | Key | Action |
 |-----|--------|
-| `Arrow Up/Down` | Navigate rows |
-| `Enter` or `Space` | Toggle selection / Toggle expansion / Toggle group |
-| `Escape` | Cancel edit |
-| `Tab` | Navigate to next focusable element |
+| `Arrow Up` | Move focus to previous row |
+| `Arrow Down` | Move focus to next row |
+| `Arrow Left` | Exit cell navigation mode (or move to previous cell) |
+| `Arrow Right` | Enter cell navigation mode (or move to next cell) |
+| `Home` | Move to first row |
+| `End` | Move to last row |
+| `Ctrl/Cmd + Home` | Move to first row, first column |
+| `Ctrl/Cmd + End` | Move to last row, last column |
+| `PageUp` | Move up by page size (or 10 rows) |
+| `PageDown` | Move down by page size (or 10 rows) |
+| `Enter` | Toggle row selection / Toggle row expansion / Toggle group |
+| `Space` | Toggle row selection / Toggle row expansion / Toggle group |
+| `F2` | Start editing focused cell (in cell navigation mode) |
+| `Escape` | Cancel edit / Exit cell navigation mode |
+| `Tab` | Navigate to next focusable element (in edit mode: move to next cell) |
+| `Ctrl/Cmd + A` | Select all filtered rows |
+
+### Focus Management
+
+- `moveFocusToRow(rowIndex, columnIndex?)` - Programmatically move DOM focus to a specific row/cell
+- Focus indicators are visible and respect `prefers-reduced-motion`
+- Focus moves with keyboard navigation for screen reader compatibility
 
 ### ARIA Attributes
 
-- `role="grid"` on table
-- `aria-sort` on sorted columns
-- `aria-selected` on selected rows
-- `aria-expanded` on expandable rows and groups
-- `aria-live="polite"` for announcements
+The table includes comprehensive ARIA support:
+
+| Attribute | Element | Description |
+|-----------|---------|-------------|
+| `role="grid"` | Table | Identifies the table as a grid widget |
+| `aria-rowcount` | Table | Total number of rows |
+| `aria-colcount` | Table | Total number of columns |
+| `aria-rowindex` | Row | Row index (1-based) |
+| `aria-colindex` | Cell | Column index (1-based) |
+| `aria-sort` | Header | Sort direction (`ascending`, `descending`, `none`) |
+| `aria-selected` | Row | Whether row is selected |
+| `aria-expanded` | Row/Group | Expansion state |
+| `aria-label` | Table | Accessible name |
+| `aria-live="polite"` | Live region | For dynamic announcements |
+
+### Live Region Announcements
+
+Screen readers receive announcements for:
+
+- **Sort changes**: "Sorted by [column], ascending/descending"
+- **Filter updates**: "Filters updated. [N] rows shown"
+- **Selection changes**: "[N] rows selected" / "Selection cleared"
+- **Loading state**: "Loading data..."
+- **Error state**: "Error loading data: [message]"
+- **Navigation**: "First row", "Last row", "Row [N]"
+
+### CSS Accessibility Support
+
+The table respects user preferences:
+
+```css
+/* Reduced motion support */
+@media (prefers-reduced-motion: reduce) {
+  .ioi-table * {
+    transition-duration: 0.01ms !important;
+  }
+}
+
+/* High contrast support */
+@media (prefers-contrast: more) {
+  .ioi-table__row:focus {
+    outline: 3px solid currentColor;
+  }
+}
+```
 
 ---
 

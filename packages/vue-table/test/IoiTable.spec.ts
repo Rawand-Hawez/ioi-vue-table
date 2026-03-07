@@ -406,7 +406,7 @@ describe('IoiTable', () => {
     await nextTick();
 
     const liveRegion = wrapper.find('.ioi-table__sr-only');
-    expect(liveRegion.text()).toContain('Sorting updated.');
+    expect(liveRegion.text()).toContain('Sorted by id, descending.');
   });
 
   it('renders grouped pages with aggregation data and keeps later pages populated after expansion', async () => {

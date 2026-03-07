@@ -1055,4 +1055,109 @@ describe('useIoiTable', () => {
     expect(table.renderEntries.value.map((entry) => entry.type)).toEqual(['row', 'group']);
     expect(table.visibleIndices.value).toEqual([1]);
   });
+
+  describe('server mode', () => {
+    it('initializes with loading state when server mode is enabled', () => {
+      const fetch = vi.fn().mockResolvedValue({ rows: [], totalRows: 0 });
+
+      const api = useIoiTable({
+        columns: [{ field: 'id', header: 'ID' }],
+        rowKey: 'id',
+        dataMode: 'server',
+        serverOptions: { fetch }
+      });
+
+      expect(api.loading.value).toBe(true);
+      expect(api.error.value).toBeNull();
+    });
+
+    it('calls fetch on mount with initial params', async () => {
+      const fetch = vi.fn().mockResolvedValue({ rows: [{ id: 1, name: 'Test' }], totalRows: 1 });
+
+      useIoiTable({
+        columns: [{ field: 'id', header: 'ID' }],
+        rowKey: 'id',
+        dataMode: 'server',
+        serverOptions: { fetch, debounceMs: 0 }
+      });
+
+      await new Promise(resolve => setTimeout(resolve, 10));
+
+      expect(fetch).toHaveBeenCalledWith(
+        expect.objectContaining({
+          pageIndex: 0,
+          pageSize: expect.any(Number),
+          sort: [],
+          filters: [],
+          globalSearch: ''
+        })
+      );
+    });
+
+    it('uses the documented default initialPageSize of 50 in server mode', async () => {
+      const fetch = vi.fn().mockResolvedValue({ rows: [], totalRows: 0 });
+
+      useIoiTable({
+        columns: [{ field: 'id', header: 'ID' }],
+        rowKey: 'id',
+        dataMode: 'server',
+        serverOptions: { fetch, debounceMs: 0 }
+      });
+
+      await new Promise((resolve) => setTimeout(resolve, 10));
+
+      expect(fetch).toHaveBeenCalledWith(
+        expect.objectContaining({
+          pageSize: 50
+        })
+      );
+    });
+
+    it('uses serverTotalRows for pageCount in server mode', () => {
+      const api = useIoiTable({
+        columns: [{ field: 'id', header: 'ID' }],
+        rowKey: 'id',
+        dataMode: 'server',
+        serverOptions: {
+          fetch: vi.fn().mockResolvedValue({ rows: [], totalRows: 100 })
+        },
+        pagination: { pageSize: 10 }
+      });
+
+      api.state.value.serverTotalRows = 100;
+
+      expect(api.pageCount.value).toBe(10);
+    });
+
+    it('allows setPageIndex before the first server response resolves', () => {
+      const fetch = vi.fn(
+        () => new Promise<{ rows: Array<{ id: number }>; totalRows: number }>(() => {})
+      );
+
+      const api = useIoiTable({
+        columns: [{ field: 'id', header: 'ID' }],
+        rowKey: 'id',
+        dataMode: 'server',
+        serverOptions: { fetch, debounceMs: 0, initialPageSize: 25 }
+      });
+
+      api.setPageIndex(3);
+
+      expect(api.pageIndex.value).toBe(3);
+    });
+
+    it('exposes refresh method for manual data refresh', () => {
+      const fetch = vi.fn().mockResolvedValue({ rows: [], totalRows: 0 });
+
+      const api = useIoiTable({
+        columns: [{ field: 'id', header: 'ID' }],
+        rowKey: 'id',
+        dataMode: 'server',
+        serverOptions: { fetch, debounceMs: 0 }
+      });
+
+      expect(api.refresh).toBeDefined();
+      expect(typeof api.refresh).toBe('function');
+    });
+  });
 });
