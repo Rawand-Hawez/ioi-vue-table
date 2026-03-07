@@ -8,7 +8,7 @@
     "bench:report": "tsx src/index.ts --report"
   },
   "dependencies": {
-    "@ioi-dev/vue-table": "workspace:*",
+    "@ioi-dev/vue-table": "*",
     "tinybench": "^2.8.0"
   },
   "devDependencies": {
