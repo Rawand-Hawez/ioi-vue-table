@@ -920,6 +920,45 @@ const table = useIoiTable({
 </template>
 ```
 
+### Render Entries API
+
+When using grouping, `renderEntries` provides a unified way to render both groups and rows:
+
+```typescript
+interface IoiRenderEntry<TRow> {
+  type: 'group' | 'row';
+  renderKey: string;
+  // For groups:
+  group?: GroupHeader;
+  // For rows:
+  row?: TRow;
+  rowIndex?: number;
+}
+```
+
+```vue
+<script setup lang="ts">
+import { useIoiTable } from '@ioi-dev/vue-table';
+
+const table = useIoiTable({
+  rows: myRows,
+  columns: myColumns,
+  groupBy: 'category'
+});
+</script>
+
+<template>
+  <div v-for="entry in table.renderEntries.value" :key="entry.renderKey">
+    <div v-if="entry.type === 'group'" class="group-header">
+      {{ entry.group.value }} ({{ entry.group.count }})
+    </div>
+    <div v-else class="row">
+      {{ entry.row.name }}
+    </div>
+  </div>
+</template>
+```
+
 ---
 
 ## TypeScript Support

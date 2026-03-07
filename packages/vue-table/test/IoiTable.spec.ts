@@ -446,4 +446,42 @@ describe('IoiTable', () => {
     expect(wrapper.text()).toContain('30');
     expect(wrapper.text()).toContain('B');
   });
+
+  it('renders grouped pages with aggregation data and keeps later pages populated after expansion', async () => {
+    const wrapper = mount(IoiTable, {
+      props: {
+        columns: [
+          { field: 'group', header: 'Group' },
+          { field: 'score', header: 'Score' }
+        ],
+        rows: [
+          { id: 1, group: 'A', score: 10 },
+          { id: 2, group: 'A', score: 30 },
+          { id: 3, group: 'B', score: 90 }
+        ],
+        rowKey: 'id',
+        groupBy: 'group',
+        groupAggregations: {
+          score: ['sum']
+        },
+        pageSize: 2
+      }
+    });
+
+    expect(wrapper.findAll('tr.ioi-table__group-header')).toHaveLength(2);
+    expect(wrapper.text()).toContain('A');
+    expect(wrapper.text()).toContain('B');
+
+    const toggles = wrapper.findAll('button.ioi-table__group-toggle');
+    await toggles[0]?.trigger('click');
+    await nextTick();
+
+    await wrapper.setProps({ pageIndex: 1 });
+    await nextTick();
+
+    expect(wrapper.findAll('tr.ioi-table__group-header')).toHaveLength(1);
+    expect(wrapper.findAll('tbody tr.ioi-table__row')).toHaveLength(1);
+    expect(wrapper.text()).toContain('30');
+    expect(wrapper.text()).toContain('B');
+  });
 });
