@@ -1,5 +1,8 @@
 :root {
   --ioi-table-border: #d7dbe2;
+  --ioi-table-focus-color: #0066cc;
+  --ioi-table-focus-outline: 2px solid var(--ioi-table-focus-color);
+  --ioi-table-focus-outline-offset: -2px;
 }
 
 .ioi-table__sr-only {
@@ -12,4 +15,84 @@
   clip: rect(0, 0, 0, 0);
   white-space: nowrap;
   border: 0;
+}
+
+.ioi-table__row:focus {
+  outline: var(--ioi-table-focus-outline);
+  outline-offset: var(--ioi-table-focus-outline-offset);
+}
+
+.ioi-table__row--focused {
+  background-color: rgba(0, 102, 204, 0.08);
+}
+
+.ioi-table__row--focused:focus {
+  background-color: rgba(0, 102, 204, 0.12);
+}
+
+.ioi-table__cell--focused {
+  outline: var(--ioi-table-focus-outline);
+  outline-offset: var(--ioi-table-focus-outline-offset);
+  background-color: rgba(0, 102, 204, 0.1);
+}
+
+.ioi-table__cell:focus {
+  outline: var(--ioi-table-focus-outline);
+  outline-offset: var(--ioi-table-focus-outline-offset);
+}
+
+.ioi-table__header-content:focus-within {
+  outline: var(--ioi-table-focus-outline);
+  outline-offset: var(--ioi-table-focus-outline-offset);
+}
+
+.ioi-table__expand-icon:focus,
+.ioi-table__group-toggle:focus {
+  outline: var(--ioi-table-focus-outline);
+  outline-offset: 2px;
+}
+
+.ioi-table__filter-input:focus,
+.ioi-table__filter-select:focus {
+  outline: var(--ioi-table-focus-outline);
+  outline-offset: 0;
+}
+
+.ioi-table__resize-handle:focus {
+  outline: var(--ioi-table-focus-outline);
+  outline-offset: 0;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .ioi-table__row,
+  .ioi-table__cell {
+    transition: none;
+  }
+}
+
+@media (prefers-contrast: high) {
+  .ioi-table__row--focused,
+  .ioi-table__cell--focused {
+    background-color: Highlight;
+    color: HighlightText;
+  }
+  
+  .ioi-table__row:focus,
+  .ioi-table__cell:focus {
+    outline: 3px solid CanvasText;
+  }
+}
+
+@media (forced-colors: active) {
+  .ioi-table__row--selected {
+    outline: 2px solid Highlight;
+  }
+  
+  .ioi-table__row--focused {
+    outline: 2px dashed Highlight;
+  }
+  
+  .ioi-table__cell--focused {
+    outline: 2px dashed Highlight;
+  }
 }

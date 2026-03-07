@@ -1,5 +1,83 @@
 # @ioi-dev/vue-table
 
+## 0.2.0
+
+### Features
+
+- **Server-Side Mode**: Full server-side data fetching support
+  - `dataMode: 'server'` option in `useIoiTable` and `<Table data-mode="server">`
+  - `ServerDataOptions` configuration with `fetch`, `debounceMs`, `initialPageSize`, `cursorMode`
+  - Automatic initial fetch on mount
+  - `loading` and `error` computed refs in API
+  - `fetchMore()` and `hasMore` for infinite scroll with cursor-based pagination
+  - `refresh()` method for manual data refresh
+  - `serverTotalRows` used for pagination calculations in server mode
+  - Lifecycle callbacks: `onFetchStart`, `onFetchSuccess`, `onFetchError`
+  - Full REST and GraphQL integration examples in documentation
+
+- **Accessibility (a11y)**: WCAG 2.1 AA compliant
+  - Full keyboard navigation:
+    - ArrowUp/ArrowDown for row navigation
+    - ArrowLeft/ArrowRight for cell navigation mode
+    - Home/End for first/last row
+    - Ctrl/Cmd+Home/End for first/last row and column
+    - PageUp/PageDown for page navigation
+    - F2 to start editing
+    - Ctrl/Cmd+A to select all
+  - `moveFocusToRow()` - DOM focus moves with keyboard navigation
+  - Comprehensive ARIA attributes:
+    - `role="grid"` with `aria-rowcount` and `aria-colcount`
+    - `aria-rowindex` and `aria-colindex` on cells
+    - `aria-sort` on sorted columns
+    - `aria-selected` on selected rows
+    - `aria-expanded` on expandable rows and groups
+  - Live region announcements for:
+    - Sort changes
+    - Filter updates
+    - Selection changes
+    - Loading states
+    - Error states
+  - CSS focus styles with `prefers-reduced-motion` and `prefers-contrast` support
+
+- **Performance Benchmarks**: New `packages/bench/` with tinybench
+  - 8 benchmark scenarios:
+    - Initial Render (1k rows) - 100ms target
+    - Virtual Scroll (100k rows) - 16ms target (60fps)
+    - Sort (100k rows) - 200ms target
+    - Multi-Sort (100k rows) - 300ms target
+    - Filter (100k rows) - 150ms target
+    - Global Search (100k rows) - 200ms target
+    - Selection Toggle (1k toggles) - 50ms target
+    - CSV Parse (10MB) - 3000ms target
+  - JSON report output with `--report` flag
+
+### New API Methods
+
+- `api.getRowKey(rowIndex)` - Get row key by index
+- `api.refresh()` - Refresh server data (server mode only)
+- `api.fetchMore()` - Fetch more rows for infinite scroll (server mode with cursorMode)
+- `api.loading` - Loading state as `ComputedRef<boolean>`
+- `api.error` - Error state as `ComputedRef<string | null>`
+- `api.hasMore` - Whether more rows available as `ComputedRef<boolean>`
+
+### New Props
+
+- `dataMode` - `'client' | 'server'` (default: `'client'`)
+- `serverOptions` - `ServerDataOptions<TRow>` configuration object
+
+### New Types Exported
+
+- `ServerFetchParams` - Parameters sent to server fetch function
+- `ServerFetchResult<TRow>` - Result returned from server fetch function
+- `ServerDataOptions<TRow>` - Server-side configuration options
+
+### Documentation
+
+- Comprehensive SERVER-SIDE.md guide with REST and GraphQL examples
+- Updated MIGRATION.md with all v0.2 features
+- Updated API-REFERENCE.md with new props, methods, and keyboard shortcuts
+- New packages/bench/README.md for benchmark documentation
+
 ## 0.1.18
 
 ### Features

@@ -2,6 +2,8 @@
 
 A performance-first Vue 3 data table component with a streamlined API surface and JavaScript-first defaults. Designed to deliver enterprise-grade performance without the complexity of larger alternatives.
 
+> **v0.2.0** - Server-Side Mode, Full Accessibility (WCAG 2.1 AA), and Performance Benchmarks
+
 ## Overview
 
 IOI Vue Table provides a lightweight yet powerful solution for rendering large datasets in Vue 3 applications. It combines virtual scrolling, efficient sorting and filtering, and flexible customisation options whilst maintaining a small bundle footprint.
@@ -16,6 +18,9 @@ IOI Vue Table provides a lightweight yet powerful solution for rendering large d
 - **Header Filters**: Built-in support for text and select-based column filtering
 - **Row Expansion**: Expandable rows with custom content slots
 - **CSV Export/Import**: Secure data export with formula sanitisation and preview-based import
+- **Server-Side Mode**: Fetch data from server with debounced requests, loading/error states, cursor-based pagination, and infinite scroll support
+- **Accessibility (a11y)**: Full keyboard navigation (Arrow keys, Home/End, PageUp/PageDown), focus management, ARIA attributes, live region announcements, and WCAG 2.1 AA compliance
+- **Performance Benchmarks**: Built-in benchmark harness with 8 scenarios for measuring render, sort, filter, and scroll performance
 - **TypeScript Support**: Comprehensive type definitions for enhanced developer experience
 - **Zero-Dependency Core**: Minimal external dependencies to reduce bundle size
 
@@ -158,6 +163,70 @@ const groupAggregations = {
 </template>
 ```
 
+### Server-Side Mode
+
+For large datasets or real-time data, use server-side mode to fetch data on demand:
+
+```vue
+<script setup lang="ts">
+import { ref } from 'vue';
+import { Table, type ServerDataOptions, type ColumnDef } from '@ioi-dev/vue-table';
+
+interface UserRow {
+  id: number;
+  name: string;
+  email: string;
+}
+
+const columns: ColumnDef<UserRow>[] = [
+  { field: 'id', header: 'ID', type: 'number' },
+  { field: 'name', header: 'Name', type: 'text' },
+  { field: 'email', header: 'Email', type: 'text' }
+];
+
+const serverOptions: ServerDataOptions<UserRow> = {
+  fetch: async (params) => {
+    const response = await fetch(`/api/users?page=${params.pageIndex}&size=${params.pageSize}`);
+    const data = await response.json();
+    return {
+      rows: data.items,
+      totalRows: data.total
+    };
+  },
+  debounceMs: 300
+};
+</script>
+
+<template>
+  <Table
+    data-mode="server"
+    :server-options="serverOptions"
+    :columns="columns"
+    row-key="id"
+  />
+</template>
+```
+
+### Accessibility
+
+The table is built with accessibility in mind:
+
+- **Keyboard Navigation**: Full support for Arrow keys, Home/End, Page Up/Down
+- **Focus Management**: Visible focus indicators and focus trapping in edit mode
+- **Screen Reader Support**: ARIA attributes and live region announcements
+- **WCAG 2.1 AA Compliance**: Color contrast, focus visibility, and reduced motion support
+
+```vue
+<template>
+  <Table
+    :rows="rows"
+    :columns="columns"
+    row-key="id"
+    aria-label="Employee directory"
+  />
+</template>
+```
+
 ## Configuration Options
 
 ### Behaviour Defaults
@@ -173,6 +242,8 @@ const groupAggregations = {
 ## Documentation
 
 - **[API Reference](./API-REFERENCE.md)** - Complete API documentation with examples
+- **[Migration Guide](./MIGRATION.md)** - Guide for upgrading between versions
+- **[Server-Side Mode](./docs/SERVER-SIDE.md)** - Comprehensive server-side integration guide
 - **Repository**: [https://github.com/Rawand-Hawez/ioi-vue-table](https://github.com/Rawand-Hawez/ioi-vue-table)
 - **Full Guide**: [https://github.com/Rawand-Hawez/ioi-vue-table#readme](https://github.com/Rawand-Hawez/ioi-vue-table#readme)
 

@@ -1,6 +1,7 @@
 <script setup lang="ts" generic="TRow extends Record<string, unknown>">
-import { computed, onMounted, onUnmounted, ref, watch } from 'vue';
+import { computed, nextTick, onMounted, onUnmounted, ref, watch } from 'vue';
 import { useColumnState } from '../composables/useColumnState';
+import { createKeyboardNavigation } from '../composables/ioiTable/keyboard';
 import { useIoiTable } from '../composables/useIoiTable';
 import type {
   CellSlotProps,
@@ -40,6 +41,9 @@ const props = withDefaults(
     groupBy?: string | string[];
     groupAggregations?: Record<string, import('../types').AggregationType[]>;
     expandedGroupKeys?: Array<string>;
+    ariaLabel?: string;
+    dataMode?: 'client' | 'server';
+    serverOptions?: IoiTableOptions<TRow>['serverOptions'];
   }>(),
   {
     rows: () => [],
@@ -56,7 +60,10 @@ const props = withDefaults(
     expandedRowKeys: undefined,
     groupBy: undefined,
     groupAggregations: undefined,
-    expandedGroupKeys: undefined
+    expandedGroupKeys: undefined,
+    ariaLabel: 'Data table',
+    dataMode: undefined,
+    serverOptions: undefined
   }
 );
 
@@ -131,6 +138,8 @@ const table = useIoiTable<TRow>(
     groupBy: props.groupBy,
     groupAggregations: props.groupAggregations,
     expandedGroupKeys: props.expandedGroupKeys,
+    dataMode: props.dataMode,
+    serverOptions: props.serverOptions,
     pagination:
       normalizedPageSize.value > 0
         ? { pageIndex: normalizedPageIndex.value, pageSize: normalizedPageSize.value }
@@ -210,29 +219,51 @@ const headerFacetOptionsByField = computed(() => {
   return optionsByField;
 });
 const selectionEnabled = computed(() => props.rowKey !== undefined && props.rowKey !== null);
+
+const announcement = ref('');
 const liveRegionMessage = computed(() => {
   const event = table.lastEvent.value;
-  if (!event) {
+  if (!event && !announcement.value) {
     return '';
   }
 
-  if (event.type === 'data:filter') {
-    return 'Filters updated.';
+  if (announcement.value) {
+    return announcement.value;
   }
 
-  if (event.type === 'data:sort') {
-    return 'Sorting updated.';
+  if (event?.type === 'data:filter') {
+    const payload = event.payload as { filters?: unknown[]; globalSearch?: string };
+    const filterCount = payload.filters?.length ?? 0;
+    const hasSearch = (payload.globalSearch?.length ?? 0) > 0;
+    if (filterCount === 0 && !hasSearch) {
+      return 'All filters cleared.';
+    }
+    return `Filters updated. ${table.sortedIndices.value.length} rows shown.`;
   }
 
-  if (event.type === 'data:select') {
-    return 'Selection updated.';
+  if (event?.type === 'data:sort') {
+    const payload = event.payload as { sort?: Array<{ field: string; direction: string }> };
+    const sortEntry = payload.sort?.[0];
+    if (sortEntry) {
+      return `Sorted by ${sortEntry.field}, ${sortEntry.direction === 'asc' ? 'ascending' : 'descending'}.`;
+    }
+    return 'Sorting cleared.';
   }
 
-  if (event.type === 'data:modify') {
+  if (event?.type === 'data:select') {
+    const payload = event.payload as { selectedRowKeys?: unknown[] };
+    const count = payload.selectedRowKeys?.length ?? 0;
+    if (count === 0) {
+      return 'Selection cleared.';
+    }
+    return `${count} row${count === 1 ? '' : 's'} selected.`;
+  }
+
+  if (event?.type === 'data:modify') {
     return 'Data updated.';
   }
 
-  if (event.type === 'data:extract') {
+  if (event?.type === 'data:extract') {
     const reason = (event.payload as { reason?: string } | undefined)?.reason;
     if (reason === 'parseCSVError') {
       return 'CSV parsing failed.';
@@ -245,8 +276,48 @@ const liveRegionMessage = computed(() => {
     }
   }
 
-  return 'Table updated.';
+  if (table.loading.value) {
+    return 'Loading data...';
+  }
+
+  if (table.error.value) {
+    return `Error loading data: ${table.error.value}`;
+  }
+
+  return '';
 });
+
+function announce(message: string): void {
+  announcement.value = '';
+  nextTick(() => {
+    announcement.value = message;
+  });
+}
+
+function moveFocusToRow(rowIndex: number, columnIndex?: number): void {
+  nextTick(() => {
+    const selector = columnIndex !== undefined
+      ? `tr.ioi-table__row[data-row-index="${rowIndex}"] td[data-col-index="${columnIndex}"]`
+      : `tr.ioi-table__row[data-row-index="${rowIndex}"]`;
+    const element = viewportRef.value?.querySelector(selector as string) as HTMLElement | null;
+    element?.focus();
+  });
+}
+
+const keyboard = createKeyboardNavigation<TRow>({
+  state: table.state,
+  api: table,
+  columns: renderColumns,
+  rowCount: table.totalRows,
+  pageSize: table.pageSize,
+  paginationEnabled: table.paginationEnabled,
+  onFocusChange: moveFocusToRow,
+  onAnnounce: announce
+});
+
+const focusedRowIndex = keyboard.focusedRowIndex;
+const focusedColumnIndex = keyboard.focusedColumnIndex;
+const isCellNavigationMode = keyboard.isCellNavigationMode;
 
 type PinGroup = 'left' | 'center' | 'right';
 
@@ -303,7 +374,7 @@ watch(
     () => table.pageIndex.value,
     () => table.pageSize.value,
     () => table.pageCount.value,
-    () => table.sortedIndices.value.length
+    () => table.totalRows.value
   ],
   ([enabled, nextPageIndex, nextPageSize, nextPageCount, nextRowCount]) => {
     if (!enabled) {
@@ -734,12 +805,18 @@ function onRowClick(row: TRow, rowIndex: number): void {
 }
 
 function onRowKeydown(event: KeyboardEvent, row: TRow, rowIndex: number): void {
+  const handled = keyboard.handleKeyDown(event);
+  if (handled) {
+    return;
+  }
+
   const key = event.key;
   
   if (key === 'Enter' || key === ' ') {
     if (props.expandable && isRowExpandable(row, rowIndex)) {
       event.preventDefault();
       toggleRowExpansion(row, rowIndex);
+      announce(isRowExpanded(row, rowIndex) ? 'Row expanded' : 'Row collapsed');
       return;
     }
 
@@ -772,7 +849,39 @@ function onRowKeydown(event: KeyboardEvent, row: TRow, rowIndex: number): void {
 
   const offset = key === 'ArrowDown' ? 1 : -1;
   const nextIndex = Math.min(Math.max(currentIndex + offset, 0), renderedRows.length - 1);
-  renderedRows[nextIndex]?.focus();
+  const nextRow = renderedRows[nextIndex];
+  if (nextRow) {
+    nextRow.focus();
+    const entry = renderEntries.value[nextIndex];
+    if (entry?.type === 'row' && entry.rowIndex !== undefined) {
+      keyboard.setFocusedRow(entry.rowIndex);
+    }
+  }
+}
+
+function focusRow(rowIndex: number): void {
+  nextTick(() => {
+    const rowElement = viewportRef.value?.querySelector(
+      `tr.ioi-table__row[data-row-index="${rowIndex}"]`
+    ) as HTMLTableRowElement | null;
+    rowElement?.focus();
+    keyboard.setFocusedRow(rowIndex);
+  });
+}
+
+function isRowFocused(rowIndex: number): boolean {
+  return focusedRowIndex.value === rowIndex;
+}
+
+function isCellFocused(rowIndex: number, columnIndex: number): boolean {
+  return isCellNavigationMode.value && focusedRowIndex.value === rowIndex && focusedColumnIndex.value === columnIndex;
+}
+
+function getAriaRowIndex(entry: { type: string; rowIndex?: number }, offset: number = 0): number {
+  if (entry.type === 'row' && entry.rowIndex !== undefined) {
+    return entry.rowIndex + 1 + offset;
+  }
+  return 1;
 }
 
 function onScroll(event: Event): void {
@@ -881,27 +990,44 @@ defineExpose({
   setColumnVisibility: columnState.setColumnVisibility,
   setColumnPin: columnState.setColumnPin,
   setColumnSizing: columnState.setColumnSizing,
-  getColumnStateSnapshot: columnState.getSnapshot
+  getColumnStateSnapshot: columnState.getSnapshot,
+  focusRow,
+  focusedRowIndex,
+  focusedColumnIndex,
+  isCellNavigationMode,
+  refresh: table.refresh,
+  fetchMore: table.fetchMore,
+  loading: table.loading,
+  error: table.error,
+  hasMore: table.hasMore,
 });
 </script>
 
 <template>
-  <div class="ioi-table">
-    <div class="ioi-table__sr-only" aria-live="polite" aria-atomic="true">{{ liveRegionMessage }}</div>
+  <div 
+    class="ioi-table" 
+    role="grid"
+    :aria-label="ariaLabel"
+    :aria-rowcount="table.totalRows.value"
+    :aria-colcount="renderColumns.length + (expandable ? 1 : 0)"
+    @keydown="keyboard.handleKeyDown"
+  >
+    <div class="ioi-table__sr-only" role="status" aria-live="polite" aria-atomic="true">{{ liveRegionMessage }}</div>
     <div
       ref="viewportRef"
       class="ioi-table__viewport"
       role="region"
-      aria-label="IOI Table viewport"
+      :aria-label="ariaLabel + ' viewport'"
       :style="viewportStyle"
       @scroll="onScroll"
     >
-      <table class="ioi-table__table" role="grid">
-        <thead>
-          <tr>
+      <table class="ioi-table__table">
+        <thead role="rowgroup">
+          <tr role="row">
             <th
               v-for="(column, columnIndex) in renderColumns"
               :key="column.id"
+              role="columnheader"
               :class="{
                 'ioi-table__header--dragging': draggingColumnId === column.id,
                 'ioi-table__header--drag-target': dragTargetColumnId === column.id,
@@ -909,10 +1035,10 @@ defineExpose({
                 'ioi-table__header--sorted-desc': getSortDirection(column) === 'desc'
               }"
               :data-column-id="column.id"
+              :aria-colindex="columnIndex + 1 + (expandable ? 1 : 0)"
               :draggable="true"
               :style="getColumnStyle(column, 'header')"
               :aria-sort="getHeaderAriaSort(column)"
-              scope="col"
               @dragend="onHeaderDragEnd"
               @dragover="onHeaderDragOver($event, column)"
               @dragstart="onHeaderDragStart($event, column)"
@@ -976,10 +1102,11 @@ defineExpose({
             </th>
           </tr>
         </thead>
-        <tbody>
+        <tbody role="rowgroup">
           <tr
             v-if="table.virtualPaddingTop.value > 0"
             class="ioi-table__spacer"
+            role="presentation"
             aria-hidden="true"
           >
             <td
@@ -987,12 +1114,14 @@ defineExpose({
               :style="{ height: `${table.virtualPaddingTop.value}px`, padding: '0', border: '0' }"
             />
           </tr>
-          <template v-for="entry in renderEntries" :key="getRenderEntryKey(entry)">
+          <template v-for="(entry, entryIndex) in renderEntries" :key="getRenderEntryKey(entry)">
             <tr
               v-if="entry.type === 'group'"
+              role="row"
               class="ioi-table__group-header"
+              :aria-rowindex="entryIndex + 1"
             >
-              <td :colspan="bodyColspan">
+              <td role="gridcell" :colspan="bodyColspan">
                 <slot
                   name="group-header"
                   :group="entry.group"
@@ -1002,6 +1131,7 @@ defineExpose({
                     type="button"
                     class="ioi-table__group-toggle"
                     :aria-label="isGroupExpanded(entry.group.key) ? 'Collapse group' : 'Expand group'"
+                    :aria-expanded="isGroupExpanded(entry.group.key)"
                     @click.stop="toggleGroupExpansion(entry.group.key)"
                   >
                     {{ isGroupExpanded(entry.group.key) ? '▼' : '▶' }}
@@ -1013,13 +1143,16 @@ defineExpose({
             </tr>
             <tr
               v-else
+              role="row"
               :class="{
                 'ioi-table__row': true,
                 'ioi-table__row--selected': isRowSelected(entry.row, entry.rowIndex),
                 'ioi-table__row--editing': isRowEditing(entry.row, entry.rowIndex),
-                'ioi-table__row--expanded': isRowExpanded(entry.row, entry.rowIndex)
+                'ioi-table__row--expanded': isRowExpanded(entry.row, entry.rowIndex),
+                'ioi-table__row--focused': isRowFocused(entry.rowIndex)
               }"
               :data-row-index="entry.rowIndex"
+              :aria-rowindex="getAriaRowIndex(entry)"
               :style="{ height: `${normalizedRowHeight}px` }"
               :aria-selected="selectionEnabled ? isRowSelected(entry.row, entry.rowIndex) : undefined"
               :aria-expanded="expandable && isRowExpandable(entry.row, entry.rowIndex) ? isRowExpanded(entry.row, entry.rowIndex) : undefined"
@@ -1029,7 +1162,9 @@ defineExpose({
             >
               <td
                 v-if="expandable"
+                role="gridcell"
                 class="ioi-table__cell ioi-table__cell--expand"
+                :aria-colindex="1"
                 :style="{ width: '40px', textAlign: 'center' }"
               >
                 <button
@@ -1037,6 +1172,7 @@ defineExpose({
                   type="button"
                   class="ioi-table__expand-icon"
                   :aria-label="isRowExpanded(entry.row, entry.rowIndex) ? 'Collapse row' : 'Expand row'"
+                  :aria-expanded="isRowExpanded(entry.row, entry.rowIndex)"
                   @click.stop="toggleRowExpansion(entry.row, entry.rowIndex)"
                 >
                   {{ isRowExpanded(entry.row, entry.rowIndex) ? '▼' : '▶' }}
@@ -1045,9 +1181,14 @@ defineExpose({
               <td
                 v-for="(column, columnIndex) in renderColumns"
                 :key="column.id"
+                role="gridcell"
+                :aria-colindex="columnIndex + 1 + (expandable ? 1 : 0)"
                 :class="{
-                  'ioi-table__cell--editing': isEditingCell(entry.row, entry.rowIndex, column)
+                  'ioi-table__cell': true,
+                  'ioi-table__cell--editing': isEditingCell(entry.row, entry.rowIndex, column),
+                  'ioi-table__cell--focused': isCellFocused(entry.rowIndex, columnIndex)
                 }"
+                :data-col-index="columnIndex"
                 :style="getColumnStyle(column)"
               >
                 <slot
@@ -1065,10 +1206,13 @@ defineExpose({
             <tr
               v-if="entry.type === 'row' && isRowExpanded(entry.row, entry.rowIndex)"
               :key="`expanded-${entry.renderKey}`"
+              role="row"
               class="ioi-table__expanded-row"
               :data-row-index="entry.rowIndex"
+              :aria-rowindex="getAriaRowIndex(entry, 1)"
             >
               <td
+                role="gridcell"
                 :colspan="bodyColspan"
                 class="ioi-table__expanded-content"
               >
@@ -1083,6 +1227,7 @@ defineExpose({
           <tr
             v-if="table.virtualPaddingBottom.value > 0"
             class="ioi-table__spacer"
+            role="presentation"
             aria-hidden="true"
           >
             <td
@@ -1090,8 +1235,8 @@ defineExpose({
               :style="{ height: `${table.virtualPaddingBottom.value}px`, padding: '0', border: '0' }"
             />
           </tr>
-          <tr v-if="!table.totalRows.value">
-            <td :colspan="bodyColspan" class="ioi-table__empty">
+          <tr v-if="!table.totalRows.value" role="row">
+            <td role="gridcell" :colspan="bodyColspan" class="ioi-table__empty">
               <slot name="empty">No data</slot>
             </td>
           </tr>

@@ -12,6 +12,9 @@ export function createInitialState(viewportHeight: number): IoiTableState {
       viewportHeight
     },
     expandedRowKeys: [],
-    expandedGroupKeys: []
+    expandedGroupKeys: [],
+    loading: false,
+    error: null,
+    serverTotalRows: null
   };
 }

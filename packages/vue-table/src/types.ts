@@ -193,6 +193,12 @@ export interface IoiTableState {
   viewport: ViewportState;
   expandedRowKeys: Array<string | number>;
   expandedGroupKeys: Array<string>;
+  /** Loading state for server-side mode */
+  loading: boolean;
+  /** Error message for server-side mode */
+  error: string | null;
+  /** Total rows from server (for server-side pagination) */
+  serverTotalRows: number | null;
 }
 
 export type AggregationType = 'sum' | 'avg' | 'count' | 'min' | 'max';
@@ -253,6 +259,10 @@ export interface IoiTableOptions<TRow = Record<string, unknown>> {
   groupBy?: string | string[];
   /** Aggregation functions to apply to groups. */
   groupAggregations?: Record<string, AggregationType[]>;
+  /** Data mode: 'client' (default) for local data, 'server' for server-side fetching */
+  dataMode?: 'client' | 'server';
+  /** Server-side data options (required when dataMode is 'server') */
+  serverOptions?: ServerDataOptions<TRow>;
   /** Expanded group keys for controlled mode. */
   expandedGroupKeys?: Array<string>;
   onPaginationChange?: (payload: IoiPaginationChangePayload) => void;
@@ -347,7 +357,11 @@ export interface IoiTableActions<TRow = Record<string, unknown>> {
   collapseAllGroups: () => void;
   /** Checks if a group is expanded. */
   isGroupExpanded: (groupKey: string) => boolean;
+  /** Gets the row key for a given row index. Returns null if rowKey is not configured. */
+  getRowKey: (rowIndex: number) => string | number | null;
   resetState: () => void;
+  /** Refreshes server-side data (only applicable in server mode). */
+  refresh: () => void;
   /** Emits a schema-versioned semantic event. */
   emitSemanticEvent: <TPayload>(
     type: IoiSemanticEventType,
@@ -381,6 +395,14 @@ export interface IoiTableApi<TRow = Record<string, unknown>> extends IoiTableAct
   renderEntries: ComputedRef<IoiRenderEntry<TRow>[]>;
   groups: ComputedRef<Array<{ key: string; value: unknown; indices: number[]; count: number; aggregations: Record<string, number> }>>;
   lastEvent: Ref<IoiSemanticEvent<unknown> | null>;
+  /** Loading state (for server-side mode) */
+  loading: ComputedRef<boolean>;
+  /** Error state (for server-side mode) */
+  error: ComputedRef<string | null>;
+  /** Fetch more rows for infinite scroll (server mode only) */
+  fetchMore: () => Promise<void>;
+  /** Whether more rows are available (server mode only) */
+  hasMore: ComputedRef<boolean>;
   actions: IoiTableActions<TRow>;
 }
 
@@ -424,4 +446,56 @@ export interface IoiGroupExpandPayload {
   groupValue: unknown;
   expanded: boolean;
   rowCount: number;
+}
+
+// ============================================================================
+// Server-Side Mode Types
+// ============================================================================
+
+/** Parameters sent to server fetch function */
+export interface ServerFetchParams {
+  /** Current page index (0-based) */
+  pageIndex: number;
+  /** Current page size */
+  pageSize: number;
+  /** Current sort state */
+  sort: SortState[];
+  /** Current column filters */
+  filters: FilterState[];
+  /** Current global search text */
+  globalSearch: string;
+  /** Cursor for cursor-based pagination (optional) */
+  cursor?: string | null;
+}
+
+/** Result returned from server fetch function */
+export interface ServerFetchResult<TRow = Record<string, unknown>> {
+  /** Rows for current page */
+  rows: TRow[];
+  /** Total row count (for page-based pagination) */
+  totalRows: number;
+  /** Total page count (optional, calculated from totalRows if omitted) */
+  pageCount?: number;
+  /** Next cursor for cursor-based pagination (optional) */
+  nextCursor?: string | null;
+  /** Whether there are more rows to fetch (for infinite scroll) */
+  hasMore?: boolean;
+}
+
+/** Options for server-side data mode */
+export interface ServerDataOptions<TRow = Record<string, unknown>> {
+  /** Fetch function called when data needs to be loaded */
+  fetch: (params: ServerFetchParams) => Promise<ServerFetchResult<TRow>>;
+  /** Debounce delay in ms for fetch calls (default: 300) */
+  debounceMs?: number;
+  /** Initial page size (default: 50) */
+  initialPageSize?: number;
+  /** Enable cursor-based pagination instead of page-based */
+  cursorMode?: boolean;
+  /** Callback when fetch starts */
+  onFetchStart?: () => void;
+  /** Callback when fetch succeeds */
+  onFetchSuccess?: (result: ServerFetchResult<TRow>) => void;
+  /** Callback when fetch fails */
+  onFetchError?: (error: Error) => void;
 }
