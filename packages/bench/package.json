@@ -4,8 +4,8 @@
   "private": true,
   "type": "module",
   "scripts": {
-    "bench": "tsx src/index.ts",
-    "bench:report": "tsx src/index.ts --report"
+    "bench": "npx tsx src/index.ts",
+    "bench:report": "npx tsx src/index.ts --report"
   },
   "dependencies": {
     "@ioi-dev/vue-table": "*",
