@@ -597,29 +597,34 @@ export function createFacets(
 
 ## Implementation Order
 
-### Phase 1: Foundation (Low Risk)
-1. ✅ `types.ts` — No dependencies
-2. ✅ `sorting.ts` — Simple, self-contained
-3. ✅ `groupExpansion.ts` — Simple, self-contained
+### Phase 1: Foundation (Low Risk) ✅ COMPLETE
+1. ✅ `types.ts` — No dependencies — **Integrated**
+2. ✅ `sorting.ts` — Simple, self-contained — **Integrated**
+3. ✅ `groupExpansion.ts` — Simple, self-contained — **Integrated**
 
-### Phase 2: Core Features (Medium Risk)
-4. ✅ `virtualization.ts` — Depends only on utils
-5. ✅ `expansion.ts` — Depends on row key resolution
-6. ✅ `pagination.ts` — Enhance existing module
-7. ✅ `facets.ts` — Extract from filtering
+### Phase 2: Core Features (Medium Risk) 🔄 IN PROGRESS
+4. ⏸️ `virtualization.ts` — Deferred (logic remains inline in useIoiTable.ts)
+5. ✅ `expansion.ts` — Depends on row key resolution — **Integrated**
+6. ⏸️ `pagination.ts` — Existing module, enhancement deferred
+7. ✅ `facets.ts` — Extract from filtering — **Integrated**
 
-### Phase 3: Complex Features (Higher Risk)
-8. ✅ `filtering.ts` — Depends on facets, debounce
-9. ✅ `selection.ts` — Enhance existing, depends on key resolution
-10. ✅ `editing.ts` — Enhance existing, depends on validation
+### Phase 3: Complex Features (Higher Risk) ⏳ PENDING
+8. ⏸️ `filtering.ts` — Logic remains inline in useIoiTable.ts
+9. ⏸️ `selection.ts` — Existing module, enhancement deferred
+10. ⏸️ `editing.ts` — Existing module, enhancement deferred
 
-### Phase 4: CSV (Self-Contained)
-11. ✅ `csvExport.ts` — Depends on csv.ts
-12. ✅ `csvImport.ts` — Depends on csv.ts, editing.ts
+### Phase 4: CSV (Self-Contained) ⏳ PENDING
+11. ⏸️ `csvExport.ts` — Logic remains inline in useIoiTable.ts
+12. ⏸️ `csvImport.ts` — Logic remains inline in useIoiTable.ts
 
-### Phase 5: Orchestration
-13. ✅ `data.ts` — Brings together filtering, sorting
-14. ✅ `useIoiTable.ts` — Thin orchestrator
+### Phase 5: Orchestration ⏳ PENDING
+13. ⏸️ `data.ts` — Not yet created
+14. ⏸️ `useIoiTable.ts` — Currently ~1689 lines, target ~300 lines
+
+### Current Status (Updated)
+- **Integrated modules**: `types.ts`, `sorting.ts`, `groupExpansion.ts`, `expansion.ts`, `facets.ts`
+- **Existing utility modules**: `constants.ts`, `state.ts`, `utils.ts`, `events.ts`, `selection.ts`, `pagination.ts`, `editing.ts`, `csv.ts`, `grouping.ts`
+- **Deferred for Phase 5**: Full integration of filtering, selection, editing, virtualization, pagination, CSV modules
 
 ---
 

@@ -1,7 +1,7 @@
 # API Reference
 
 **Package**: @ioi-dev/vue-table  
-**Version**: 0.1.17+  
+**Version**: 0.1.18+  
 **Last Updated**: 2026-03-07
 
 ---
@@ -101,6 +101,20 @@ const rows: UserRow[] = [
 | `rowExpandable` | `(row: TRow, index: number) => boolean` | - | Function to determine if row is expandable |
 | `expandedRowKeys` | `Array<string \| number>` | - | Controlled expanded row keys |
 
+### Grouping Props
+
+| Prop | Type | Default | Description |
+|------|------|---------|-------------|
+| `groupBy` | `string \| string[]` | - | Column field(s) to group by |
+| `groupAggregations` | `Record<string, AggregationType[]>` | - | Aggregation functions per column |
+| `expandedGroupKeys` | `Array<string>` | - | Controlled expanded group keys |
+
+#### AggregationType
+
+```typescript
+type AggregationType = 'sum' | 'avg' | 'count' | 'min' | 'max';
+```
+
 ### Debounce Props
 
 | Prop | Type | Default | Description |
@@ -132,7 +146,25 @@ const rows: UserRow[] = [
 | Event | Payload | Description |
 |-------|---------|-------------|
 | `update:expandedRowKeys` | `Array<string \| number>` | Expanded row keys changed |
-| `row-expand` | `{ row: TRow, rowIndex: number, rowKey: string \| number, expanded: boolean }` | Row expansion toggled |
+| `row-expand` | `{ row, rowIndex, rowKey, expanded }` | Row expansion toggled |
+
+### Grouping Events
+
+| Event | Payload | Description |
+|-------|---------|-------------|
+| `update:expandedGroupKeys` | `Array<string>` | Expanded group keys changed |
+| `group-expand` | `IoiGroupExpandPayload` | Group expansion toggled |
+
+#### IoiGroupExpandPayload
+
+```typescript
+interface IoiGroupExpandPayload {
+  groupKey: string;       // Unique group identifier
+  groupValue: unknown;    // The grouping value
+  expanded: boolean;      // New expansion state
+  rowCount: number;       // Number of rows in this group
+}
+```
 
 ---
 
@@ -146,7 +178,19 @@ const rows: UserRow[] = [
 | `header-filter` | `{ column, columnIndex, mode, value, options, setValue, clear }` | Custom header filter |
 | `cell` | `{ row: TRow, rowIndex: number, column: ColumnDef, columnIndex: number, value: unknown }` | Custom cell content |
 | `expanded-row` | `{ row: TRow, rowIndex: number }` | Expanded row content |
+| `group-header` | `{ group: GroupHeader }` | Custom group header content |
 | `empty` | - | Empty state content |
+
+### GroupHeader Props
+
+```typescript
+interface GroupHeader {
+  key: string;                          // Unique group key
+  value: unknown;                       // The grouping value
+  count: number;                        // Number of rows in group
+  aggregations: Record<string, number>; // Computed aggregations
+}
+```
 
 ---
 
@@ -237,6 +281,15 @@ tableRef.value.toggleRowExpansion(rowKey);
 | `expandAllRows` | `() => void` | Expand all rows |
 | `collapseAllRows` | `() => void` | Collapse all rows |
 | `isRowExpanded` | `(key: string \| number) => boolean` | Check if expanded |
+
+### Grouping Methods
+
+| Method | Signature | Description |
+|--------|-----------|-------------|
+| `toggleGroupExpansion` | `(groupKey: string) => void` | Toggle group expansion |
+| `expandAllGroups` | `() => void` | Expand all groups |
+| `collapseAllGroups` | `() => void` | Collapse all groups |
+| `isGroupExpanded` | `(groupKey: string) => boolean` | Check if group expanded |
 
 ### Editing Methods
 
@@ -349,6 +402,170 @@ function isRowExpandable(row, index) {
 
 ---
 
+## Row Grouping Feature
+
+### Basic Grouping
+
+```vue
+<script setup lang="ts">
+import { Table, type ColumnDef } from '@ioi-dev/vue-table';
+
+interface SalesRow {
+  id: number;
+  region: string;
+  product: string;
+  amount: number;
+  date: string;
+}
+
+const columns: ColumnDef<SalesRow>[] = [
+  { field: 'region', header: 'Region', type: 'text' },
+  { field: 'product', header: 'Product', type: 'text' },
+  { field: 'amount', header: 'Amount', type: 'number' },
+  { field: 'date', header: 'Date', type: 'date' }
+];
+
+const rows: SalesRow[] = [
+  { id: 1, region: 'North', product: 'Widget A', amount: 100, date: '2024-01-15' },
+  { id: 2, region: 'North', product: 'Widget B', amount: 200, date: '2024-01-16' },
+  { id: 3, region: 'South', product: 'Widget A', amount: 150, date: '2024-01-15' },
+  { id: 4, region: 'South', product: 'Widget B', amount: 250, date: '2024-01-16' }
+];
+</script>
+
+<template>
+  <Table
+    :rows="rows"
+    :columns="columns"
+    row-key="id"
+    group-by="region"
+    :height="400"
+  />
+</template>
+```
+
+### Grouping with Aggregations
+
+```vue
+<script setup lang="ts">
+const groupAggregations = {
+  amount: ['sum', 'avg', 'min', 'max'],
+  id: ['count']
+};
+</script>
+
+<template>
+  <Table
+    :rows="rows"
+    :columns="columns"
+    row-key="id"
+    group-by="region"
+    :group-aggregations="groupAggregations"
+    :height="400"
+  >
+    <template #group-header="{ group }">
+      <div class="flex items-center gap-4 p-2 bg-gray-100 font-semibold">
+        <span>{{ group.value }}</span>
+        <span class="text-gray-500">({{ group.count }} items)</span>
+        <span class="text-blue-600">Total: ${{ group.aggregations.amount_sum }}</span>
+        <span class="text-green-600">Avg: ${{ group.aggregations.amount_avg?.toFixed(2) }}</span>
+      </div>
+    </template>
+  </Table>
+</template>
+```
+
+### Multi-Column Grouping
+
+```vue
+<script setup lang="ts">
+// Group by region, then by product
+const groupBy = ['region', 'product'];
+</script>
+
+<template>
+  <Table
+    :rows="rows"
+    :columns="columns"
+    row-key="id"
+    :group-by="groupBy"
+    :height="400"
+  />
+</template>
+```
+
+### Controlled Group Expansion
+
+```vue
+<script setup lang="ts">
+import { ref } from 'vue';
+
+// Pre-expand specific groups
+const expandedGroupKeys = ref(['North', 'South|Widget A']);
+
+function onGroupExpand(payload) {
+  console.log('Group:', payload.groupValue, 'Expanded:', payload.expanded);
+  console.log('Rows in group:', payload.rowCount);
+}
+</script>
+
+<template>
+  <Table
+    v-model:expandedGroupKeys="expandedGroupKeys"
+    :rows="rows"
+    :columns="columns"
+    row-key="id"
+    group-by="region"
+    @group-expand="onGroupExpand"
+    :height="400"
+  />
+</template>
+```
+
+### Grouping with Pagination
+
+Grouping works seamlessly with pagination. Pagination is applied to the grouped entries (groups + rows), not raw rows:
+
+```vue
+<script setup lang="ts">
+import { ref } from 'vue';
+
+const pageIndex = ref(0);
+const pageSize = ref(10);
+</script>
+
+<template>
+  <Table
+    v-model:pageIndex="pageIndex"
+    v-model:pageSize="pageSize"
+    :rows="rows"
+    :columns="columns"
+    row-key="id"
+    group-by="region"
+    :height="400"
+  />
+</template>
+```
+
+### Grouping with Virtualization
+
+Virtual scrolling works with grouped data for optimal performance:
+
+```vue
+<template>
+  <Table
+    :rows="largeDataset"
+    :columns="columns"
+    row-key="id"
+    group-by="category"
+    :height="600"
+    :overscan="10"
+  />
+</template>
+```
+
+---
+
 ## Headless Styling
 
 ### CSS Class Reference
@@ -387,6 +604,14 @@ The table uses semantic class names for styling. No inline styles are applied (e
 | `.ioi-table__row--expanded` | TR | Expanded row |
 | `.ioi-table__spacer` | TR | Virtualization spacer |
 | `.ioi-table__empty` | TD | Empty state |
+
+#### Group Classes
+
+| Class | Element | Description |
+|-------|---------|-------------|
+| `.ioi-table__group-header` | TR | Group header row |
+| `.ioi-table__group-content` | TD | Group header content cell |
+| `.ioi-table__group-toggle` | Button | Group expand/collapse button |
 
 #### Cell Classes
 
@@ -445,6 +670,18 @@ The table uses semantic class names for styling. No inline styles are applied (e
 
 .ioi-table__expand-icon {
   @apply w-6 h-6 flex items-center justify-center text-gray-600 hover:text-gray-900 transition-colors;
+}
+
+.ioi-table__group-header {
+  @apply bg-gray-50 font-semibold;
+}
+
+.ioi-table__group-content {
+  @apply p-3;
+}
+
+.ioi-table__group-toggle {
+  @apply mr-2 text-gray-600 hover:text-gray-900;
 }
 </style>
 ```
@@ -515,6 +752,28 @@ The table uses semantic class names for styling. No inline styles are applied (e
   padding: 16px;
   border-top: 1px solid #e5e7eb;
 }
+
+.ioi-table__group-header {
+  background-color: #f3f4f6;
+  border-bottom: 2px solid #e5e7eb;
+}
+
+.ioi-table__group-content {
+  padding: 12px 16px;
+  font-weight: 600;
+}
+
+.ioi-table__group-toggle {
+  background: none;
+  border: none;
+  cursor: pointer;
+  margin-right: 8px;
+  transition: transform 0.2s;
+}
+
+.ioi-table__group-toggle[aria-expanded="true"] {
+  transform: rotate(90deg);
+}
 ```
 
 ---
@@ -564,9 +823,50 @@ table.exportCSV();
 | `columns` | `Ref<ColumnDef[]>` | Normalized columns |
 | `visibleRows` | `ComputedRef<TRow[]>` | Visible rows |
 | `visibleIndices` | `ComputedRef<number[]>` | Visible row indices |
+| `renderEntries` | `ComputedRef<IoiRenderEntry[]>` | Render entries (groups + rows) |
+| `groups` | `ComputedRef<GroupHeader[]>` | Group metadata |
 | `virtualRange` | `ComputedRef<VirtualRange>` | Viewport range |
 | `lastEvent` | `Ref<IoiSemanticEvent>` | Last semantic event |
 | `actions` | `IoiTableActions` | All action methods |
+
+### Render Entries API
+
+When using grouping, `renderEntries` provides a unified way to render both groups and rows:
+
+```typescript
+interface IoiRenderEntry<TRow> {
+  type: 'group' | 'row';
+  renderKey: string;
+  // For groups:
+  group?: GroupHeader;
+  // For rows:
+  row?: TRow;
+  rowIndex?: number;
+}
+```
+
+```vue
+<script setup lang="ts">
+import { useIoiTable } from '@ioi-dev/vue-table';
+
+const table = useIoiTable({
+  rows: myRows,
+  columns: myColumns,
+  groupBy: 'category'
+});
+</script>
+
+<template>
+  <div v-for="entry in table.renderEntries.value" :key="entry.renderKey">
+    <div v-if="entry.type === 'group'" class="group-header">
+      {{ entry.group.value }} ({{ entry.group.count }})
+    </div>
+    <div v-else class="row">
+      {{ entry.row.name }}
+    </div>
+  </div>
+</template>
+```
 
 ---
 
@@ -611,6 +911,37 @@ const columns: ColumnDef<ComplexRow>[] = [
 ];
 ```
 
+### Grouping Types
+
+```typescript
+import type { 
+  GroupHeader, 
+  IoiGroupRenderEntry, 
+  IoiRowRenderEntry,
+  IoiRenderEntry,
+  AggregationType,
+  IoiGroupExpandPayload
+} from '@ioi-dev/vue-table';
+
+// Group header structure
+const group: GroupHeader = {
+  key: 'North',
+  value: 'North',
+  count: 25,
+  aggregations: {
+    amount_sum: 15000,
+    amount_avg: 600
+  }
+};
+
+// Aggregation configuration
+const aggregations: Record<string, AggregationType[]> = {
+  amount: ['sum', 'avg'],
+  quantity: ['sum', 'count'],
+  price: ['min', 'max']
+};
+```
+
 ---
 
 ## Accessibility
@@ -620,7 +951,7 @@ const columns: ColumnDef<ComplexRow>[] = [
 | Key | Action |
 |-----|--------|
 | `Arrow Up/Down` | Navigate rows |
-| `Enter` or `Space` | Toggle selection / Toggle expansion |
+| `Enter` or `Space` | Toggle selection / Toggle expansion / Toggle group |
 | `Escape` | Cancel edit |
 | `Tab` | Navigate to next focusable element |
 
@@ -629,7 +960,7 @@ const columns: ColumnDef<ComplexRow>[] = [
 - `role="grid"` on table
 - `aria-sort` on sorted columns
 - `aria-selected` on selected rows
-- `aria-expanded` on expandable rows
+- `aria-expanded` on expandable rows and groups
 - `aria-live="polite"` for announcements
 
 ---
@@ -641,6 +972,7 @@ const columns: ColumnDef<ComplexRow>[] = [
 - Only visible rows are rendered
 - Configurable `overscan` for smooth scrolling
 - Works with 100k+ rows at 60fps
+- Virtualization works with grouped data
 
 ### Optimization Tips
 
@@ -690,6 +1022,7 @@ const rows = ref<UserRow[]>([...]);
 const pageIndex = ref(0);
 const pageSize = ref(25);
 const expandedKeys = ref<number[]>([]);
+const expandedGroupKeys = ref<string[]>([]);
 
 function isExpandable(row: UserRow) {
   return row.status === 'active';
@@ -698,6 +1031,10 @@ function isExpandable(row: UserRow) {
 function onRowExpand(payload) {
   console.log('Expanded:', payload);
 }
+
+function onGroupExpand(payload) {
+  console.log('Group expanded:', payload.groupValue, payload.rowCount);
+}
 </script>
 
 <template>
@@ -705,13 +1042,16 @@ function onRowExpand(payload) {
     v-model:pageIndex="pageIndex"
     v-model:pageSize="pageSize"
     v-model:expandedRowKeys="expandedKeys"
+    v-model:expandedGroupKeys="expandedGroupKeys"
     :rows="rows"
     :columns="columns"
     row-key="id"
     :height="500"
     expandable
     :row-expandable="isExpandable"
+    group-by="department"
     @row-expand="onRowExpand"
+    @group-expand="onGroupExpand"
   >
     <template #cell="{ row, column, value }">
       <span v-if="column.field === 'status'" :class="value">
@@ -727,6 +1067,13 @@ function onRowExpand(payload) {
         <p>Department: {{ row.department }}</p>
       </div>
     </template>
+    
+    <template #group-header="{ group }">
+      <div class="flex items-center gap-2">
+        <span class="font-semibold">{{ group.value }}</span>
+        <span class="text-gray-500 text-sm">({{ group.count }} employees)</span>
+      </div>
+    </template>
   </Table>
 </template>
 ```
@@ -739,6 +1086,7 @@ function onRowExpand(payload) {
 
 - `IoiTable` component renamed to `Table` (alias still available)
 - Expansion feature added (new props/events/slots)
+- Grouping feature added (new props/events/slots/methods)
 - No breaking changes to existing API
 
 ---

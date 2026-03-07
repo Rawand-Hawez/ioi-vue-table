@@ -159,13 +159,6 @@ The component ships with a headless-first architecture, enabling seamless integr
 - **WASM Acceleration**: Optional accelerator path available, with JavaScript fallback always first-class
 - **Low-Overhead Boundaries**: WASM integration uses indices and ranges, avoiding large object shuttling
 
-## Documentation
-
-- [Table Operations Guide](docs/table-operations.md) - Comprehensive operations reference
-- [Architecture](docs/ARCHITECTURE.md) - System architecture and design decisions
-- [Specification](docs/SPEC.md) - API specification and contracts
-- [Roadmap](docs/ROADMAP.md) - Development roadmap and planned features
-- [Benchmarks](docs/benchmarks.md) - Performance benchmarks and metrics
 
 ## Development
 

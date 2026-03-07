@@ -719,6 +719,51 @@ describe('useIoiTable', () => {
     );
   });
 
+  it('returns a fatalError preview when CSV string input exceeds the configured size limit', async () => {
+    const table = useIoiTable({
+      rows: [],
+      columns: [{ field: 'name', type: 'text' }],
+      csvMaxSizeBytes: 5
+    });
+
+    const preview = await table.parseCSV('name\nAlpha');
+
+    expect(preview.fatalError).toContain('maximum size of 5 bytes');
+    expect(preview.rows).toEqual([]);
+    expect(preview.totalRows).toBe(0);
+  });
+
+  it('rejects oversized blob-like CSV input before reading the body', async () => {
+    const textSpy = vi.fn(async () => 'name\nAlpha');
+    const table = useIoiTable({
+      rows: [],
+      columns: [{ field: 'name', type: 'text' }],
+      csvMaxSizeBytes: 5
+    });
+
+    const preview = await table.parseCSV({
+      size: 10,
+      text: textSpy
+    } as unknown as Blob);
+
+    expect(preview.fatalError).toContain('maximum size of 5 bytes');
+    expect(textSpy).not.toHaveBeenCalled();
+  });
+
+  it('returns a fatalError preview when CSV input exceeds the configured row limit', async () => {
+    const table = useIoiTable({
+      rows: [],
+      columns: [{ field: 'name', type: 'text' }],
+      csvMaxRows: 2
+    });
+
+    const preview = await table.parseCSV('name\nAlpha\nBeta\nGamma');
+
+    expect(preview.fatalError).toContain('maximum row count of 2 rows');
+    expect(preview.rows).toEqual([]);
+    expect(preview.totalRows).toBe(0);
+  });
+
   it('returns validation errors and commits nested paths via nestedPath.set', async () => {
     const table = useIoiTable({
       rows: [],
@@ -949,5 +994,65 @@ describe('useIoiTable', () => {
     expect(warnSpy.mock.calls[0]?.[0]).toContain('Selection is disabled');
 
     warnSpy.mockRestore();
+  });
+
+  it('computes group aggregations and paginates grouped render entries', () => {
+    const table = useIoiTable({
+      rows: [
+        { id: 1, group: 'A', score: 10 },
+        { id: 2, group: 'A', score: 30 },
+        { id: 3, group: 'B', score: 90 }
+      ],
+      columns: [
+        { field: 'group', type: 'text' },
+        { field: 'score', type: 'number' }
+      ],
+      groupBy: 'group',
+      groupAggregations: {
+        score: ['sum', 'avg', 'min', 'max', 'count']
+      },
+      pagination: {
+        pageSize: 2
+      }
+    });
+
+    expect(table.groups.value).toEqual([
+      expect.objectContaining({
+        value: 'A',
+        count: 2,
+        aggregations: {
+          score_sum: 40,
+          score_avg: 20,
+          score_min: 10,
+          score_max: 30,
+          score_count: 2
+        }
+      }),
+      expect.objectContaining({
+        value: 'B',
+        count: 1,
+        aggregations: {
+          score_sum: 90,
+          score_avg: 90,
+          score_min: 90,
+          score_max: 90,
+          score_count: 1
+        }
+      })
+    ]);
+    expect(table.pageCount.value).toBe(1);
+    expect(table.renderEntries.value.map((entry) => entry.type)).toEqual(['group', 'group']);
+    expect(table.visibleIndices.value).toEqual([]);
+
+    table.toggleGroupExpansion(table.groups.value[0]!.key);
+
+    expect(table.pageCount.value).toBe(2);
+    expect(table.renderEntries.value.map((entry) => entry.type)).toEqual(['group', 'row']);
+    expect(table.visibleIndices.value).toEqual([0]);
+
+    table.setPageIndex(1);
+
+    expect(table.renderEntries.value.map((entry) => entry.type)).toEqual(['row', 'group']);
+    expect(table.visibleIndices.value).toEqual([1]);
   });
 });

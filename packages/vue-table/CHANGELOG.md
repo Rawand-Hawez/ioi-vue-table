@@ -1,5 +1,48 @@
 # @ioi-dev/vue-table
 
+## 0.1.18
+
+### Features
+
+- **Row Grouping**: Full grouping support as a first-class render model
+  - Single and multi-column grouping via `groupBy` prop
+  - Group aggregations (sum, avg, count, min, max) via `groupAggregations` prop
+  - Controlled group expansion with `v-model:expandedGroupKeys`
+  - Group headers display count and aggregation values
+  - Safe multi-column key encoding using null-character delimiter (no collision risk)
+  - Pagination and virtualization work against grouped entries, not raw rows
+  - `renderEntries` computed provides typed grouped/row entries for component rendering
+  - `visibleIndices` still exposes row indices for selection/CSV export actions
+
+- **Row Expansion Improvements**
+  - Expansion now works without `rowKey` - falls back to row index
+  - Keyboard navigation (Enter/Space) now works for expansion without `rowKey`
+  - Controlled expansion via `v-model:expandedRowKeys` properly syncs with external changes
+
+### Bug Fixes
+
+- Fixed `expandedRowKeys` not synchronizing when passed via reactive options or `v-model`
+- Fixed `expandedGroupKeys` not synchronizing (same issue as row keys)
+- Fixed row expansion silently failing when `rowKey` is not provided
+- Fixed keyboard expansion not working without `rowKey` (mouse worked, keyboard didn't)
+- Fixed `onRowExpand` callback reporting sorted position instead of source row index
+- Fixed expansion state being lost for filtered-out rows during data refreshes
+- Fixed expandable tables rendering inconsistent column counts (missing header cell, wrong colspan)
+- Fixed multi-column grouping key collisions (`['a|b', 'c']` colliding with `['a', 'b|c']`)
+- Fixed grouped pagination/virtualization using raw row indices instead of grouped entries
+- Fixed group aggregations not being computed (was a no-op before)
+- Fixed unstable v-for keys in grouped rendering
+- Fixed spacer/empty/expanded row colspan in grouped mode
+
+### Code Quality
+
+- Fixed missing type imports in `useIoiTable.ts` (CSV-related types)
+- Fixed dynamic import in type annotation in `types.ts`
+- Removed 5 unused manager modules that were created but never integrated
+- Added `GroupInfo` interface with `count` and `aggregations` fields
+- Added explicit grouped render-entry types in `types.ts` for typed component/composable contract
+- Added regression tests for grouping behavior (98 tests total)
+
 ## 0.1.17
 
 ### Patch Changes

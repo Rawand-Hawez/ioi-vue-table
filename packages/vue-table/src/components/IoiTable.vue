@@ -32,6 +32,8 @@ const props = withDefaults(
     globalSearchDebounceMs?: number;
     filterDebounceMs?: number;
     csvPreviewRowLimit?: number;
+    csvMaxRows?: number;
+    csvMaxSizeBytes?: number;
     expandable?: boolean;
     rowExpandable?: IoiTableOptions<TRow>['rowExpandable'];
     expandedRowKeys?: Array<string | number>;
@@ -48,6 +50,8 @@ const props = withDefaults(
     globalSearchDebounceMs: 0,
     filterDebounceMs: 0,
     csvPreviewRowLimit: 200,
+    csvMaxRows: undefined,
+    csvMaxSizeBytes: undefined,
     expandable: false,
     expandedRowKeys: undefined,
     groupBy: undefined,
@@ -119,6 +123,8 @@ const table = useIoiTable<TRow>(
     globalSearchDebounceMs: normalizedGlobalSearchDebounceMs.value,
     filterDebounceMs: normalizedFilterDebounceMs.value,
     defaultCsvPreviewRowLimit: normalizedCsvPreviewRowLimit.value,
+    csvMaxRows: props.csvMaxRows,
+    csvMaxSizeBytes: props.csvMaxSizeBytes,
     expandable: props.expandable,
     rowExpandable: props.rowExpandable,
     expandedRowKeys: props.expandedRowKeys,
@@ -181,45 +187,8 @@ const renderColumns = computed(() => [
   ...centerColumns.value,
   ...pinnedRightColumns.value
 ]);
-const visibleRowEntries = computed(() =>
-  table.visibleIndices.value
-    .map((rowIndex) => ({
-      row: table.rows.value[rowIndex],
-      rowIndex
-    }))
-    .filter((entry): entry is { row: TRow; rowIndex: number } => entry.row !== undefined)
-);
-
-const groups = computed(() => {
-  const groupBy = props.groupBy;
-  if (!groupBy) {
-    return [];
-  }
-  return table.groups.value;
-});
-
-const groupedRows = computed(() => {
-  if (!props.groupBy) {
-    return [];
-  }
-  
-  const result: Array<{ type: 'group' | 'row'; group?: any; row?: TRow; rowIndex?: number }> = [];
-  
-  for (const group of groups.value) {
-    result.push({ type: 'group', group });
-    
-    if (isGroupExpanded(group.key)) {
-      for (const idx of group.indices) {
-        const row = table.rows.value[idx];
-        if (row !== undefined) {
-          result.push({ type: 'row', row, rowIndex: idx });
-        }
-      }
-    }
-  }
-  
-  return result;
-});
+const bodyColspan = computed(() => Math.max(renderColumns.value.length + (props.expandable ? 1 : 0), 1));
+const renderEntries = computed(() => table.renderEntries.value);
 
 const headerFacetOptionsByField = computed(() => {
   const optionsByField = new Map<string, string[]>();
@@ -652,10 +621,6 @@ function resolveRowSelectionKey(row: TRow, index: number): string | number | nul
   return null;
 }
 
-function resolveRowKey(row: TRow, index: number): string | number {
-  return resolveRowSelectionKey(row, index) ?? index;
-}
-
 function isRowSelected(row: TRow, rowIndex: number): boolean {
   if (!selectionEnabled.value) {
     return false;
@@ -714,24 +679,16 @@ function isRowExpanded(row: TRow, rowIndex: number): boolean {
   }
 
   const rowKey = resolveRowSelectionKey(row, rowIndex);
-  if (rowKey === null) {
-    return false;
-  }
+  const expansionKey = rowKey ?? rowIndex;
 
-  return table.isRowExpanded(rowKey);
+  return table.isRowExpanded(expansionKey);
 }
 
 function toggleRowExpansion(row: TRow, rowIndex: number): void {
   const rowKey = resolveRowSelectionKey(row, rowIndex);
-  if (rowKey === null) {
-    return;
-  }
+  const expansionKey = rowKey ?? rowIndex;
 
-  table.toggleRowExpansion(rowKey);
-}
-
-function isGroupExpandable(groupKey: string): boolean {
-  return true;
+  table.toggleRowExpansion(expansionKey);
 }
 
 function isGroupExpanded(groupKey: string): boolean {
@@ -740,6 +697,10 @@ function isGroupExpanded(groupKey: string): boolean {
 
 function toggleGroupExpansion(groupKey: string): void {
   table.toggleGroupExpansion(groupKey);
+}
+
+function getRenderEntryKey(entry: (typeof renderEntries.value)[number]): string {
+  return entry.renderKey;
 }
 
 function getSortDirection(column: ColumnDef<TRow>): 'asc' | 'desc' | null {
@@ -776,14 +737,14 @@ function onRowKeydown(event: KeyboardEvent, row: TRow, rowIndex: number): void {
   const key = event.key;
   
   if (key === 'Enter' || key === ' ') {
-    const rowKey = resolveRowSelectionKey(row, rowIndex);
-    if (rowKey === null) {
-      return;
-    }
-
     if (props.expandable && isRowExpandable(row, rowIndex)) {
       event.preventDefault();
       toggleRowExpansion(row, rowIndex);
+      return;
+    }
+
+    const rowKey = resolveRowSelectionKey(row, rowIndex);
+    if (rowKey === null) {
       return;
     }
 
@@ -1022,91 +983,115 @@ defineExpose({
             aria-hidden="true"
           >
             <td
-              :colspan="Math.max(renderColumns.length, 1)"
+              :colspan="bodyColspan"
               :style="{ height: `${table.virtualPaddingTop.value}px`, padding: '0', border: '0' }"
             />
           </tr>
-          <tr
-            v-for="entry in visibleRowEntries"
-            :key="resolveRowKey(entry.row, entry.rowIndex)"
-            :class="{
-              'ioi-table__row': true,
-              'ioi-table__row--selected': isRowSelected(entry.row, entry.rowIndex),
-              'ioi-table__row--editing': isRowEditing(entry.row, entry.rowIndex),
-              'ioi-table__row--expanded': isRowExpanded(entry.row, entry.rowIndex)
-            }"
-            :data-row-index="entry.rowIndex"
-            :style="{ height: `${normalizedRowHeight}px` }"
-            :aria-selected="selectionEnabled ? isRowSelected(entry.row, entry.rowIndex) : undefined"
-            :aria-expanded="expandable && isRowExpandable(entry.row, entry.rowIndex) ? isRowExpanded(entry.row, entry.rowIndex) : undefined"
-            tabindex="0"
-            @click="onRowClick(entry.row, entry.rowIndex)"
-            @keydown="onRowKeydown($event, entry.row, entry.rowIndex)"
-          >
-            <td
-              v-if="expandable"
-              class="ioi-table__cell ioi-table__cell--expand"
-              :style="{ width: '40px', textAlign: 'center' }"
+          <template v-for="entry in renderEntries" :key="getRenderEntryKey(entry)">
+            <tr
+              v-if="entry.type === 'group'"
+              class="ioi-table__group-header"
             >
-              <button
-                v-if="isRowExpandable(entry.row, entry.rowIndex)"
-                type="button"
-                class="ioi-table__expand-icon"
-                :aria-label="isRowExpanded(entry.row, entry.rowIndex) ? 'Collapse row' : 'Expand row'"
-                @click.stop="toggleRowExpansion(entry.row, entry.rowIndex)"
-              >
-                {{ isRowExpanded(entry.row, entry.rowIndex) ? '▼' : '▶' }}
-              </button>
-            </td>
-            <td
-              v-for="(column, columnIndex) in renderColumns"
-              :key="column.id"
+              <td :colspan="bodyColspan">
+                <slot
+                  name="group-header"
+                  :group="entry.group"
+                  :expanded="isGroupExpanded(entry.group.key)"
+                >
+                  <button
+                    type="button"
+                    class="ioi-table__group-toggle"
+                    :aria-label="isGroupExpanded(entry.group.key) ? 'Collapse group' : 'Expand group'"
+                    @click.stop="toggleGroupExpansion(entry.group.key)"
+                  >
+                    {{ isGroupExpanded(entry.group.key) ? '▼' : '▶' }}
+                  </button>
+                  <span class="ioi-table__group-value">{{ entry.group.value }}</span>
+                  <span class="ioi-table__group-count">({{ entry.group.count }})</span>
+                </slot>
+              </td>
+            </tr>
+            <tr
+              v-else
               :class="{
-                'ioi-table__cell--editing': isEditingCell(entry.row, entry.rowIndex, column)
+                'ioi-table__row': true,
+                'ioi-table__row--selected': isRowSelected(entry.row, entry.rowIndex),
+                'ioi-table__row--editing': isRowEditing(entry.row, entry.rowIndex),
+                'ioi-table__row--expanded': isRowExpanded(entry.row, entry.rowIndex)
               }"
-              :style="getColumnStyle(column)"
+              :data-row-index="entry.rowIndex"
+              :style="{ height: `${normalizedRowHeight}px` }"
+              :aria-selected="selectionEnabled ? isRowSelected(entry.row, entry.rowIndex) : undefined"
+              :aria-expanded="expandable && isRowExpandable(entry.row, entry.rowIndex) ? isRowExpanded(entry.row, entry.rowIndex) : undefined"
+              tabindex="0"
+              @click="onRowClick(entry.row, entry.rowIndex)"
+              @keydown="onRowKeydown($event, entry.row, entry.rowIndex)"
             >
-              <slot
-                name="cell"
-                :row="entry.row"
-                :row-index="entry.rowIndex"
-                :column="column"
-                :column-index="columnIndex"
-                :value="getCellValue(entry.row, String(column.field))"
+              <td
+                v-if="expandable"
+                class="ioi-table__cell ioi-table__cell--expand"
+                :style="{ width: '40px', textAlign: 'center' }"
               >
-                {{ getCellValue(entry.row, String(column.field)) }}
-              </slot>
-            </td>
-          </tr>
-          <tr
-            v-for="entry in visibleRowEntries.filter(e => isRowExpanded(e.row, e.rowIndex))"
-            :key="`expanded-${resolveRowKey(entry.row, entry.rowIndex)}`"
-            class="ioi-table__expanded-row"
-            :data-row-index="entry.rowIndex"
-          >
-            <td
-              :colspan="expandable ? renderColumns.length + 1 : renderColumns.length"
-              class="ioi-table__expanded-content"
+                <button
+                  v-if="isRowExpandable(entry.row, entry.rowIndex)"
+                  type="button"
+                  class="ioi-table__expand-icon"
+                  :aria-label="isRowExpanded(entry.row, entry.rowIndex) ? 'Collapse row' : 'Expand row'"
+                  @click.stop="toggleRowExpansion(entry.row, entry.rowIndex)"
+                >
+                  {{ isRowExpanded(entry.row, entry.rowIndex) ? '▼' : '▶' }}
+                </button>
+              </td>
+              <td
+                v-for="(column, columnIndex) in renderColumns"
+                :key="column.id"
+                :class="{
+                  'ioi-table__cell--editing': isEditingCell(entry.row, entry.rowIndex, column)
+                }"
+                :style="getColumnStyle(column)"
+              >
+                <slot
+                  name="cell"
+                  :row="entry.row"
+                  :row-index="entry.rowIndex"
+                  :column="column"
+                  :column-index="columnIndex"
+                  :value="getCellValue(entry.row, String(column.field))"
+                >
+                  {{ getCellValue(entry.row, String(column.field)) }}
+                </slot>
+              </td>
+            </tr>
+            <tr
+              v-if="entry.type === 'row' && isRowExpanded(entry.row, entry.rowIndex)"
+              :key="`expanded-${entry.renderKey}`"
+              class="ioi-table__expanded-row"
+              :data-row-index="entry.rowIndex"
             >
-              <slot
-                name="expanded-row"
-                :row="entry.row"
-                :row-index="entry.rowIndex"
-              />
-            </td>
-          </tr>
+              <td
+                :colspan="bodyColspan"
+                class="ioi-table__expanded-content"
+              >
+                <slot
+                  name="expanded-row"
+                  :row="entry.row"
+                  :row-index="entry.rowIndex"
+                />
+              </td>
+            </tr>
+          </template>
           <tr
             v-if="table.virtualPaddingBottom.value > 0"
             class="ioi-table__spacer"
             aria-hidden="true"
           >
             <td
-              :colspan="Math.max(renderColumns.length, 1)"
+              :colspan="bodyColspan"
               :style="{ height: `${table.virtualPaddingBottom.value}px`, padding: '0', border: '0' }"
             />
           </tr>
           <tr v-if="!table.totalRows.value">
-            <td :colspan="Math.max(renderColumns.length, 1)" class="ioi-table__empty">
+            <td :colspan="bodyColspan" class="ioi-table__empty">
               <slot name="empty">No data</slot>
             </td>
           </tr>

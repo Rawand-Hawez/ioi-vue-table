@@ -6,7 +6,9 @@
 import type {
   ColumnDef,
   CsvDelimiter,
-  CsvImportMapping
+  CsvImportMapping,
+  IoiSemanticEvent,
+  IoiSemanticEventType
 } from '../../types';
 
 /**
@@ -53,6 +55,6 @@ export interface FilterDebounceTimers {
  * Event emitter function type.
  */
 export type EventEmitter<TPayload = unknown> = (
-  type: import('../../types').IoiSemanticEventType,
+  type: IoiSemanticEventType,
   payload: TPayload
-) => import('../../types').IoiSemanticEvent<TPayload>;
+) => IoiSemanticEvent<TPayload>;

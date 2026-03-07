@@ -1,16 +1,43 @@
-import type { ColumnDef } from '../../types';
+import type { AggregationType as AggregationTypeEnum } from '../../types';
 import { get as getNestedPathValue } from '../../utils/nestedPath';
 
 export interface GroupInfo {
   key: string;
   value: unknown;
   indices: number[];
+  count: number;
+  aggregations: Record<string, number>;
+}
+
+const GROUP_KEY_DELIMITER = '\x00';
+const GROUP_KEY_ESCAPE = '\x01';
+
+function encodeGroupValue(v: unknown): string {
+  if (v === null) {
+    return `${GROUP_KEY_ESCAPE}n`;
+  }
+  if (v === undefined) {
+    return `${GROUP_KEY_ESCAPE}u`;
+  }
+
+  const str = String(v);
+  let result = `${GROUP_KEY_ESCAPE}s`;
+  for (let i = 0; i < str.length; i++) {
+    const char = str[i];
+    if (char === GROUP_KEY_DELIMITER || char === GROUP_KEY_ESCAPE) {
+      result += `${GROUP_KEY_ESCAPE}${char}`;
+    } else {
+      result += char;
+    }
+  }
+  return result;
 }
 
 export function calculateGroups<TRow>(
   indices: readonly number[],
   rows: readonly TRow[],
-  groupBy: string | string[]
+  groupBy: string | string[],
+  groupAggregations?: Record<string, AggregationTypeEnum[]>
 ): GroupInfo[] {
   const groupByFields = Array.isArray(groupBy) ? groupBy : [groupBy];
   if (groupByFields.length === 0) {
@@ -27,17 +54,30 @@ export function calculateGroups<TRow>(
     }
 
     const groupValues = groupByFields.map((field) => getNestedPathValue(row, field));
-    const groupKey = groupValues.map((v) => (v === null || v === undefined ? '' : String(v))).join('|');
+    const groupKey = groupValues.map(encodeGroupValue).join(GROUP_KEY_DELIMITER);
 
     const existing = groups.get(groupKey);
     if (existing) {
       existing.indices.push(rowIndex);
+      existing.count = existing.indices.length;
     } else {
       groups.set(groupKey, {
         key: groupKey,
         value: groupValues.length === 1 ? groupValues[0] : groupValues,
-        indices: [rowIndex]
+        indices: [rowIndex],
+        count: 1,
+        aggregations: {}
       });
+    }
+  }
+
+  if (groupAggregations && Object.keys(groupAggregations).length > 0) {
+    for (const group of groups.values()) {
+      group.aggregations = calculateGroupAggregations(
+        group.indices,
+        rows,
+        groupAggregations
+      );
     }
   }
 
@@ -54,13 +94,11 @@ export function calculateGroups<TRow>(
   return groupArray;
 }
 
-export type AggregationType = 'sum' | 'avg' | 'count' | 'min' | 'max';
-
 export function calculateAggregation<TRow>(
   indices: readonly number[],
   rows: readonly TRow[],
   field: string,
-  type: AggregationType
+  type: AggregationTypeEnum
 ): number {
   const values: number[] = [];
 
@@ -100,8 +138,7 @@ export function calculateAggregation<TRow>(
 export function calculateGroupAggregations<TRow>(
   indices: readonly number[],
   rows: readonly TRow[],
-  columns: readonly ColumnDef<TRow>[],
-  aggregations: Record<string, AggregationType[]>
+  aggregations: Record<string, AggregationTypeEnum[]>
 ): Record<string, number> {
   const result: Record<string, number> = {};
 

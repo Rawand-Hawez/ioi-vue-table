@@ -72,17 +72,18 @@ export function createExpansion<TRow>(
       expandedRowKeys: nextKeys
     };
 
-    const rowIndex = sortedIndices.value.findIndex((idx) => {
+    const sortedPosition = sortedIndices.value.findIndex((idx) => {
       const rowKey = resolveRowKey(rows.value[idx] as TRow, idx);
       return rowKey === key;
     });
 
-    if (rowIndex !== -1) {
-      const row = rows.value[sortedIndices.value[rowIndex]];
+    if (sortedPosition !== -1) {
+      const sourceRowIndex = sortedIndices.value[sortedPosition];
+      const row = rows.value[sourceRowIndex];
       if (row) {
         const payload: IoiRowExpandPayload<TRow> = {
           row,
-          rowIndex,
+          rowIndex: sourceRowIndex,
           rowKey: key,
           expanded: !wasExpanded
         };

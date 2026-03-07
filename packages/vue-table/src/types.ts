@@ -120,6 +120,10 @@ export interface ParseCsvOptions {
   delimiter?: CsvDelimiter | 'auto';
   hasHeader?: boolean;
   previewRowLimit?: number;
+  /** Maximum number of imported data rows allowed for this parse. */
+  maxRows?: number;
+  /** Maximum CSV input size allowed for this parse, in bytes. */
+  maxSizeBytes?: number;
 }
 
 export interface CsvImportValidationError {
@@ -200,6 +204,23 @@ export interface GroupHeader {
   aggregations: Record<string, number>;
 }
 
+export interface IoiGroupRenderEntry {
+  type: 'group';
+  renderKey: string;
+  group: GroupHeader;
+}
+
+export interface IoiRowRenderEntry<TRow = Record<string, unknown>> {
+  type: 'row';
+  renderKey: string;
+  row: TRow;
+  rowIndex: number;
+}
+
+export type IoiRenderEntry<TRow = Record<string, unknown>> =
+  | IoiGroupRenderEntry
+  | IoiRowRenderEntry<TRow>;
+
 export interface IoiTableOptions<TRow = Record<string, unknown>> {
   rows?: TRow[];
   columns?: ColumnDef<TRow>[];
@@ -217,6 +238,10 @@ export interface IoiTableOptions<TRow = Record<string, unknown>> {
   filterDebounceMs?: number;
   /** Default CSV preview limit when parse options omit previewRowLimit. */
   defaultCsvPreviewRowLimit?: number;
+  /** Maximum number of CSV data rows allowed during import parsing. */
+  csvMaxRows?: number;
+  /** Maximum CSV input size allowed during import parsing, in bytes. */
+  csvMaxSizeBytes?: number;
   pagination?: IoiPaginationOptions;
   /** Enable row expansion feature. */
   expandable?: boolean;
@@ -353,7 +378,8 @@ export interface IoiTableApi<TRow = Record<string, unknown>> extends IoiTableAct
   virtualPaddingBottom: ComputedRef<number>;
   visibleIndices: ComputedRef<number[]>;
   visibleRows: ComputedRef<TRow[]>;
-  groups: ComputedRef<Array<{ key: string; value: unknown; indices: number[] }>>;
+  renderEntries: ComputedRef<IoiRenderEntry<TRow>[]>;
+  groups: ComputedRef<Array<{ key: string; value: unknown; indices: number[]; count: number; aggregations: Record<string, number> }>>;
   lastEvent: Ref<IoiSemanticEvent<unknown> | null>;
   actions: IoiTableActions<TRow>;
 }

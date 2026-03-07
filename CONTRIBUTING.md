@@ -1,31 +1,82 @@
-# Contributing
+# Contributing to IOI Vue Table
 
-## Source of Truth
+Thank you for your interest in contributing!
 
-Before implementing behavior, align with:
+## Development Setup
 
-- `AGENTS.md`
-- `docs/SPEC.md`
-- `docs/ARCHITECTURE.md`
-- `docs/ROADMAP.md`
+### Prerequisites
 
-## Modes
+- Node.js 18+
+- npm 9+
+
+### Getting Started
+
+```bash
+# Clone the repository
+git clone https://github.com/Rawand-Hawez/ioi-vue-table.git
+cd ioi-vue-table
+
+# Install dependencies
+npm install
+
+# Start the playground
+npm --workspace @ioi/vue-table-playground run dev
+```
+
+## Development Workflow
 
 ### Mode A: Vue-only (default)
 
-No Rust toolchain is required.
+No Rust toolchain is required. This is the standard development mode.
 
-1. `npm install`
-2. `npm run dev`
-3. `npm run ci`
+```bash
+npm install
+npm run dev
+npm run ci
+```
 
 ### Mode B: Full/WASM (future)
 
-`packages/table-core` is currently a placeholder. WASM is intentionally not implemented yet.
+The `packages/table-core` Rust workspace is currently a placeholder. WASM acceleration is planned for a future release.
 
-## PR Rules
+## Pull Request Guidelines
 
-- Keep PRs small and focused.
-- Add tests with each behavior change.
-- Preserve API stability in v1.x.
-- Avoid heavy dependencies unless justified.
+- **Keep PRs small and focused** - One feature or fix per PR
+- **Add tests** - All behavior changes require test coverage
+- **Preserve API stability** - No breaking changes in v1.x
+- **Minimize dependencies** - Avoid heavy dependencies unless justified
+- **Run checks before submitting**:
+  ```bash
+  npm --workspace @ioi-dev/vue-table run test
+  npm --workspace @ioi-dev/vue-table run typecheck
+  npm --workspace @ioi-dev/vue-table run lint
+  ```
+
+## Code Style
+
+- TypeScript strict mode is enabled
+- Follow existing code patterns
+- Keep the public API surface minimal
+
+## Testing
+
+```bash
+# Run tests
+npm --workspace @ioi-dev/vue-table run test
+
+# Run tests with coverage
+npm --workspace @ioi-dev/vue-table run test:coverage
+```
+
+## Project Structure
+
+```
+packages/
+├── vue-table/       # Published npm package @ioi-dev/vue-table
+├── table-core/      # Rust workspace (placeholder for future WASM)
+└── playground/      # Vite demo app for development
+```
+
+## License
+
+By contributing, you agree that your contributions will be licensed under the MIT License.

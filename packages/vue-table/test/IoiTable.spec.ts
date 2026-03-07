@@ -343,6 +343,56 @@ describe('IoiTable', () => {
     wrapper.unmount();
   });
 
+  it('supports keyboard row expansion without rowKey and updates the expander label', async () => {
+    const wrapper = mount(IoiTable, {
+      props: {
+        columns: [{ field: 'name', header: 'Name' }],
+        rows: [{ name: 'Alpha' }],
+        expandable: true
+      },
+      slots: {
+        'expanded-row': ({ row }: { row: Record<string, unknown> }) => `Details:${String(row.name ?? '')}`
+      }
+    });
+
+    const row = wrapper.find('tbody tr.ioi-table__row');
+    expect(row.exists()).toBe(true);
+    expect(wrapper.find('button.ioi-table__expand-icon').attributes('aria-label')).toBe('Expand row');
+
+    await row.trigger('keydown', { key: 'Enter' });
+    await nextTick();
+
+    expect(wrapper.find('button.ioi-table__expand-icon').attributes('aria-label')).toBe('Collapse row');
+    expect(wrapper.text()).toContain('Details:Alpha');
+  });
+
+  it('updates group-toggle aria labels as groups expand and collapse', async () => {
+    const wrapper = mount(IoiTable, {
+      props: {
+        columns: [
+          { field: 'group', header: 'Group' },
+          { field: 'name', header: 'Name' }
+        ],
+        rows: [
+          { id: 1, group: 'A', name: 'Alpha' },
+          { id: 2, group: 'A', name: 'Beta' },
+          { id: 3, group: 'B', name: 'Gamma' }
+        ],
+        rowKey: 'id',
+        groupBy: 'group'
+      }
+    });
+
+    const toggle = wrapper.find('button.ioi-table__group-toggle');
+    expect(toggle.attributes('aria-label')).toBe('Expand group');
+
+    await toggle.trigger('click');
+    await nextTick();
+
+    expect(wrapper.find('button.ioi-table__group-toggle').attributes('aria-label')).toBe('Collapse group');
+    expect(wrapper.findAll('tbody tr.ioi-table__row')).toHaveLength(2);
+  });
+
   it('updates the live region when semantic events are emitted', async () => {
     const wrapper = mount(IoiTable, {
       props: {
@@ -357,5 +407,43 @@ describe('IoiTable', () => {
 
     const liveRegion = wrapper.find('.ioi-table__sr-only');
     expect(liveRegion.text()).toContain('Sorting updated.');
+  });
+
+  it('renders grouped pages with aggregation data and keeps later pages populated after expansion', async () => {
+    const wrapper = mount(IoiTable, {
+      props: {
+        columns: [
+          { field: 'group', header: 'Group' },
+          { field: 'score', header: 'Score' }
+        ],
+        rows: [
+          { id: 1, group: 'A', score: 10 },
+          { id: 2, group: 'A', score: 30 },
+          { id: 3, group: 'B', score: 90 }
+        ],
+        rowKey: 'id',
+        groupBy: 'group',
+        groupAggregations: {
+          score: ['sum']
+        },
+        pageSize: 2
+      }
+    });
+
+    expect(wrapper.findAll('tr.ioi-table__group-header')).toHaveLength(2);
+    expect(wrapper.text()).toContain('A');
+    expect(wrapper.text()).toContain('B');
+
+    const toggles = wrapper.findAll('button.ioi-table__group-toggle');
+    await toggles[0]?.trigger('click');
+    await nextTick();
+
+    await wrapper.setProps({ pageIndex: 1 });
+    await nextTick();
+
+    expect(wrapper.findAll('tr.ioi-table__group-header')).toHaveLength(1);
+    expect(wrapper.findAll('tbody tr.ioi-table__row')).toHaveLength(1);
+    expect(wrapper.text()).toContain('30');
+    expect(wrapper.text()).toContain('B');
   });
 });
