@@ -1,15 +1,8 @@
 import { computed, getCurrentScope, onScopeDispose, ref, shallowRef, unref, watch } from 'vue';
 import type { MaybeRef } from 'vue';
 import type {
-  CommitCsvImportOptions,
-  ColumnFilter,
   ColumnDef,
-  CsvDelimiter,
-  CsvImportMapping,
-  CsvImportPreview,
-  CsvImportResult,
-  CsvImportSource,
-  CsvImportValidationError,
+  ColumnFilter,
   ExportCsvHeaderMode,
   ExportCsvOptions,
   ExportCsvScope,
@@ -20,7 +13,6 @@ import type {
   IoiTableApi,
   IoiTableOptions,
   IoiTableState,
-  ParseCsvOptions,
   SelectAllScope,
   SelectionMode,
   SortState,
@@ -35,7 +27,12 @@ import {
   normalizePositiveInteger,
   normalizePositiveNumber
 } from '../utils/number';
-import { applySort, toggleSortState } from '../utils/sort';
+import { applySort } from '../utils/sort';
+import { createSorting } from './ioiTable/sorting';
+import { createGroupExpansion } from './ioiTable/groupExpansion';
+import { createExpansion } from './ioiTable/expansion';
+import { createFacets } from './ioiTable/facets';
+import type { ExportColumn, ImportColumnBinding, ParsedCsvImportSession } from './ioiTable/types';
 import {
   coerceCsvImportValue,
   encodeCsvField,
@@ -50,7 +47,6 @@ import {
 } from './ioiTable/csv';
 import {
   calculateGroups,
-  calculateGroupAggregations,
   type GroupInfo
 } from './ioiTable/grouping';
 import {
@@ -66,33 +62,10 @@ import { createSemanticEvent } from './ioiTable/events';
 import { buildPaginationPayload } from './ioiTable/pagination';
 import { normalizeSelectedKeys } from './ioiTable/selection';
 import { createInitialState } from './ioiTable/state';
-import { clamp, collectNestedObjectLeafPaths, isPlainObject, stringifyFacetValue, toIndexArray } from './ioiTable/utils';
+import { clamp, collectNestedObjectLeafPaths, isPlainObject, toIndexArray } from './ioiTable/utils';
 
 function getFieldValue<TRow>(row: TRow, field: string): unknown {
   return getNestedPathValue(row, field);
-}
-
-interface ExportColumn {
-  fieldPath: string;
-  header: string;
-}
-
-interface ImportColumnBinding<TRow> {
-  columnId: string;
-  field: string;
-  header: string;
-  column: Pick<ColumnDef<TRow>, 'type' | 'validate'>;
-}
-
-interface ParsedCsvImportSession<TRow> {
-  delimiter: CsvDelimiter;
-  hasHeader: boolean;
-  headers: string[];
-  dataRows: string[][];
-  previewRowLimit: number;
-  maxColumnCount: number;
-  columns: ImportColumnBinding<TRow>[];
-  mapping: CsvImportMapping;
 }
 
 function resolveExportColumns<TRow>(
@@ -748,6 +721,41 @@ export function useIoiTable<TRow = Record<string, unknown>>(
     return event;
   }
 
+  // Initialize feature modules
+  const sortingApi = createSorting(state, {}, emitSemanticEvent);
+  const groupExpansionApi = createGroupExpansion(state, groups, {
+    onGroupExpand: resolvedOptions.value.onGroupExpand
+  }, emitSemanticEvent);
+
+  // Row expansion module
+  const expansionApi = createExpansion(
+    {
+      state,
+      rows: normalizedRows,
+      sortedIndices,
+      resolveRowKey: resolveRowSelectionKey
+    },
+    {
+      expandable: computed(() => resolvedOptions.value.expandable ?? false),
+      rowExpandable: resolvedOptions.value.rowExpandable,
+      onRowExpand: resolvedOptions.value.onRowExpand
+    },
+    emitSemanticEvent
+  );
+
+  // Facets module
+  const facetsApi = createFacets(
+    {
+      rows: normalizedRows,
+      columns: normalizedColumns,
+      filters: computed(() => state.value.filters),
+      globalSearch: computed(() => state.value.globalSearch),
+      baseIndices,
+      columnKeyMap
+    },
+    getFieldValue
+  );
+
   function notifyPaginationChange(
     nextPageIndex: number,
     nextPageSize: number,
@@ -820,86 +828,6 @@ export function useIoiTable<TRow = Record<string, unknown>>(
     notifyPaginationChange(nextPageIndex, normalizedNextPageSize, reason);
   }
 
-  function getColumnFacetOptions(field: string): string[] {
-    const normalizedKey = String(field);
-    if (!normalizedKey) {
-      return [];
-    }
-
-    const keyMap = columnKeyMap.value;
-    const targetColumn = keyMap.get(normalizedKey);
-    const targetFieldPath = targetColumn ? String(targetColumn.field) : normalizedKey;
-    const excludedKeys = new Set<string>([normalizedKey, targetFieldPath]);
-
-    if (targetColumn?.id) {
-      excludedKeys.add(targetColumn.id);
-    }
-
-    const otherFilters = state.value.filters.filter((entry) => {
-      if (excludedKeys.has(entry.field)) {
-        return false;
-      }
-
-      const resolvedColumn = keyMap.get(entry.field);
-      if (!resolvedColumn) {
-        return true;
-      }
-
-      if (excludedKeys.has(String(resolvedColumn.field))) {
-        return false;
-      }
-
-      if (resolvedColumn.id && excludedKeys.has(resolvedColumn.id)) {
-        return false;
-      }
-
-      return true;
-    });
-
-    const facetIndices = applyFilters(
-      baseIndices.value,
-      normalizedRows.value,
-      otherFilters,
-      state.value.globalSearch,
-      normalizedColumns.value,
-      getFieldValue
-    );
-
-    const optionSet = new Set<string>();
-
-    for (let index = 0; index < facetIndices.length; index += 1) {
-      const rowIndex = facetIndices[index];
-      const row = normalizedRows.value[rowIndex];
-
-      if (row === undefined) {
-        continue;
-      }
-
-      const value = getFieldValue(row, targetFieldPath);
-
-      if (Array.isArray(value)) {
-        for (let valueIndex = 0; valueIndex < value.length; valueIndex += 1) {
-          const candidate = stringifyFacetValue(value[valueIndex]).trim();
-          if (candidate.length > 0) {
-            optionSet.add(candidate);
-          }
-        }
-        continue;
-      }
-
-      const candidate = stringifyFacetValue(value).trim();
-      if (candidate.length > 0) {
-        optionSet.add(candidate);
-      }
-    }
-
-    const options = Array.from(optionSet);
-    options.sort((left, right) =>
-      left.localeCompare(right, undefined, { numeric: true, sensitivity: 'base' })
-    );
-    return options;
-  }
-
   watch(
     [() => state.value.sort, () => state.value.filters, () => state.value.globalSearch],
     () => {
@@ -946,35 +874,6 @@ export function useIoiTable<TRow = Record<string, unknown>>(
     emitSemanticEvent('data:explore', {
       reason: 'setColumns',
       columnCount: columns.length
-    });
-  }
-
-  function setSortState(sortState: SortState[]): void {
-    const nextSortState = sortState
-      .filter((entry) => entry.field && (entry.direction === 'asc' || entry.direction === 'desc'))
-      .map((entry) => ({
-        field: entry.field,
-        direction: entry.direction
-      })) as SortState[];
-
-    if (
-      nextSortState.length === state.value.sort.length &&
-      nextSortState.every(
-        (entry, index) =>
-          entry.field === state.value.sort[index]?.field &&
-          entry.direction === state.value.sort[index]?.direction
-      )
-    ) {
-      return;
-    }
-
-    state.value = {
-      ...state.value,
-      sort: nextSortState
-    };
-
-    emitSemanticEvent('data:sort', {
-      sort: nextSortState
     });
   }
 
@@ -1278,121 +1177,6 @@ export function useIoiTable<TRow = Record<string, unknown>>(
 
   function getSelectedKeys(): Array<string | number> {
     return [...state.value.selectedRowKeys];
-  }
-
-  function toggleRowExpansion(key: string | number): void {
-    const currentKeys = state.value.expandedRowKeys;
-    const keySet = new Set(currentKeys);
-    const wasExpanded = keySet.has(key);
-    
-    if (wasExpanded) {
-      keySet.delete(key);
-    } else {
-      keySet.add(key);
-    }
-    
-    const nextKeys = Array.from(keySet);
-
-    state.value = {
-      ...state.value,
-      expandedRowKeys: nextKeys
-    };
-
-    const rowIndex = sortedIndices.value.findIndex((idx) => {
-      const rowKey = resolveSelectionKeyByIndex(idx);
-      return rowKey === key;
-    });
-
-    if (rowIndex !== -1) {
-      const row = normalizedRows.value[sortedIndices.value[rowIndex]];
-      resolvedOptions.value.onRowExpand?.({
-        row,
-        rowIndex,
-        rowKey: key,
-        expanded: !wasExpanded
-      });
-    }
-  }
-
-  function expandAllRows(): void {
-    const allKeys = sortedIndices.value
-      .filter((idx) => {
-        // Check if row is expandable
-        if (resolvedOptions.value.rowExpandable) {
-          const row = normalizedRows.value[idx];
-          return resolvedOptions.value.rowExpandable(row, idx);
-        }
-        return true;
-      })
-      .map((idx) => resolveSelectionKeyByIndex(idx))
-      .filter((key): key is string | number => key !== null);
-
-    state.value = {
-      ...state.value,
-      expandedRowKeys: allKeys
-    };
-  }
-
-  function collapseAllRows(): void {
-    state.value = {
-      ...state.value,
-      expandedRowKeys: []
-    };
-  }
-
-  function isRowExpanded(key: string | number): boolean {
-    return state.value.expandedRowKeys.includes(key);
-  }
-
-  function toggleGroupExpansion(groupKey: string): void {
-    const currentKeys = state.value.expandedGroupKeys;
-    const keySet = new Set(currentKeys);
-    const wasExpanded = keySet.has(groupKey);
-    
-    if (wasExpanded) {
-      keySet.delete(groupKey);
-    } else {
-      keySet.add(groupKey);
-    }
-    
-    state.value = {
-      ...state.value,
-      expandedGroupKeys: Array.from(keySet)
-    };
-
-    const group = groups.value.find((g) => g.key === groupKey);
-    if (group) {
-      resolvedOptions.value.onGroupExpand?.({
-        groupKey,
-        groupValue: group.value,
-        expanded: !wasExpanded,
-        rowCount: group.indices.length
-      });
-    }
-  }
-
-  function expandAllGroups(): void {
-    const allGroupKeys = groups.value.map((g) => g.key);
-    state.value = {
-      ...state.value,
-      expandedGroupKeys: allGroupKeys
-    };
-  }
-
-  function collapseAllGroups(): void {
-    state.value = {
-      ...state.value,
-      expandedGroupKeys: []
-    };
-  }
-
-  function isGroupExpanded(groupKey: string): boolean {
-    return state.value.expandedGroupKeys.includes(groupKey);
-  }
-
-  function toggleSort(field: string, multi = false): void {
-    const nextSortState = toggleSortState(state.value.sort, field, multi);
-    setSortState(nextSortState);
   }
 
   function setViewport(scrollTop: number, viewportHeight = state.value.viewport.viewportHeight): void {
@@ -1837,20 +1621,20 @@ export function useIoiTable<TRow = Record<string, unknown>>(
   const actions = {
     setRows,
     setColumns,
-    setSortState,
+    setSortState: sortingApi.setSortState,
     setColumnFilter,
     clearColumnFilter,
     setGlobalSearch,
     clearAllFilters,
     setPageIndex,
     setPageSize,
-    getColumnFacetOptions,
+    getColumnFacetOptions: facetsApi.getColumnFacetOptions,
     toggleRow,
     isSelected,
     clearSelection,
     selectAll,
     getSelectedKeys,
-    toggleSort,
+    toggleSort: sortingApi.toggleSort,
     setViewport,
     scrollToRow,
     startEdit,
@@ -1860,14 +1644,14 @@ export function useIoiTable<TRow = Record<string, unknown>>(
     exportCSV,
     parseCSV,
     commitCSVImport,
-    toggleRowExpansion,
-    expandAllRows,
-    collapseAllRows,
-    isRowExpanded,
-    toggleGroupExpansion,
-    expandAllGroups,
-    collapseAllGroups,
-    isGroupExpanded,
+    toggleRowExpansion: expansionApi.toggleRowExpansion,
+    expandAllRows: expansionApi.expandAllRows,
+    collapseAllRows: expansionApi.collapseAllRows,
+    isRowExpanded: expansionApi.isRowExpanded,
+    toggleGroupExpansion: groupExpansionApi.toggleGroupExpansion,
+    expandAllGroups: groupExpansionApi.expandAllGroups,
+    collapseAllGroups: groupExpansionApi.collapseAllGroups,
+    isGroupExpanded: groupExpansionApi.isGroupExpanded,
     resetState,
     emitSemanticEvent
   };
