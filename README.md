@@ -1,23 +1,20 @@
 # IOI Vue Table
 
-A performance-first Vue 3 data table component with a streamlined, stable public API designed for enterprise applications.
+A performance-first Vue 3 data table with virtual scrolling, rich filtering, row grouping, inline editing, CSV export, and server-side mode — all in a zero-dependency, TypeScript-first package.
 
-## Overview
+**[Live Demo →](https://rawand-hawez.github.io/ioi-vue-table/)**
 
-IOI Vue Table provides a lightweight yet powerful solution for rendering large datasets in Vue 3 applications. Built with performance and developer experience at its core, it offers comprehensive data table functionality whilst maintaining a small bundle footprint and intuitive API surface.
+## Features
 
-### Key Features
-
-- **JavaScript-First Architecture**: Fully functional without requiring Rust or WASM dependencies
-- **Headless Rendering**: Slot-based APIs and framework-friendly class hooks for complete styling control
-- **Comprehensive Data Operations**: Built-in sorting, column filters, global search, selection, and editing workflows
-- **Virtualised Rendering**: Default virtualisation for smooth performance with large datasets
-- **Controlled Pagination**: Full pagination control when virtual scroll is disabled
-- **CSV Workflows**: Import and export capabilities with security sanitisation
-- **Semantic Events**: Versioned, machine-readable payloads for state changes
-- **TypeScript Support**: Comprehensive type definitions for enhanced developer experience
-
-> **Note**: `IoiTable` remains available as a backward-compatible alias to `Table` in v1.x releases.
+- **Virtual Scroll** — render 100,000+ rows at 60fps with windowed virtualisation
+- **Sort & Filter** — multi-column sort, text / select / number / date header filters, global search
+- **Row Grouping** — group by any field with sum, avg, count, min, max aggregations per group
+- **Inline Editing** — click-to-edit cells with per-column validation and commit/cancel lifecycle
+- **Column Control** — pin, reorder, resize, and toggle column visibility
+- **CSV Export** — export all, filtered, or selected rows; formula-injection safe
+- **Server-Side Mode** — plug in a `fetchFn`; the table handles paging, sorting, and filter state
+- **Headless-Capable** — import from `/unstyled` and apply Tailwind, Bootstrap, or any CSS
+- **TypeScript-First** — full type definitions with generic row types
 
 ## Installation
 
@@ -25,13 +22,19 @@ IOI Vue Table provides a lightweight yet powerful solution for rendering large d
 npm install @ioi-dev/vue-table
 ```
 
-### CSS Integration
-
-The default import includes library CSS. For zero-CSS integration:
+Import the default styled build:
 
 ```javascript
-import { Table } from '@ioi-dev/vue-table/unstyled'
+import { Table } from '@ioi-dev/vue-table';
 ```
+
+Or the zero-CSS unstyled build:
+
+```javascript
+import { Table } from '@ioi-dev/vue-table/unstyled';
+```
+
+> **Note**: `IoiTable` remains available as a backward-compatible alias to `Table` in v1.x releases.
 
 ## Quick Start
 
@@ -39,21 +42,24 @@ import { Table } from '@ioi-dev/vue-table/unstyled'
 <script setup lang="ts">
 import { Table, type ColumnDef } from '@ioi-dev/vue-table';
 
-interface UserRow {
+interface Employee {
   id: number;
   name: string;
-  score: number;
+  department: string;
+  salary: number;
 }
 
-const columns: ColumnDef<UserRow>[] = [
-  { field: 'id', header: 'ID', type: 'number', width: 90 },
-  { field: 'name', header: 'Name', type: 'text' },
-  { field: 'score', header: 'Score', type: 'number' }
+const columns: ColumnDef<Employee>[] = [
+  { field: 'id',         header: 'ID',         type: 'number', width: 72  },
+  { field: 'name',       header: 'Name',        type: 'text',   width: 200, headerFilter: 'text'   },
+  { field: 'department', header: 'Department',  type: 'text',   width: 150, headerFilter: 'select' },
+  { field: 'salary',     header: 'Salary (£)',  type: 'number', width: 130 },
 ];
 
-const rows: UserRow[] = [
-  { id: 1, name: 'Alpha', score: 91 },
-  { id: 2, name: 'Beta', score: 77 }
+const rows: Employee[] = [
+  { id: 1, name: 'Oliver Smith',     department: 'Engineering', salary: 85000 },
+  { id: 2, name: 'Amelia Jones',     department: 'Product',     salary: 92000 },
+  { id: 3, name: 'Harry Williams',   department: 'Design',      salary: 78000 },
 ];
 </script>
 
@@ -62,32 +68,75 @@ const rows: UserRow[] = [
 </template>
 ```
 
-## Advanced Usage
+## Column Definition
 
-### Controlled Pagination with Header Filters
+| Property | Type | Description |
+|----------|------|-------------|
+| `field` | `string` | Key on the row object |
+| `header` | `string` | Column header label |
+| `type` | `'text' \| 'number' \| 'date'` | Data type for sorting and filtering |
+| `width` | `number` | Column width in pixels |
+| `pin` | `'left' \| 'right'` | Pin column to an edge |
+| `headerFilter` | `'text' \| 'select'` | Render a filter input in the header row |
+| `editable` | `false` | Opt a column out of inline editing |
 
-This example demonstrates headless pagination with reactive state management and built-in header filters:
+## Row Grouping
+
+```vue
+<script setup lang="ts">
+import { Table, type AggregationType, type ColumnDef } from '@ioi-dev/vue-table';
+
+const groupAggregations: Record<string, AggregationType[]> = {
+  salary: ['sum', 'avg', 'count'],
+};
+</script>
+
+<template>
+  <Table
+    :rows="rows"
+    :columns="columns"
+    row-key="id"
+    group-by="department"
+    :group-aggregations="groupAggregations"
+    :height="500"
+  >
+    <template #group-header="{ group, expanded, toggle }">
+      <div @click="toggle()">
+        {{ expanded ? '▼' : '▶' }}
+        {{ group.value }} — {{ group.count }} rows
+        · Sum: £{{ group.aggregations['salary_sum'] }}
+      </div>
+    </template>
+  </Table>
+</template>
+```
+
+## Server-Side Mode
+
+```vue
+<script setup lang="ts">
+import { Table, type FetchFn } from '@ioi-dev/vue-table';
+
+const fetchFn: FetchFn<Row> = async ({ page, pageSize, sort, filters }) => {
+  const res = await fetch(`/api/data?page=${page}&size=${pageSize}`);
+  const json = await res.json();
+  return { rows: json.data, total: json.total };
+};
+</script>
+
+<template>
+  <Table :fetch-fn="fetchFn" :columns="columns" row-key="id" :height="500" />
+</template>
+```
+
+## Pagination
 
 ```vue
 <script setup lang="ts">
 import { ref } from 'vue';
-import { Table, type ColumnDef } from '@ioi-dev/vue-table';
 
-interface UserRow {
-  id: number;
-  owner: string;
-  status: string;
-}
-
-const rows = ref<UserRow[]>([]);
 const pageIndex = ref(0);
-const pageSize = ref(25);
-
-const columns: ColumnDef<UserRow>[] = [
-  { field: 'id', header: 'ID' },
-  { field: 'status', header: 'Status', headerFilter: 'select' },
-  { field: 'owner', header: 'Owner', headerFilter: 'text' }
-];
+const pageSize  = ref(25);
 </script>
 
 <template>
@@ -101,36 +150,73 @@ const columns: ColumnDef<UserRow>[] = [
 </template>
 ```
 
-> **Note**: `headerFilter: 'select'` options are faceted from current table context, considering other active filters and global search whilst excluding the column's own filter.
+## Table Ref API
+
+Expose the table ref to call imperative methods:
+
+```vue
+<script setup lang="ts">
+import { ref } from 'vue';
+
+const tableRef = ref();
+
+// Sort
+tableRef.value?.setSortState([{ field: 'salary', direction: 'desc' }]);
+
+// Filter
+tableRef.value?.setColumnFilter('department', { type: 'text', operator: 'contains', value: 'Eng' });
+tableRef.value?.setGlobalSearch('Oliver');
+tableRef.value?.clearAllFilters();
+
+// Selection
+tableRef.value?.selectAll('filtered');
+tableRef.value?.getSelectedKeys();    // → (string | number)[]
+tableRef.value?.clearSelection();
+
+// Navigation
+tableRef.value?.scrollToRow(999);     // scroll to row index
+tableRef.value?.setPageIndex(4);
+
+// Export
+tableRef.value?.exportCSV({ scope: 'filtered', filename: 'export.csv' });
+
+// Groups
+tableRef.value?.toggleGroupExpansion('Engineering');
+tableRef.value?.expandAllGroups();
+tableRef.value?.collapseAllGroups();
+</script>
+
+<template>
+  <Table ref="tableRef" :rows="rows" :columns="columns" row-key="id" />
+</template>
+```
 
 ## Styling
 
-### Headless-First Design
-
-The component ships with a headless-first architecture, enabling seamless integration with any styling solution:
-
-- **Tailwind CSS**: Direct class targeting
-- **shadCN/ui**: Compatible with component primitives
-- **Bootstrap**: Standard class overrides
-- **Custom CSS**: Full control via class hooks
-
-### Available Class Hooks
+The component uses a BEM class API for styling hooks:
 
 | Class | Description |
 |-------|-------------|
-| `.ioi-table` | Root table container |
+| `.ioi-table` | Root container |
 | `.ioi-table__viewport` | Scrollable viewport |
-| `.ioi-table__table` | Inner table element |
-| `.ioi-table__header-content` | Header cell content |
-| `.ioi-table__filter-input` | Text filter inputs |
-| `.ioi-table__filter-select` | Select filter dropdowns |
-| `.ioi-table__row` | Table rows |
-| `.ioi-table__empty` | Empty state container |
-| `.ioi-table__row--selected` | Selected row state |
-| `.ioi-table__row--editing` | Editing row state |
+| `.ioi-table__header-content` | Header cell content wrapper |
+| `.ioi-table__filter-row` | Header filter row (`<tr>`) |
+| `.ioi-table__filter-cell` | Header filter cell (`<th>`) |
+| `.ioi-table__filter-input` | Text filter input |
+| `.ioi-table__filter-select` | Select filter dropdown |
+| `.ioi-table__row` | Data row |
+| `.ioi-table__row--selected` | Selected row |
+| `.ioi-table__row--focused` | Keyboard-focused row |
+| `.ioi-table__cell` | Data cell |
+| `.ioi-table__cell--editing` | Actively edited cell |
+| `.ioi-table__cell--editable` | All cells in an editable column |
+| `.ioi-table__group-header` | Group header row |
 | `.ioi-table__header--sorted-asc` | Ascending sort indicator |
 | `.ioi-table__header--sorted-desc` | Descending sort indicator |
-| `.ioi-table__cell--editing` | Editing cell state |
+| `.ioi-table__header--pinned-left-edge` | Last pinned-left column header |
+| `.ioi-table__header--pinned-right-edge` | First pinned-right column header |
+| `.ioi-table__header--drag-over-left` | Drag target — drop before |
+| `.ioi-table__header--drag-over-right` | Drag target — drop after |
 
 ## Configuration Options
 
@@ -147,50 +233,36 @@ The component ships with a headless-first architecture, enabling seamless integr
 |--------|---------|-------------|
 | `globalSearchDebounceMs` | `0` | Debounce interval for global search (milliseconds) |
 | `filterDebounceMs` | `0` | Debounce interval for filter operations (milliseconds) |
-| `rowHeight` | Configurable | Row height for virtualisation calculations |
-| `overscan` | Configurable | Extra rows to render outside viewport for smoother scrolling |
+| `rowHeight` | Configurable | Row height in pixels for virtualisation calculations |
+| `overscan` | Configurable | Extra rows rendered outside viewport for smoother scrolling |
 
-## Performance Model
+## Roadmap
 
-### Current Capabilities
+| Version | Focus | Target |
+|---------|-------|--------|
+| **v1.0** | Row expansion, stable API, full test coverage | 2026-Q2 |
+| **v1.1** | Optional Rust/WASM acceleration (sort, filter, virtual engine, CSV streaming) | 2026-Q3 |
+| **v1.2** | Column grouping, undo/redo, state persistence, real-time updates | 2026-Q4 |
+| **v2.0** | AI/MCP integration (`@ioi-dev/vue-table-mcp`) | 2027+ |
 
-- **Client-Side Operations**: Smooth performance with approximately 1,000 rows with rich interactions
-- **Large Datasets**: Utilise virtualisation and server-side data strategies for optimal performance
-- **WASM Acceleration**: Optional accelerator path available, with JavaScript fallback always first-class
-- **Low-Overhead Boundaries**: WASM integration uses indices and ranges, avoiding large object shuttling
-
+The WASM layer in v1.1 is fully opt-in via a separate entry point — the JavaScript implementation remains first-class with no breaking API changes. See [ROADMAP.md](./docs/ROADMAP.md) for full details.
 
 ## Development
 
-### Running the Playground
-
 ```bash
 npm install
+
+# Run playground (demo site)
 npm --workspace @ioi/vue-table-playground run dev
-```
 
-### Available Routes
-
-The playground includes several demonstration routes:
-
-- `#/big-data` - Virtualisation stress tests
-- `#/pinned-columns` - Column pinning, resize, and reorder demonstrations
-- `#/ops-demo` - Sort, filter, search, and selection operations
-- `#/csv-import` - CSV preview, validation, and commit workflows
-
-### Workspace Commands
-
-```bash
-# Testing
+# Run tests
 npm --workspace @ioi-dev/vue-table run test
 
-# Building
+# Build package
 npm --workspace @ioi-dev/vue-table run build
-npm --workspace @ioi/vue-table-playground run build
 
-# Code Quality
-npm --workspaces run lint
-npm --workspaces run typecheck
+# Lint & typecheck
+npm run ci
 ```
 
 ## Compatibility
@@ -200,16 +272,13 @@ npm --workspaces run typecheck
 | Vue 3.4+ | Full support (baseline target) |
 | Vue 3.6 | Compatibility tracked in CI |
 | Vapor Mode | Planned for future release (separate entry point) |
+| Browsers | Modern browsers with ES2020 support |
+| TypeScript | 5.x |
 
-## Requirements
+## Contributing
 
-- Vue 3.4 or higher
-- Modern browser with ES2020 support
+Contributions are welcome. Please refer to [CONTRIBUTING.md](./docs/CONTRIBUTING.md) for submission requirements, coding standards, and development setup.
 
 ## License
 
 MIT
-
-## Contributing
-
-Contributions are welcome. Please refer to the repository guidelines for submission requirements and coding standards.
