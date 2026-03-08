@@ -21,6 +21,7 @@ export interface ColumnDef<TRow = Record<string, unknown>> {
   header?: string;
   type?: 'text' | 'number' | 'date';
   headerFilter?: 'text' | 'select';
+  editable?: boolean;
   validate?: (value: unknown, row: TRow) => true | string;
   comparator?: (
     valueA: unknown,
@@ -427,6 +428,12 @@ export interface HeaderFilterSlotProps<TRow = Record<string, unknown>> {
   options?: string[];
   setValue: (value: string) => void;
   clear: () => void;
+}
+
+export interface GroupHeaderSlotProps {
+  group: GroupHeader;
+  expanded: boolean;
+  toggle: () => void;
 }
 
 export interface RowClickPayload<TRow = Record<string, unknown>> {

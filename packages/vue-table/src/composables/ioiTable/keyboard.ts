@@ -198,7 +198,7 @@ export function createKeyboardNavigation<TRow = Record<string, unknown>>(
         event.preventDefault();
         if (isCellNavigationMode.value) {
           const column = columns.value[focusedColumnIndex.value];
-          if (column && !column.hidden) {
+          if (column && !column.hidden && column.editable !== false) {
             api.startEdit({
               field: String(column.field),
               rowIndex: focusedRowIndex.value

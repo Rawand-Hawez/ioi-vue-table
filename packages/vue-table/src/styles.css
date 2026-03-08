@@ -5,6 +5,10 @@
   --ioi-table-focus-outline-offset: -2px;
 }
 
+.ioi-table {
+  position: relative;
+}
+
 .ioi-table__sr-only {
   position: absolute;
   width: 1px;
@@ -95,4 +99,40 @@
   .ioi-table__cell--focused {
     outline: 2px dashed Highlight;
   }
+}
+
+.ioi-table__resize-handle--disabled {
+  cursor: default;
+  pointer-events: none;
+}
+
+.ioi-table__filter-row {
+  position: sticky;
+  top: var(--ioi-table-header-height, 36px);
+  z-index: 3;
+}
+
+.ioi-table__filter-cell {
+  padding: 0;
+  top: auto;
+}
+
+.ioi-table__expanded-content {
+  padding: 0;
+}
+
+.ioi-table__loading-overlay,
+.ioi-table__error-overlay {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background-color: rgba(255, 255, 255, 0.9);
+  z-index: 10;
+}
+
+.ioi-table__error-overlay {
+  background-color: rgba(255, 240, 240, 0.95);
+  color: #c00;
 }

@@ -84,8 +84,10 @@ defineSlots<{
   'header-filter'?: (slotProps: HeaderFilterSlotProps<TRow>) => unknown;
   cell?: (slotProps: CellSlotProps<TRow>) => unknown;
   'expanded-row'?: (slotProps: { row: TRow; rowIndex: number }) => unknown;
-  'group-header'?: (slotProps: { group: import('../types').GroupHeader; expanded: boolean }) => unknown;
+  'group-header'?: (slotProps: import('../types').GroupHeaderSlotProps) => unknown;
   empty?: () => unknown;
+  loading?: () => unknown;
+  error?: (slotProps: { error: string | null }) => unknown;
 }>();
 
 const DEFAULT_HEIGHT = 320;
@@ -219,6 +221,32 @@ const headerFacetOptionsByField = computed(() => {
   return optionsByField;
 });
 const selectionEnabled = computed(() => props.rowKey !== undefined && props.rowKey !== null);
+const hasHeaderFilterRow = computed(() => renderColumns.value.some((column) => column.headerFilter));
+
+function isColumnEditable(column: ColumnDef<TRow>): boolean {
+  if (column.editable === false || column.hidden) {
+    return false;
+  }
+  return true;
+}
+
+function isLastPinnedLeftColumn(column: ColumnDef<TRow>): boolean {
+  if (column.pin !== 'left') {
+    return false;
+  }
+  const leftCols = pinnedLeftColumns.value;
+  const columnId = resolveColumnId(column);
+  return leftCols.length > 0 && resolveColumnId(leftCols[leftCols.length - 1]!) === columnId;
+}
+
+function isFirstPinnedRightColumn(column: ColumnDef<TRow>): boolean {
+  if (column.pin !== 'right') {
+    return false;
+  }
+  const rightCols = pinnedRightColumns.value;
+  const columnId = resolveColumnId(column);
+  return rightCols.length > 0 && resolveColumnId(rightCols[0]!) === columnId;
+}
 
 const announcement = ref('');
 const liveRegionMessage = computed(() => {
@@ -331,6 +359,7 @@ const resizeState = ref<ResizeState | null>(null);
 const draggingColumnId = ref<string | null>(null);
 const draggingPinGroup = ref<PinGroup | null>(null);
 const dragTargetColumnId = ref<string | null>(null);
+const dragOverDirection = ref<'left' | 'right' | null>(null);
 
 const leftStickyOffsets = computed(() => {
   let offset = 0;
@@ -571,6 +600,7 @@ function onHeaderDragOver(event: DragEvent, column: ColumnDef<TRow>): void {
 
   if (resolvePinGroup(column) !== draggingPinGroup.value) {
     dragTargetColumnId.value = null;
+    dragOverDirection.value = null;
     return;
   }
 
@@ -580,6 +610,15 @@ function onHeaderDragOver(event: DragEvent, column: ColumnDef<TRow>): void {
   }
 
   dragTargetColumnId.value = resolveColumnId(column);
+
+  const targetElement = event.currentTarget as HTMLElement | null;
+  if (targetElement && typeof event.clientX === 'number') {
+    const rect = targetElement.getBoundingClientRect();
+    if (rect.width > 0) {
+      const midX = rect.left + rect.width / 2;
+      dragOverDirection.value = event.clientX < midX ? 'left' : 'right';
+    }
+  }
 }
 
 function onHeaderDrop(event: DragEvent, targetColumn: ColumnDef<TRow>): void {
@@ -616,7 +655,8 @@ function onHeaderDrop(event: DragEvent, targetColumn: ColumnDef<TRow>): void {
     return;
   }
 
-  const insertIndex = sourceIndex < targetIndex ? targetIndex - 1 : targetIndex;
+  const adjustedTargetIndex = sourceIndex < targetIndex ? targetIndex - 1 : targetIndex;
+  const insertIndex = dragOverDirection.value === 'right' ? adjustedTargetIndex + 1 : adjustedTargetIndex;
   nextOrder.splice(insertIndex, 0, sourceEntry);
   columnState.setColumnOrder(nextOrder);
 }
@@ -625,11 +665,13 @@ function onHeaderDragEnd(): void {
   draggingColumnId.value = null;
   draggingPinGroup.value = null;
   dragTargetColumnId.value = null;
+  dragOverDirection.value = null;
 }
 
 function getColumnStyle(
   column: ColumnDef<TRow>,
-  section: 'header' | 'body' = 'body'
+  section: 'header' | 'body' = 'body',
+  isFilterCell = false
 ): Record<string, string> {
   const width = normalizeColumnWidth(column.width);
   const columnId = column.id ?? String(column.field);
@@ -639,8 +681,10 @@ function getColumnStyle(
     maxWidth: column.maxWidth ? `${column.maxWidth}px` : ''
   };
 
-  if (section === 'header') {
-    style.position = 'relative';
+  if (section === 'header' && !isFilterCell) {
+    style.position = 'sticky';
+    style.top = '0';
+    style.zIndex = '3';
   }
 
   if (column.pin === 'left') {
@@ -982,6 +1026,10 @@ defineExpose({
   expandAllRows: table.expandAllRows,
   collapseAllRows: table.collapseAllRows,
   isRowExpanded: table.isRowExpanded,
+  toggleGroupExpansion: table.toggleGroupExpansion,
+  expandAllGroups: table.expandAllGroups,
+  collapseAllGroups: table.collapseAllGroups,
+  isGroupExpanded: table.isGroupExpanded,
   startEdit: table.startEdit,
   setEditDraft: table.setEditDraft,
   commitEdit: table.commitEdit,
@@ -1031,8 +1079,12 @@ defineExpose({
               :class="{
                 'ioi-table__header--dragging': draggingColumnId === column.id,
                 'ioi-table__header--drag-target': dragTargetColumnId === column.id,
+                'ioi-table__header--drag-over-left': dragTargetColumnId === column.id && dragOverDirection === 'left',
+                'ioi-table__header--drag-over-right': dragTargetColumnId === column.id && dragOverDirection === 'right',
                 'ioi-table__header--sorted-asc': getSortDirection(column) === 'asc',
-                'ioi-table__header--sorted-desc': getSortDirection(column) === 'desc'
+                'ioi-table__header--sorted-desc': getSortDirection(column) === 'desc',
+                'ioi-table__header--pinned-left-edge': isLastPinnedLeftColumn(column),
+                'ioi-table__header--pinned-right-edge': isFirstPinnedRightColumn(column)
               }"
               :data-column-id="column.id"
               :aria-colindex="columnIndex + 1 + (expandable ? 1 : 0)"
@@ -1048,47 +1100,6 @@ defineExpose({
                 <slot name="header" :column="column" :column-index="columnIndex">
                   <span class="ioi-table__header-label">{{ column.header ?? column.field }}</span>
                 </slot>
-                <div v-if="column.headerFilter" class="ioi-table__header-filter">
-                  <slot
-                    name="header-filter"
-                    :column="column"
-                    :column-index="columnIndex"
-                    :mode="column.headerFilter"
-                    :value="getHeaderFilterValue(column)"
-                    :options="column.headerFilter === 'select' ? getHeaderFacetOptions(column) : undefined"
-                    :set-value="(value) => setHeaderFilterValue(column, value)"
-                    :clear="() => clearHeaderFilter(column)"
-                  >
-                    <input
-                      v-if="column.headerFilter === 'text'"
-                      class="ioi-table__filter-input"
-                      draggable="false"
-                      type="text"
-                      :value="getHeaderFilterValue(column)"
-                      @mousedown.stop
-                      @click.stop
-                      @input="setHeaderFilterValue(column, ($event.target as HTMLInputElement).value)"
-                    >
-                    <select
-                      v-else
-                      class="ioi-table__filter-select"
-                      draggable="false"
-                      :value="getHeaderFilterValue(column)"
-                      @mousedown.stop
-                      @click.stop
-                      @change="setHeaderFilterValue(column, ($event.target as HTMLSelectElement).value)"
-                    >
-                      <option value="">All</option>
-                      <option
-                        v-for="option in getHeaderFacetOptions(column)"
-                        :key="option"
-                        :value="option"
-                      >
-                        {{ option }}
-                      </option>
-                    </select>
-                  </slot>
-                </div>
               </div>
               <button
                 type="button"
@@ -1099,6 +1110,62 @@ defineExpose({
                 :style="getResizeHandleStyle(column)"
                 @mousedown="onResizeHandleMouseDown($event, column)"
               />
+            </th>
+          </tr>
+          <tr v-if="hasHeaderFilterRow" role="row" class="ioi-table__filter-row">
+            <th
+              v-for="(column, columnIndex) in renderColumns"
+              :key="`filter-${column.id}`"
+              role="columnheader"
+              class="ioi-table__filter-cell"
+              :class="{
+                'ioi-table__filter-cell--pinned-left-edge': isLastPinnedLeftColumn(column),
+                'ioi-table__filter-cell--pinned-right-edge': isFirstPinnedRightColumn(column)
+              }"
+              :aria-colindex="columnIndex + 1 + (expandable ? 1 : 0)"
+              :style="getColumnStyle(column, 'header', true)"
+            >
+              <div v-if="column.headerFilter" class="ioi-table__header-filter">
+                <slot
+                  name="header-filter"
+                  :column="column"
+                  :column-index="columnIndex"
+                  :mode="column.headerFilter"
+                  :value="getHeaderFilterValue(column)"
+                  :options="column.headerFilter === 'select' ? getHeaderFacetOptions(column) : undefined"
+                  :set-value="(value) => setHeaderFilterValue(column, value)"
+                  :clear="() => clearHeaderFilter(column)"
+                >
+                  <input
+                    v-if="column.headerFilter === 'text'"
+                    class="ioi-table__filter-input"
+                    draggable="false"
+                    type="text"
+                    :value="getHeaderFilterValue(column)"
+                    @mousedown.stop
+                    @click.stop
+                    @input="setHeaderFilterValue(column, ($event.target as HTMLInputElement).value)"
+                  >
+                  <select
+                    v-else
+                    class="ioi-table__filter-select"
+                    draggable="false"
+                    :value="getHeaderFilterValue(column)"
+                    @mousedown.stop
+                    @click.stop
+                    @change="setHeaderFilterValue(column, ($event.target as HTMLSelectElement).value)"
+                  >
+                    <option value="">All</option>
+                    <option
+                      v-for="option in getHeaderFacetOptions(column)"
+                      :key="option"
+                      :value="option"
+                    >
+                      {{ option }}
+                    </option>
+                  </select>
+                </slot>
+              </div>
             </th>
           </tr>
         </thead>
@@ -1126,6 +1193,7 @@ defineExpose({
                   name="group-header"
                   :group="entry.group"
                   :expanded="isGroupExpanded(entry.group.key)"
+                  :toggle="() => toggleGroupExpansion(entry.group.key)"
                 >
                   <button
                     type="button"
@@ -1186,7 +1254,10 @@ defineExpose({
                 :class="{
                   'ioi-table__cell': true,
                   'ioi-table__cell--editing': isEditingCell(entry.row, entry.rowIndex, column),
-                  'ioi-table__cell--focused': isCellFocused(entry.rowIndex, columnIndex)
+                  'ioi-table__cell--focused': isCellFocused(entry.rowIndex, columnIndex),
+                  'ioi-table__cell--editable': isColumnEditable(column),
+                  'ioi-table__cell--pinned-left-edge': isLastPinnedLeftColumn(column),
+                  'ioi-table__cell--pinned-right-edge': isFirstPinnedRightColumn(column)
                 }"
                 :data-col-index="columnIndex"
                 :style="getColumnStyle(column)"
@@ -1242,6 +1313,14 @@ defineExpose({
           </tr>
         </tbody>
       </table>
+    </div>
+    <div v-if="table.loading.value" class="ioi-table__loading-overlay">
+      <slot name="loading">Loading...</slot>
+    </div>
+    <div v-if="table.error.value" class="ioi-table__error-overlay">
+      <slot name="error" :error="table.error.value">
+        {{ table.error.value }}
+      </slot>
     </div>
   </div>
 </template>
