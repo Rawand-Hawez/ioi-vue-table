@@ -49,10 +49,9 @@
 
 .theme-default .ioi-table__header-content {
   display: flex;
-  flex-direction: column;
-  align-items: stretch;
-  padding: 0.5rem 0.85rem 0;
-  gap: 0;
+  flex-direction: row;
+  align-items: center;
+  padding: 0.5rem 0.85rem;
   font-weight: 600;
   font-size: 0.75rem;
   text-transform: uppercase;
@@ -77,8 +76,14 @@
   color: #0f5bd4;
 }
 
-.theme-default .ioi-table__header-filter {
-  padding: 0.2rem 0 0.45rem;
+/* Filter row — second <tr> in <thead> */
+.theme-default .ioi-table__filter-row th {
+  background: #f1f5f9;
+  border-bottom: 1px solid #e2e8f0;
+}
+
+.theme-default .ioi-table__filter-cell {
+  padding: 0.3rem 0.5rem;
 }
 
 .theme-default .ioi-table__filter-input,
@@ -252,7 +257,7 @@
 }
 
 .theme-tailwind .ioi-table__header-content {
-  @apply flex flex-col items-stretch gap-0 px-3 pt-2.5 pb-0 text-xs font-semibold text-slate-500 uppercase tracking-wider cursor-pointer select-none whitespace-nowrap transition-colors duration-100;
+  @apply flex flex-row items-center px-3 py-2.5 text-xs font-semibold text-slate-500 uppercase tracking-wider cursor-pointer select-none whitespace-nowrap transition-colors duration-100;
 }
 
 .theme-tailwind .ioi-table__header-content:hover {
@@ -269,8 +274,13 @@
   @apply text-blue-500;
 }
 
-.theme-tailwind .ioi-table__header-filter {
-  @apply pt-1 pb-2;
+/* Filter row — second <tr> in <thead> */
+.theme-tailwind .ioi-table__filter-row th {
+  @apply bg-slate-100 border-b border-slate-200;
+}
+
+.theme-tailwind .ioi-table__filter-cell {
+  @apply px-2 py-1.5;
 }
 
 .theme-tailwind .ioi-table__filter-input,
@@ -417,10 +427,9 @@
 
 .theme-bootstrap .ioi-table__header-content {
   display: flex;
-  flex-direction: column;
-  align-items: stretch;
-  gap: 0;
-  padding: 0.55rem 0.85rem 0;
+  flex-direction: row;
+  align-items: center;
+  padding: 0.55rem 0.85rem;
   font-weight: 600;
   font-size: 0.8125rem;
   color: var(--bs-emphasis-color, #000);
@@ -444,8 +453,14 @@
   color: var(--bs-primary, #0d6efd);
 }
 
-.theme-bootstrap .ioi-table__header-filter {
-  padding: 0.2rem 0 0.45rem;
+/* Filter row — second <tr> in <thead> */
+.theme-bootstrap .ioi-table__filter-row th {
+  background-color: var(--bs-secondary-bg, #e9ecef);
+  border-bottom: 1px solid var(--bs-border-color, #dee2e6);
+}
+
+.theme-bootstrap .ioi-table__filter-cell {
+  padding: 0.3rem 0.5rem;
 }
 
 .theme-bootstrap .ioi-table__filter-input,
