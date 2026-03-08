@@ -1,193 +1,307 @@
 <script setup lang="ts">
-import { computed, onMounted, onUnmounted, ref } from 'vue';
-import BigDataDemo from './demos/BigDataDemo.vue';
-import CsvImportDemo from './demos/CsvImportDemo.vue';
-import OpsDemo from './demos/OpsDemo.vue';
-import PinnedColumnsDemo from './demos/PinnedColumnsDemo.vue';
+import { computed, defineAsyncComponent, onMounted, onUnmounted, ref } from 'vue';
+import { lastPerfEntry } from './composables/usePerf';
+import { useTheme, type Theme } from './composables/useTheme';
 
-type DemoRoute = 'big-data' | 'pinned-columns' | 'ops-demo' | 'csv-import';
+const { activeTheme, setTheme } = useTheme();
 
-interface DemoRouteEntry {
-  id: DemoRoute;
+type RouteId =
+  | 'overview'
+  | 'sort-filter'
+  | 'virtual-scroll'
+  | 'column-control'
+  | 'row-grouping'
+  | 'custom-cells'
+  | 'editing'
+  | 'csv-export';
+
+interface NavRoute {
+  id: RouteId;
   label: string;
-  description: string;
+  badge?: string;
 }
 
-const routes: DemoRouteEntry[] = [
-  {
-    id: 'big-data',
-    label: 'Big Data',
-    description: '100k x 50 deterministic primitives and virtualization stress.'
-  },
-  {
-    id: 'pinned-columns',
-    label: 'Pinned Columns',
-    description: 'Left/right partitions with interactive resize and drag reorder.'
-  },
-  {
-    id: 'ops-demo',
-    label: 'Ops Demo',
-    description: 'Sort/filter/global-search/selection plus perf timing panel.'
-  },
-  {
-    id: 'csv-import',
-    label: 'CSV Import',
-    description: 'Preview, auto-map, and validate CSV rows before commit.'
-  }
+const routes: NavRoute[] = [
+  { id: 'overview', label: 'Overview' },
+  { id: 'sort-filter', label: 'Sort & Filter' },
+  { id: 'virtual-scroll', label: 'Virtual Scroll' },
+  { id: 'column-control', label: 'Columns' },
+  { id: 'row-grouping', label: 'Grouping', badge: 'v0.2' },
+  { id: 'custom-cells', label: 'Custom Cells' },
+  { id: 'editing', label: 'Editing' },
+  { id: 'csv-export', label: 'CSV Export' },
 ];
 
-const componentByRoute: Record<DemoRoute, unknown> = {
-  'big-data': BigDataDemo,
-  'pinned-columns': PinnedColumnsDemo,
-  'ops-demo': OpsDemo,
-  'csv-import': CsvImportDemo
+const componentMap: Record<RouteId, ReturnType<typeof defineAsyncComponent>> = {
+  'overview': defineAsyncComponent(() => import('./demos/OverviewDemo.vue')),
+  'sort-filter': defineAsyncComponent(() => import('./demos/SortFilterDemo.vue')),
+  'virtual-scroll': defineAsyncComponent(() => import('./demos/VirtualScrollDemo.vue')),
+  'column-control': defineAsyncComponent(() => import('./demos/ColumnControlDemo.vue')),
+  'row-grouping': defineAsyncComponent(() => import('./demos/RowGroupingDemo.vue')),
+  'custom-cells': defineAsyncComponent(() => import('./demos/CustomCellsDemo.vue')),
+  'editing': defineAsyncComponent(() => import('./demos/InlineEditingDemo.vue')),
+  'csv-export': defineAsyncComponent(() => import('./demos/CsvExportDemo.vue')),
 };
 
-function parseRoute(hash: string): DemoRoute {
-  const normalized = hash.replace(/^#\/?/, '').trim() as DemoRoute;
-  return routes.some((route) => route.id === normalized) ? normalized : 'big-data';
+function parseHash(hash: string): RouteId {
+  const id = hash.replace(/^#\/?/, '').trim() as RouteId;
+  return routes.some((r) => r.id === id) ? id : 'overview';
 }
 
-const currentRoute = ref<DemoRoute>(parseRoute(window.location.hash));
-
-const activeComponent = computed(() => componentByRoute[currentRoute.value]);
+const currentRoute = ref<RouteId>(parseHash(window.location.hash));
+const activeComponent = computed(() => componentMap[currentRoute.value]);
 
 function onHashChange(): void {
-  currentRoute.value = parseRoute(window.location.hash);
+  currentRoute.value = parseHash(window.location.hash);
 }
 
 onMounted(() => {
-  if (!window.location.hash) {
-    window.location.hash = 'big-data';
-  }
+  if (!window.location.hash) window.location.hash = 'overview';
   onHashChange();
   window.addEventListener('hashchange', onHashChange);
 });
 
-onUnmounted(() => {
-  window.removeEventListener('hashchange', onHashChange);
+onUnmounted(() => window.removeEventListener('hashchange', onHashChange));
+
+const themes: { id: Theme; label: string }[] = [
+  { id: 'default', label: 'Default' },
+  { id: 'tailwind', label: 'Tailwind' },
+  { id: 'bootstrap', label: 'Bootstrap' },
+];
+
+const perfColor = computed(() => {
+  if (!lastPerfEntry.value) return '#64748b';
+  const ms = lastPerfEntry.value.ms;
+  if (ms < 5) return '#16a34a';
+  if (ms < 50) return '#d97706';
+  return '#dc2626';
 });
 </script>
 
 <template>
-  <main class="playground-shell">
-    <header class="shell-header">
-      <p class="shell-header__kicker">IOI Vue Table Playground</p>
-      <h1>Regression-Torture Demos</h1>
-      <p class="shell-header__summary">
-        JS-first baseline with virtualized rendering, pinned partition behavior, and repeatable perf
-        timings. WASM integration remains intentionally separate.
-      </p>
+  <div class="app-shell">
+    <header class="top-nav">
+      <a class="nav-brand" href="#overview">
+        <span class="nav-logo">IOI</span>
+        <span class="nav-title">Vue Table</span>
+        <span class="nav-version">v0.2.1</span>
+      </a>
+
+      <nav class="nav-tabs" aria-label="Demo sections">
+        <a
+          v-for="route in routes"
+          :key="route.id"
+          :href="`#${route.id}`"
+          :class="['nav-tab', { 'nav-tab--active': route.id === currentRoute }]"
+        >
+          {{ route.label }}
+          <span v-if="route.badge" class="nav-tab-badge">{{ route.badge }}</span>
+        </a>
+      </nav>
+
+      <div class="nav-right">
+        <div class="theme-switcher" role="group" aria-label="Table theme">
+          <button
+            v-for="t in themes"
+            :key="t.id"
+            :class="['theme-btn', { 'theme-btn--active': activeTheme === t.id }]"
+            @click="setTheme(t.id)"
+          >
+            {{ t.label }}
+          </button>
+        </div>
+
+        <div v-if="lastPerfEntry" class="perf-pill" :style="{ color: perfColor }">
+          <span class="perf-pill__icon">&#9889;</span>
+          <span class="perf-pill__ms">{{ lastPerfEntry.ms }}ms</span>
+          <span class="perf-pill__label">{{ lastPerfEntry.label }}</span>
+        </div>
+      </div>
     </header>
 
-    <nav class="route-nav" aria-label="Demo routes">
-      <a
-        v-for="route in routes"
-        :key="route.id"
-        :href="`#/${route.id}`"
-        :class="['route-nav__item', { 'route-nav__item--active': route.id === currentRoute }]"
-      >
-        <strong>{{ route.label }}</strong>
-        <span>{{ route.description }}</span>
-      </a>
-    </nav>
-
-    <section class="route-stage">
-      <component :is="activeComponent" />
-    </section>
-  </main>
+    <main class="demo-stage">
+      <Suspense>
+        <component :is="activeComponent" />
+        <template #fallback>
+          <div class="demo-loading">Loading…</div>
+        </template>
+      </Suspense>
+    </main>
+  </div>
 </template>
 
 <style scoped>
-.playground-shell {
-  max-width: 1320px;
-  margin: 0 auto;
-  padding: 1.4rem;
-  display: grid;
-  gap: 1rem;
-  font-family: 'Avenir Next', 'Segoe UI', sans-serif;
-  color: #122033;
+.app-shell {
+  display: flex;
+  flex-direction: column;
+  min-height: 100dvh;
 }
 
-.shell-header {
-  border: 1px solid #d9e2ef;
-  border-radius: 14px;
-  padding: 1rem 1.2rem;
-  background: linear-gradient(120deg, #f8fbff, #eef5ff 55%, #f3f8ff);
+.top-nav {
+  position: sticky;
+  top: 0;
+  z-index: 100;
+  display: flex;
+  align-items: center;
+  height: 52px;
+  background: #ffffff;
+  border-bottom: 1px solid #e2e8f0;
+  padding: 0 1rem;
+  box-shadow: 0 1px 3px rgba(15, 23, 42, 0.06);
+  gap: 0;
 }
 
-.shell-header__kicker {
-  margin: 0;
-  font-size: 0.77rem;
-  letter-spacing: 0.08em;
-  text-transform: uppercase;
-  color: #0f4eaf;
-  font-weight: 700;
-}
-
-.shell-header h1 {
-  margin: 0.4rem 0 0;
-  font-size: clamp(1.4rem, 2.8vw, 2rem);
-}
-
-.shell-header__summary {
-  margin: 0.5rem 0 0;
-  max-width: 76ch;
-  color: #435369;
-}
-
-.route-nav {
-  display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
-  gap: 0.65rem;
-}
-
-.route-nav__item {
-  display: grid;
-  gap: 0.32rem;
-  border: 1px solid #d9e2ef;
-  border-radius: 12px;
-  padding: 0.75rem 0.85rem;
+.nav-brand {
+  display: flex;
+  align-items: center;
+  gap: 0.45rem;
   text-decoration: none;
-  color: inherit;
+  flex-shrink: 0;
+  margin-right: 1rem;
+}
+
+.nav-logo {
+  background: var(--brand, #0f5bd4);
+  color: #fff;
+  font-size: 0.68rem;
+  font-weight: 800;
+  letter-spacing: 0.06em;
+  padding: 0.18rem 0.38rem;
+  border-radius: 5px;
+}
+
+.nav-title {
+  font-weight: 700;
+  font-size: 0.92rem;
+  color: #0f172a;
+}
+
+.nav-version {
+  font-size: 0.68rem;
+  font-weight: 600;
+  background: #f1f5f9;
+  color: #64748b;
+  border-radius: 20px;
+  padding: 0.12rem 0.45rem;
+}
+
+.nav-tabs {
+  display: flex;
+  align-items: center;
+  flex: 1;
+  overflow-x: auto;
+  scrollbar-width: none;
+  height: 100%;
+}
+.nav-tabs::-webkit-scrollbar { display: none; }
+
+.nav-tab {
+  display: flex;
+  align-items: center;
+  gap: 0.28rem;
+  height: 100%;
+  padding: 0 0.85rem;
+  text-decoration: none;
+  color: #64748b;
+  font-size: 0.81rem;
+  font-weight: 500;
+  border-bottom: 2px solid transparent;
+  white-space: nowrap;
+  transition: color 100ms, border-color 100ms;
+  flex-shrink: 0;
+}
+.nav-tab:hover { color: #0f172a; }
+.nav-tab--active {
+  color: var(--brand, #0f5bd4);
+  border-bottom-color: var(--brand, #0f5bd4);
+  font-weight: 600;
+}
+
+.nav-tab-badge {
+  font-size: 0.6rem;
+  font-weight: 700;
+  background: #eff6ff;
+  color: #0f5bd4;
+  border-radius: 20px;
+  padding: 0.08rem 0.32rem;
+}
+
+.nav-right {
+  display: flex;
+  align-items: center;
+  gap: 0.65rem;
+  flex-shrink: 0;
+  margin-left: 0.5rem;
+}
+
+.theme-switcher {
+  display: flex;
+  gap: 2px;
+  background: #f1f5f9;
+  border-radius: 8px;
+  padding: 3px;
+}
+
+.theme-btn {
+  border: none;
+  background: transparent;
+  color: #64748b;
+  font-size: 0.74rem;
+  font-weight: 500;
+  padding: 0.26rem 0.6rem;
+  border-radius: 6px;
+  cursor: pointer;
+  transition: all 100ms;
+  white-space: nowrap;
+}
+.theme-btn:hover { color: #0f172a; background: #e2e8f0; }
+.theme-btn--active {
   background: #ffffff;
-  transition: transform 120ms ease, border-color 120ms ease, box-shadow 120ms ease;
+  color: var(--brand, #0f5bd4);
+  font-weight: 700;
+  box-shadow: 0 1px 3px rgba(15, 23, 42, 0.12);
 }
 
-.route-nav__item strong {
-  font-size: 0.9rem;
+.perf-pill {
+  display: flex;
+  align-items: center;
+  gap: 0.28rem;
+  font-size: 0.73rem;
+  font-weight: 600;
+  background: #f8fafc;
+  border: 1px solid #e2e8f0;
+  border-radius: 20px;
+  padding: 0.22rem 0.6rem;
+  white-space: nowrap;
+}
+.perf-pill__label {
+  color: #94a3b8;
+  font-weight: 400;
+  max-width: 120px;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 
-.route-nav__item span {
-  font-size: 0.8rem;
-  color: #5f6c7e;
+.demo-stage {
+  flex: 1;
+  padding: 1.5rem;
+  max-width: 1440px;
+  width: 100%;
+  margin: 0 auto;
+  box-sizing: border-box;
 }
 
-.route-nav__item:hover {
-  transform: translateY(-1px);
-  border-color: #b3c4df;
-  box-shadow: 0 8px 16px rgba(15, 50, 108, 0.08);
+.demo-loading {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  height: 300px;
+  color: #94a3b8;
+  font-size: 0.875rem;
 }
 
-.route-nav__item--active {
-  border-color: #0f5bd4;
-  box-shadow: 0 10px 22px rgba(15, 91, 212, 0.16);
-}
-
-.route-stage {
-  border: 1px solid #d9e2ef;
-  border-radius: 14px;
-  background: #ffffff;
-  padding: 0.95rem;
-}
-
-@media (max-width: 980px) {
-  .route-nav {
-    grid-template-columns: minmax(0, 1fr);
-  }
-
-  .playground-shell {
-    padding: 0.8rem;
-  }
+@media (max-width: 860px) {
+  .perf-pill { display: none; }
+  .demo-stage { padding: 1rem 0.75rem; }
 }
 </style>
