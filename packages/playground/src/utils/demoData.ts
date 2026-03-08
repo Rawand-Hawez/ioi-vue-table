@@ -4,13 +4,13 @@ import type { ColumnDef } from '@ioi-dev/vue-table';
 // Employee data — Sort/Filter, CSV Export, Editing demos
 // ============================================================
 
-const FIRST_NAMES = ['Alice', 'Bob', 'Carol', 'David', 'Eva', 'Frank', 'Grace', 'Hana', 'Ivan', 'Julia',
-  'Kevin', 'Laura', 'Mike', 'Nina', 'Omar', 'Priya', 'Quinn', 'Rosa', 'Sam', 'Tina',
-  'Umar', 'Vera', 'Will', 'Xara', 'Yusuf', 'Zoe', 'Aaron', 'Beth', 'Carl', 'Dana'];
-const LAST_NAMES = ['Chen', 'Smith', 'Patel', 'Garcia', 'Kim', 'Johnson', 'Hawez', 'Nguyen', 'Brown',
-  'Williams', 'Jones', 'Davis', 'Miller', 'Wilson', 'Moore', 'Taylor', 'Anderson', 'Thomas'];
+const FIRST_NAMES = ['Oliver', 'Harry', 'George', 'Jack', 'Noah', 'Charlie', 'Alfie', 'Freddie', 'Thomas', 'Oscar',
+  'Amelia', 'Olivia', 'Isla', 'Emily', 'Ava', 'Sophie', 'Ella', 'Grace', 'Mia', 'Lily',
+  'James', 'William', 'Ethan', 'Daniel', 'Charlotte', 'Alice', 'Eleanor', 'Poppy', 'Archie', 'Isabella'];
+const LAST_NAMES = ['Smith', 'Jones', 'Williams', 'Taylor', 'Brown', 'Davies', 'Evans', 'Wilson',
+  'Thomas', 'Roberts', 'Johnson', 'Lewis', 'Walker', 'Robinson', 'Wood', 'Thompson', 'White', 'Clarke'];
 const DEPARTMENTS = ['Engineering', 'Product', 'Design', 'Marketing', 'Sales', 'Finance', 'HR', 'Legal', 'DevOps', 'Data'];
-const ROLES = ['Manager', 'Senior Engineer', 'Engineer', 'Lead', 'Principal', 'Intern', 'Director', 'Analyst', 'Architect', 'Specialist'];
+const ROLES = ['Manager', 'Senior Engineer', 'Engineer', 'Lead', 'Principal', 'Graduate', 'Director', 'Analyst', 'Architect', 'Specialist'];
 const EMP_STATUSES = ['Active', 'Remote', 'On Leave'] as const;
 
 export type EmployeeStatus = typeof EMP_STATUSES[number];
@@ -41,7 +41,7 @@ export function createEmployees(count = 5_000): Employee[] {
     rows[i] = {
       id: i + 1,
       name: `${first} ${last}`,
-      email: `${first.toLowerCase()}.${last.toLowerCase()}${i > 0 ? i : ''}@company.io`,
+      email: `${first.toLowerCase()}.${last.toLowerCase()}${i > 0 ? i : ''}@company.co.uk`,
       department: dept,
       role,
       salary,
@@ -60,7 +60,7 @@ export function createEmployeeColumns(): ColumnDef<Employee>[] {
     { id: 'email', field: 'email', header: 'Email', type: 'text', width: 260 },
     { id: 'department', field: 'department', header: 'Department', type: 'text', width: 150, headerFilter: 'select' },
     { id: 'role', field: 'role', header: 'Role', type: 'text', width: 180, headerFilter: 'select' },
-    { id: 'salary', field: 'salary', header: 'Salary ($)', type: 'number', width: 130 },
+    { id: 'salary', field: 'salary', header: 'Salary (£)', type: 'number', width: 130 },
     { id: 'startDate', field: 'startDate', header: 'Start Date', type: 'date', width: 130 },
     { id: 'status', field: 'status', header: 'Status', type: 'text', width: 120, headerFilter: 'select' },
     { id: 'performance', field: 'performance', header: 'Score', type: 'number', width: 100 },
@@ -71,10 +71,10 @@ export function createEmployeeColumns(): ColumnDef<Employee>[] {
 // Sales data — Row Grouping demo
 // ============================================================
 
-const REGIONS = ['North America', 'Europe', 'Asia Pacific', 'Middle East', 'Latin America'];
+const REGIONS = ['South East', 'North West', 'Scotland', 'Midlands', 'Yorkshire', 'Wales', 'East Anglia', 'South West', 'Northern Ireland', 'North East'];
 const CATEGORIES = ['Software', 'Hardware', 'Services', 'Support', 'Training'];
-const REPS = ['Alice Chen', 'Bob Smith', 'Carol Patel', 'David Kim', 'Eva Garcia',
-  'Frank Johnson', 'Grace Lee', 'Hana Nguyen', 'Ivan Brown', 'Julia Wilson'];
+const REPS = ['Oliver Smith', 'Harry Jones', 'Charlotte Williams', 'James Taylor', 'Emily Brown',
+  'William Davies', 'Sophie Evans', 'Thomas Wilson', 'Emma Roberts', 'Jack Johnson'];
 const PRODUCTS = ['ProSuite', 'DataGrid', 'CloudPack', 'SupportHub', 'DevKit', 'AnalyticsPro', 'SecureVault', 'FlowEngine'];
 const SALE_STATUSES = ['Won', 'Lost', 'Pending'] as const;
 
@@ -118,7 +118,7 @@ export function createSalesColumns(): ColumnDef<SaleRow>[] {
     { id: 'region', field: 'region', header: 'Region', type: 'text', width: 160, headerFilter: 'select' },
     { id: 'category', field: 'category', header: 'Category', type: 'text', width: 130, headerFilter: 'select' },
     { id: 'product', field: 'product', header: 'Product', type: 'text', width: 140 },
-    { id: 'amount', field: 'amount', header: 'Amount ($)', type: 'number', width: 130 },
+    { id: 'amount', field: 'amount', header: 'Amount (£)', type: 'number', width: 130 },
     { id: 'units', field: 'units', header: 'Units', type: 'number', width: 90 },
     { id: 'month', field: 'month', header: 'Month', type: 'text', width: 110 },
     { id: 'status', field: 'status', header: 'Status', type: 'text', width: 110, headerFilter: 'select' },
@@ -187,6 +187,7 @@ export interface TeamMember {
   team: string;
   hourlyRate: number;
   status: 'Active' | 'Inactive';
+  [key: string]: unknown;
 }
 
 export function createTeamMembers(count = 80): TeamMember[] {
@@ -197,7 +198,7 @@ export function createTeamMembers(count = 80): TeamMember[] {
     rows[i] = {
       id: i + 1,
       name: `${first} ${last}`,
-      email: `${first.toLowerCase()}@team.io`,
+      email: `${first.toLowerCase()}@team.co.uk`,
       role: ROLES[(i * 3) % ROLES.length],
       team: TEAMS[(i * 7) % TEAMS.length],
       hourlyRate: 45 + ((i * 11) % 105),
@@ -261,7 +262,7 @@ export function createBigDataRows(rowCount = 100_000, columnCount = 50): BigData
 
 const PROJ_STATUSES = ['Queued', 'Running', 'Done', 'Blocked'] as const;
 const RISKS = ['Low', 'Medium', 'High'] as const;
-const CITIES = ['Erbil', 'Sulaymaniyah', 'Duhok', 'Kirkuk', 'Baghdad', 'Berlin', 'London', 'Dubai'];
+const CITIES = ['London', 'Manchester', 'Birmingham', 'Leeds', 'Glasgow', 'Liverpool', 'Bristol', 'Sheffield', 'Edinburgh', 'Cardiff', 'Newcastle', 'Nottingham', 'Leicester', 'Oxford', 'Cambridge'];
 const TEAM_NAMES = ['Orion', 'Lyra', 'Hydra', 'Phoenix', 'Atlas', 'Nova'];
 
 export interface ProjectRow {
@@ -305,8 +306,8 @@ export function createProjectColumns(): ColumnDef<ProjectRow>[] {
     { id: 'project', field: 'project', header: 'Project', width: 200, pin: 'left', type: 'text' },
     { id: 'owner', field: 'owner', header: 'Owner', width: 140, type: 'text' },
     { id: 'city', field: 'city', header: 'City', width: 130, type: 'text' },
-    { id: 'budget', field: 'budget', header: 'Budget ($)', width: 130, type: 'number' },
-    { id: 'spent', field: 'spent', header: 'Spent ($)', width: 130, type: 'number' },
+    { id: 'budget', field: 'budget', header: 'Budget (£)', width: 130, type: 'number' },
+    { id: 'spent', field: 'spent', header: 'Spent (£)', width: 130, type: 'number' },
     { id: 'risk', field: 'risk', header: 'Risk', width: 110, type: 'text' },
     { id: 'updatedAt', field: 'updatedAt', header: 'Updated', width: 130, type: 'text' },
     { id: 'status', field: 'status', header: 'Status', width: 110, pin: 'right', type: 'text' },

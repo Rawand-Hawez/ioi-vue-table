@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { ref } from 'vue';
+import { ref, shallowRef } from 'vue';
 import { Table } from '@ioi-dev/vue-table';
 import type { CellSlotProps, ColumnDef, IoiCellCommitPayload } from '@ioi-dev/vue-table';
 import { useTheme } from '../composables/useTheme';
@@ -7,7 +7,7 @@ import { createTeamMembers, type TeamMember } from '../utils/demoData';
 
 const { activeTheme } = useTheme();
 
-const rows = ref<TeamMember[]>(createTeamMembers(80));
+const rows = shallowRef<TeamMember[]>(createTeamMembers(80));
 
 const columns: ColumnDef<TeamMember>[] = [
   { id: 'id',         field: 'id',         header: 'ID',          type: 'number', width: 72 },
@@ -18,12 +18,12 @@ const columns: ColumnDef<TeamMember>[] = [
   {
     id: 'hourlyRate',
     field: 'hourlyRate',
-    header: 'Rate ($/hr)',
+    header: 'Rate (£/hr)',
     type: 'number',
     width: 120,
     validate: (v) => {
       const n = Number(v);
-      if (isNaN(n) || n < 10 || n > 500) return 'Must be between $10 and $500';
+      if (isNaN(n) || n < 10 || n > 500) return 'Must be between £10 and £500';
       return true;
     },
   },
@@ -87,7 +87,7 @@ function onCellCommit(payload: IoiCellCommitPayload<TeamMember>): void {
         <h2 class="demo-title">Inline Editing</h2>
         <p class="demo-desc">
           Click any <strong>Name, Email, Role, Rate,</strong> or <strong>Status</strong> cell to edit inline.
-          Rate has a validation rule ($10–$500). Press Enter to commit, Escape to cancel.
+          Rate has a validation rule (£10–£500). Press Enter to commit, Escape to cancel.
         </p>
       </div>
       <div v-if="editingCell" class="editing-indicator">
@@ -149,7 +149,7 @@ function onCellCommit(payload: IoiCellCommitPayload<TeamMember>): void {
             <span
               class="editable-cell"
               @click="onCellClick(slotProps)"
-            >${{ slotProps.value }}</span>
+            >£{{ slotProps.value }}</span>
           </template>
 
           <!-- Other editable fields -->

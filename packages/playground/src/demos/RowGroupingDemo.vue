@@ -1,10 +1,7 @@
 <script setup lang="ts">
 import { computed, ref, watch } from 'vue';
 import { Table } from '@ioi-dev/vue-table';
-import type { ColumnDef } from '@ioi-dev/vue-table';
-
-type AggregationType = 'sum' | 'avg' | 'count' | 'min' | 'max';
-interface GroupHeader { key: string; value: unknown; count: number; aggregations: Record<string, number>; }
+import type { AggregationType, ColumnDef } from '@ioi-dev/vue-table';
 import { usePerf } from '../composables/usePerf';
 import { useTheme } from '../composables/useTheme';
 import { createSalesColumns, createSalesData, type SaleRow } from '../utils/demoData';
@@ -33,13 +30,6 @@ const expandedGroupKeys = ref<string[]>([]);
 // Reset expanded groups whenever the groupBy field changes
 watch(groupByField, () => { expandedGroupKeys.value = []; });
 
-function toggleGroup(key: string): void {
-  const idx = expandedGroupKeys.value.indexOf(key);
-  expandedGroupKeys.value = idx === -1
-    ? [...expandedGroupKeys.value, key]
-    : expandedGroupKeys.value.filter(k => k !== key);
-}
-
 function changeGroup(value: 'region' | 'category' | 'status'): void {
   measure(`group by ${value}`, () => { groupByField.value = value; });
 }
@@ -65,7 +55,7 @@ const groupCount = computed(() => {
   <div class="demo">
     <div class="demo-header">
       <div>
-        <h2 class="demo-title">Row Grouping <span class="new-badge">v0.2.0</span></h2>
+        <h2 class="demo-title">Row Grouping <span class="new-badge">v0.2.1</span></h2>
         <p class="demo-desc">
           Group 2,000 sales rows by any field. Aggregations (sum, avg, count) computed per group.
           Expand/collapse groups individually or all at once.
@@ -101,16 +91,16 @@ const groupCount = computed(() => {
           v-model:expandedGroupKeys="expandedGroupKeys"
         >
           <!-- Custom group header showing aggregations -->
-          <template #group-header="{ group, expanded }: { group: GroupHeader; expanded: boolean }">
-            <div class="group-row" @click="toggleGroup(group.key)">
+          <template #group-header="{ group, expanded, toggle }">
+            <div class="group-row" @click="toggle()">
               <span class="group-arrow">{{ expanded ? '▼' : '▶' }}</span>
               <span class="group-value">{{ group.value }}</span>
               <span class="group-count">{{ group.count }} rows</span>
               <span class="group-agg">
-                Sum: <strong>${{ fmt(group.aggregations['amount_sum']) }}</strong>
+                Sum: <strong>£{{ fmt(group.aggregations['amount_sum']) }}</strong>
               </span>
               <span class="group-agg">
-                Avg: <strong>${{ fmt(group.aggregations['amount_avg'], 0) }}</strong>
+                Avg: <strong>£{{ fmt(group.aggregations['amount_avg'], 0) }}</strong>
               </span>
               <span class="group-agg">
                 Units: <strong>{{ fmt(group.aggregations['units_sum']) }}</strong>

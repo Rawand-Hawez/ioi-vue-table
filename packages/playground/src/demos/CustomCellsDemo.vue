@@ -62,7 +62,7 @@ function badgeStyle(badge: string | null): Record<string, string> {
         :row-height="40"
         :overscan="8"
       >
-        <template #cell="{ row, column, value }: CellSlotProps<ProductRow>">
+        <template #cell="{ column, value }: CellSlotProps<ProductRow>">
           <!-- Badge column -->
           <template v-if="column.field === 'badge'">
             <span
@@ -91,7 +91,7 @@ function badgeStyle(badge: string | null): Record<string, string> {
 
           <!-- Price: formatted currency -->
           <template v-else-if="column.field === 'price'">
-            <span class="price">${{ (value as number).toFixed(2) }}</span>
+            <span class="price">£{{ (value as number).toFixed(2) }}</span>
           </template>
 
           <!-- Stock: color coded -->

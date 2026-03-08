@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { onMounted, ref } from 'vue';
+import { nextTick, onMounted, ref } from 'vue';
 import { Table } from '@ioi-dev/vue-table';
 import type { ColumnDef, ColumnFilter, SortState } from '@ioi-dev/vue-table';
 import { usePerf } from '../composables/usePerf';
@@ -24,6 +24,7 @@ interface TableRef {
   clearAllFilters: () => void;
 }
 const tableRef = ref<TableRef | null>(null);
+const tableWrapperRef = ref<HTMLDivElement | null>(null);
 
 onMounted(() => {
   const start = performance.now();
@@ -32,10 +33,15 @@ onMounted(() => {
   genMs.value = Math.round((performance.now() - start) * 10) / 10;
 });
 
-function jumpToRow(): void {
+async function jumpToRow(): Promise<void> {
   const clamped = Math.max(1, Math.min(ROW_COUNT, Math.floor(targetRow.value)));
   targetRow.value = clamped;
-  tableRef.value?.scrollToRow(clamped - 1);
+  // scrollToRow updates the internal virtual window but not the DOM scrollTop — set it directly
+  const viewport = tableWrapperRef.value?.querySelector('.ioi-table__viewport') as HTMLElement | null;
+  if (viewport) {
+    viewport.scrollTop = (clamped - 1) * 30; // row-height=30
+  }
+  await nextTick();
 }
 
 function runBenchmark(): void {
@@ -89,7 +95,7 @@ function msColor(ms: number): string {
     </div>
 
     <div class="layout">
-      <div :class="`theme-${activeTheme}`">
+      <div ref="tableWrapperRef" :class="`theme-${activeTheme}`">
         <Table
           ref="tableRef"
           :rows="rows"
