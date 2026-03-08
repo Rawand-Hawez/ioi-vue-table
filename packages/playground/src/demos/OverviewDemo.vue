@@ -33,7 +33,7 @@ const rows = [
   { id: 4, name: 'David Kim',    role: 'Design Lead',       status: 'On Leave' },
   { id: 5, name: 'Eva Garcia',   role: 'Data Analyst',      status: 'Active' },
 ]
-<\/script>
+${'</'}script>
 
 <template>
   <Table :rows="rows" :columns="columns" row-key="id" :height="280" />
