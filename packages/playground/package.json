@@ -23,15 +23,17 @@
     "lint": "node ../../node_modules/eslint/bin/eslint.js \"src/**/*.{ts,vue}\""
   },
   "dependencies": {
-    "@ioi-dev/vue-table": "0.1.7",
+    "@ioi-dev/vue-table": "0.2.0",
     "vue": "^3.4.0"
   },
   "devDependencies": {
+    "@tailwindcss/vite": "^4.1.0",
     "@typescript-eslint/eslint-plugin": "^8.24.1",
     "@typescript-eslint/parser": "^8.24.1",
     "@vitejs/plugin-vue": "^5.2.1",
     "eslint": "^8.57.1",
     "eslint-plugin-vue": "^9.32.0",
+    "tailwindcss": "^4.1.0",
     "typescript": "^5.7.3",
     "vite": "^5.4.14",
     "vue-tsc": "^2.2.0"
