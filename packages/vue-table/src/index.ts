@@ -15,6 +15,7 @@ export type {
 } from './composables/useColumnState';
 
 export type {
+  AggregationType,
   ColumnFilter,
   CommitCsvImportOptions,
   CellSlotProps,
@@ -34,6 +35,8 @@ export type {
   ExportCsvOptions,
   ExportCsvScope,
   FilterState,
+  GroupHeader,
+  GroupHeaderSlotProps,
   HeaderFilterSlotProps,
   HeaderSlotProps,
   IoiCellCommitPayload,

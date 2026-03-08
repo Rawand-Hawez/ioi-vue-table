@@ -1526,6 +1526,11 @@ export function useIoiTable<TRow = Record<string, unknown>>(
       return;
     }
 
+    const column = columnKeyMap.value.get(field);
+    if (column?.editable === false) {
+      return;
+    }
+
     const rowIndex = resolveEditRowIndex({
       rowKey: options.rowKey,
       rowIndex: options.rowIndex

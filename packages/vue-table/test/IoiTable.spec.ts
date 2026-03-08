@@ -484,4 +484,259 @@ describe('IoiTable', () => {
     expect(wrapper.text()).toContain('30');
     expect(wrapper.text()).toContain('B');
   });
+
+  describe('v0.2.1 features', () => {
+    it('renders dedicated filter row when any column has headerFilter', () => {
+      const wrapper = mount(IoiTable, {
+        props: {
+          columns: [
+            { field: 'id', header: 'ID' },
+            { field: 'name', header: 'Name', headerFilter: 'text' }
+          ],
+          rows: [{ id: 1, name: 'Test' }]
+        }
+      });
+
+      const filterRow = wrapper.find('tr.ioi-table__filter-row');
+      expect(filterRow.exists()).toBe(true);
+      expect(filterRow.findAll('th.ioi-table__filter-cell')).toHaveLength(2);
+    });
+
+    it('does not render filter row when no column has headerFilter', () => {
+      const wrapper = mount(IoiTable, {
+        props: {
+          columns: [
+            { field: 'id', header: 'ID' },
+            { field: 'name', header: 'Name' }
+          ],
+          rows: [{ id: 1, name: 'Test' }]
+        }
+      });
+
+      expect(wrapper.find('tr.ioi-table__filter-row').exists()).toBe(false);
+    });
+
+    it('applies editable modifier to all visible columns by default', () => {
+      const wrapper = mount(IoiTable, {
+        props: {
+          columns: [
+            { field: 'id', header: 'ID' },
+            { field: 'name', header: 'Name', validate: () => true }
+          ],
+          rows: [{ id: 1, name: 'Test' }]
+        }
+      });
+
+      const cells = wrapper.findAll('td.ioi-table__cell');
+      expect(cells[0]?.classes()).toContain('ioi-table__cell--editable');
+      expect(cells[1]?.classes()).toContain('ioi-table__cell--editable');
+    });
+
+    it('does not apply editable modifier when editable: false', () => {
+      const wrapper = mount(IoiTable, {
+        props: {
+          columns: [
+            { field: 'id', header: 'ID', editable: false },
+            { field: 'name', header: 'Name', editable: true }
+          ],
+          rows: [{ id: 1, name: 'Test' }]
+        }
+      });
+
+      const cells = wrapper.findAll('td.ioi-table__cell');
+      expect(cells[0]?.classes()).not.toContain('ioi-table__cell--editable');
+      expect(cells[1]?.classes()).toContain('ioi-table__cell--editable');
+    });
+
+    it('applies pinned edge modifiers to header and body cells', () => {
+      const wrapper = mount(IoiTable, {
+        props: {
+          columns: [
+            { id: 'id', field: 'id', header: 'ID', pin: 'left' },
+            { id: 'name', field: 'name', header: 'Name' },
+            { id: 'status', field: 'status', header: 'Status', pin: 'right' }
+          ],
+          rows: [{ id: 1, name: 'Test', status: 'Active' }]
+        }
+      });
+
+      const headers = wrapper.findAll('thead th');
+      expect(headers[0]?.classes()).toContain('ioi-table__header--pinned-left-edge');
+      expect(headers[2]?.classes()).toContain('ioi-table__header--pinned-right-edge');
+
+      const cells = wrapper.findAll('tbody tr.ioi-table__row td.ioi-table__cell');
+      expect(cells[0]?.classes()).toContain('ioi-table__cell--pinned-left-edge');
+      expect(cells[2]?.classes()).toContain('ioi-table__cell--pinned-right-edge');
+    });
+
+    it('exposes toggleGroupExpansion method', () => {
+      const wrapper = mount(IoiTable, {
+        props: {
+          columns: [{ field: 'group', header: 'Group' }],
+          rows: [{ id: 1, group: 'A' }],
+          groupBy: 'group'
+        }
+      });
+
+      expect(typeof (wrapper.vm as { toggleGroupExpansion: unknown }).toggleGroupExpansion).toBe('function');
+    });
+
+    it('renders loading overlay element for server mode', () => {
+      const wrapper = mount(IoiTable, {
+        props: {
+          columns: [{ field: 'id', header: 'ID' }],
+          rows: [],
+          dataMode: 'server',
+          serverOptions: {
+            fetch: async () => ({ rows: [], totalRows: 0 })
+          }
+        }
+      });
+
+      expect(wrapper.find('div.ioi-table__loading-overlay').exists()).toBe(true);
+    });
+
+    it('has error overlay element structure for server mode', () => {
+      const wrapper = mount(IoiTable, {
+        props: {
+          columns: [{ field: 'id', header: 'ID' }],
+          rows: [],
+          dataMode: 'server',
+          serverOptions: {
+            fetch: async () => ({ rows: [], totalRows: 0 })
+          }
+        }
+      });
+
+      expect(wrapper.find('div.ioi-table__error-overlay').exists()).toBe(false);
+    });
+
+    it('applies drag directional classes during column reorder', async () => {
+      const wrapper = mount(IoiTable, {
+        props: {
+          columns: [
+            { id: 'a', field: 'a', header: 'A' },
+            { id: 'b', field: 'b', header: 'B' },
+            { id: 'c', field: 'c', header: 'C' }
+          ],
+          rows: [{ a: 1, b: 2, c: 3 }]
+        }
+      });
+
+      const dataTransfer = {
+        setData: () => {},
+        getData: () => '',
+        effectAllowed: 'move',
+        dropEffect: 'move'
+      } as unknown as DataTransfer;
+
+      const headerA = wrapper.find('th[data-column-id="a"]');
+      const headerB = wrapper.find('th[data-column-id="b"]');
+
+      await headerA.trigger('dragstart', { dataTransfer });
+      await headerB.trigger('dragover', { dataTransfer, clientX: 0 });
+
+      expect(headerB.classes()).toContain('ioi-table__header--drag-target');
+    });
+
+    it('applies --drag-over-left when dragging over left half of header', async () => {
+      const wrapper = mount(IoiTable, {
+        props: {
+          columns: [
+            { id: 'a', field: 'a', header: 'A' },
+            { id: 'b', field: 'b', header: 'B' }
+          ],
+          rows: [{ a: 1, b: 2 }]
+        }
+      });
+
+      const dataTransfer = {
+        setData: () => {},
+        getData: () => '',
+        effectAllowed: 'move',
+        dropEffect: 'move'
+      } as unknown as DataTransfer;
+
+      const headerA = wrapper.find('th[data-column-id="a"]');
+      const headerB = wrapper.find('th[data-column-id="b"]');
+
+      Object.defineProperty(headerB.element, 'getBoundingClientRect', {
+        value: () => ({ left: 100, width: 100, right: 200 })
+      });
+
+      await headerA.trigger('dragstart', { dataTransfer });
+      await headerB.trigger('dragover', { dataTransfer, clientX: 120 });
+
+      expect(headerB.classes()).toContain('ioi-table__header--drag-over-left');
+      expect(headerB.classes()).not.toContain('ioi-table__header--drag-over-right');
+    });
+
+    it('applies --drag-over-right when dragging over right half of header', async () => {
+      const wrapper = mount(IoiTable, {
+        props: {
+          columns: [
+            { id: 'a', field: 'a', header: 'A' },
+            { id: 'b', field: 'b', header: 'B' }
+          ],
+          rows: [{ a: 1, b: 2 }]
+        }
+      });
+
+      const dataTransfer = {
+        setData: () => {},
+        getData: () => '',
+        effectAllowed: 'move',
+        dropEffect: 'move'
+      } as unknown as DataTransfer;
+
+      const headerA = wrapper.find('th[data-column-id="a"]');
+      const headerB = wrapper.find('th[data-column-id="b"]');
+
+      Object.defineProperty(headerB.element, 'getBoundingClientRect', {
+        value: () => ({ left: 100, width: 100, right: 200 })
+      });
+
+      await headerA.trigger('dragstart', { dataTransfer });
+      await headerB.trigger('dragover', { dataTransfer, clientX: 180 });
+
+      expect(headerB.classes()).toContain('ioi-table__header--drag-over-right');
+      expect(headerB.classes()).not.toContain('ioi-table__header--drag-over-left');
+    });
+
+    it('drops column after target when direction is right', async () => {
+      const wrapper = mount(IoiTable, {
+        props: {
+          columns: [
+            { id: 'a', field: 'a', header: 'A' },
+            { id: 'b', field: 'b', header: 'B' },
+            { id: 'c', field: 'c', header: 'C' }
+          ],
+          rows: [{ a: 1, b: 2, c: 3 }]
+        }
+      });
+
+      const dataTransfer = {
+        setData: () => {},
+        getData: () => 'a',
+        effectAllowed: 'move',
+        dropEffect: 'move'
+      } as unknown as DataTransfer;
+
+      const headerA = wrapper.find('th[data-column-id="a"]');
+      const headerB = wrapper.find('th[data-column-id="b"]');
+
+      Object.defineProperty(headerB.element, 'getBoundingClientRect', {
+        value: () => ({ left: 100, width: 100, right: 200 })
+      });
+
+      await headerA.trigger('dragstart', { dataTransfer });
+      await headerB.trigger('dragover', { dataTransfer, clientX: 180 });
+      await headerB.trigger('drop', { dataTransfer });
+
+      const headers = wrapper.findAll('th[data-column-id]');
+      expect(headers[0]!.attributes('data-column-id')).toBe('b');
+      expect(headers[1]!.attributes('data-column-id')).toBe('a');
+      expect(headers[2]!.attributes('data-column-id')).toBe('c');
+    });
+  });
 });
