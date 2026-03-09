@@ -82,7 +82,8 @@
   "files": [
     "dist",
     "README.md",
-    "AI.md"
+    "AI.md",
+    "CHANGELOG.md"
   ],
   "scripts": {
     "dev": "node ../../node_modules/vite/bin/vite.js --config vite.config.ts",
