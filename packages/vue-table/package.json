@@ -1,6 +1,6 @@
 {
   "name": "@ioi-dev/vue-table",
-  "version": "0.2.2",
+  "version": "0.2.3",
   "description": "A performance-first Vue 3 data table component with a streamlined API surface and JavaScript-first defaults",
   "keywords": [
     "vue",
@@ -81,7 +81,8 @@
   },
   "files": [
     "dist",
-    "README.md"
+    "README.md",
+    "AI.md"
   ],
   "scripts": {
     "dev": "node ../../node_modules/vite/bin/vite.js --config vite.config.ts",

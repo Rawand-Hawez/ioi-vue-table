@@ -1,8 +1,8 @@
 # API Reference
 
 **Package**: @ioi-dev/vue-table  
-**Version**: 0.2.0  
-**Last Updated**: 2026-03-07
+**Version**: 0.2.3  
+**Last Updated**: 2026-03-09
 
 ---
 

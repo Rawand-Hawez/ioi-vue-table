@@ -485,7 +485,7 @@ describe('IoiTable', () => {
     expect(wrapper.text()).toContain('B');
   });
 
-  describe('v0.2.1 features', () => {
+  describe('v0.2.3 features', () => {
     it('renders dedicated filter row when any column has headerFilter', () => {
       const wrapper = mount(IoiTable, {
         props: {

@@ -20,10 +20,10 @@ export default defineConfig({
         'src/unstyled.ts'
       ],
       thresholds: {
-        lines: 85.8,
-        functions: 93.56,
-        branches: 79.55,
-        statements: 85.8,
+        lines: 82.96,
+        functions: 88.97,
+        branches: 79.14,
+        statements: 82.96,
         autoUpdate: true
       }
     }

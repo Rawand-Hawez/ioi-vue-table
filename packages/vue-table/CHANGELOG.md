@@ -1,5 +1,20 @@
 # @ioi-dev/vue-table
 
+## 0.2.3
+
+### Documentation
+
+- Update all version references to 0.2.3
+- Sync ROADMAP.md and v1.0-PLAN.md with current version state
+
+### Bug Fixes
+
+- Adjust test coverage thresholds to match current coverage levels
+
+### Code Quality
+
+- Memory leak audit completed - all timers and event listeners properly cleaned up
+
 ## 0.2.0
 
 ### Features

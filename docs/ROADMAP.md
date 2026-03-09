@@ -1,8 +1,8 @@
 # ROADMAP.md — @ioi-dev/vue-table Development Roadmap
 
-**Current Version**: `0.1.15`  
+**Current Version**: `0.2.3`  
 **Package**: `@ioi-dev/vue-table`  
-**Last Updated**: 2026-03-06
+**Last Updated**: 2026-03-09
 
 ---
 
@@ -258,6 +258,7 @@ These features are **explicitly excluded** per SPEC.md:
 
 | Version | Target Date | Status |
 |---------|-------------|--------|
+| v0.2.3 | 2026-03-09 | ✅ Released |
 | v0.1.15 | 2026-03-06 | ✅ Released |
 | v1.0.0-beta | 2026-05-01 | 🚧 In Progress |
 | v1.0.0 | 2026-06-15 | ⏳ Planned |

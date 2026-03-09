@@ -2,7 +2,7 @@
 
 A performance-first Vue 3 data table component with a streamlined API surface and JavaScript-first defaults. Designed to deliver enterprise-grade performance without the complexity of larger alternatives.
 
-> **v0.2.0** - Server-Side Mode, Full Accessibility (WCAG 2.1 AA), and Performance Benchmarks
+> **v0.2.3** - Server-Side Mode, Full Accessibility (WCAG 2.1 AA), and Performance Benchmarks
 
 ## Overview
 
