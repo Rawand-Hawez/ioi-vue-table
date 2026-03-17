@@ -17,3 +17,5 @@ pkg/
 *.swo
 docs/
 .worktrees/
+.agent/
+.changeset/
