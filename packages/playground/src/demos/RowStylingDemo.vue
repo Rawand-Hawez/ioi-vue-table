@@ -5,12 +5,25 @@ import { useTheme } from '../composables/useTheme';
 
 const { activeTheme } = useTheme();
 
-interface StatusRow {
+// Extends Record<string, unknown> so the generic Table component accepts it
+interface StatusRow extends Record<string, unknown> {
   id: number;
   name: string;
   status: 'active' | 'inactive' | 'pending' | 'error';
   lastActive: string;
   score: number;
+}
+
+// Local type for the exposed autoSizeColumns method — generic Vue components
+// don't work with InstanceType<typeof Table> in vue-tsc
+interface AutoSizeOptions {
+  includeHeaders?: boolean;
+  padding?: number;
+  minWidth?: number;
+  maxWidth?: number;
+}
+interface TableRef {
+  autoSizeColumns: (columnIds?: string[], options?: AutoSizeOptions) => void;
 }
 
 const columns: ColumnDef<StatusRow>[] = [
@@ -32,7 +45,7 @@ const rows: StatusRow[] = [
   { id: 8, name: 'Henry Brown', status: 'pending', lastActive: '2 hours ago', score: 67 }
 ];
 
-const tableRef = ref<InstanceType<typeof Table> | null>(null);
+const tableRef = ref<TableRef | null>(null);
 
 function getRowClass(row: StatusRow, rowIndex: number): Record<string, boolean> {
   return {
@@ -66,7 +79,7 @@ const stringClassMode = ref(false);
         <button class="btn" @click="autoSizeAllColumns">Auto-size All Columns</button>
         <button class="btn btn--secondary" @click="autoSizeStatusColumn">Auto-size Status Only</button>
         <label class="toggle-label">
-          <input type="checkbox" v-model="stringClassMode">
+          <input v-model="stringClassMode" type="checkbox">
           Use string class
         </label>
       </div>
