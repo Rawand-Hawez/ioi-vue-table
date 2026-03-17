@@ -1,11 +1,25 @@
 <script setup lang="ts">
 import { ref } from 'vue';
 import { Table, type ColumnDef } from '@ioi-dev/vue-table';
+import type { SortState } from '@ioi-dev/vue-table';
 import { useTheme } from '../composables/useTheme';
 
 const { activeTheme } = useTheme();
 
 const copied = ref(false);
+
+interface TableRef { setSortState: (s: SortState[]) => void; }
+const quickTableRef = ref<TableRef | null>(null);
+const sortStates = ref<SortState[]>([]);
+function getSortDir(field: string): 'asc' | 'desc' | '' {
+  return sortStates.value.find(s => s.field === field)?.direction ?? '';
+}
+function headerSort(field: string): void {
+  const cur = getSortDir(field);
+  const next: SortState[] = !cur ? [{ field, direction: 'asc' }] : cur === 'asc' ? [{ field, direction: 'desc' }] : [];
+  sortStates.value = next;
+  quickTableRef.value?.setSortState(next);
+}
 
 const installCmd = 'npm install @ioi-dev/vue-table';
 
@@ -135,12 +149,20 @@ const features = [
           <div class="qs-result-label">Live result ↓</div>
           <div :class="`theme-${activeTheme}`">
             <Table
+              ref="quickTableRef"
               :rows="quickRows"
               :columns="quickColumns"
               row-key="id"
               :height="240"
               :row-height="36"
-            />
+            >
+              <template #header="{ column }">
+                <div class="sort-header" @click.stop="headerSort(String(column.field))">
+                  <span>{{ column.header ?? column.field }}</span>
+                  <span class="sort-icon">{{ getSortDir(String(column.field)) === 'asc' ? '↑' : getSortDir(String(column.field)) === 'desc' ? '↓' : '' }}</span>
+                </div>
+              </template>
+            </Table>
           </div>
         </div>
       </div>

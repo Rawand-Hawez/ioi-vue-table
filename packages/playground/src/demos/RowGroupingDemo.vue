@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { computed, ref, watch } from 'vue';
 import { Table } from '@ioi-dev/vue-table';
-import type { AggregationType, ColumnDef } from '@ioi-dev/vue-table';
+import type { AggregationType, ColumnDef, SortState } from '@ioi-dev/vue-table';
 import { usePerf } from '../composables/usePerf';
 import { useTheme } from '../composables/useTheme';
 import { createSalesColumns, createSalesData, type SaleRow } from '../utils/demoData';
@@ -49,6 +49,19 @@ const groupCount = computed(() => {
   const unique = new Set(rows.value.map((r) => r[groupByField.value]));
   return unique.size;
 });
+
+interface TableRef { setSortState: (s: SortState[]) => void; }
+const tableRef = ref<TableRef | null>(null);
+const sortStates = ref<SortState[]>([]);
+function getSortDir(field: string): 'asc' | 'desc' | '' {
+  return sortStates.value.find(s => s.field === field)?.direction ?? '';
+}
+function headerSort(field: string): void {
+  const cur = getSortDir(field);
+  const next: SortState[] = !cur ? [{ field, direction: 'asc' }] : cur === 'asc' ? [{ field, direction: 'desc' }] : [];
+  sortStates.value = next;
+  tableRef.value?.setSortState(next);
+}
 </script>
 
 <template>
@@ -79,6 +92,7 @@ const groupCount = computed(() => {
 
     <div :class="`theme-${activeTheme}`">
       <Table
+        ref="tableRef"
         :rows="rows"
         :columns="columns"
         row-key="id"
@@ -89,6 +103,12 @@ const groupCount = computed(() => {
         :group-aggregations="groupAggregations"
         v-model:expandedGroupKeys="expandedGroupKeys"
       >
+        <template #header="{ column }">
+          <div class="sort-header" @click.stop="headerSort(String(column.field))">
+            <span>{{ column.header ?? column.field }}</span>
+            <span class="sort-icon">{{ getSortDir(String(column.field)) === 'asc' ? '↑' : getSortDir(String(column.field)) === 'desc' ? '↓' : '' }}</span>
+          </div>
+        </template>
         <template #group-header="{ group, expanded, toggle }">
           <div class="group-row" @click="toggle()">
             <span class="group-arrow">{{ expanded ? '▼' : '▶' }}</span>
@@ -125,6 +145,14 @@ const groupCount = computed(() => {
       <h3>Usage</h3>
       <pre v-pre class="code-block"><code>&lt;script setup&gt;
 const expandedGroupKeys = ref([])
+const sortStates = ref([])
+function getSortDir(field) { return sortStates.value.find(s => s.field === field)?.direction ?? '' }
+function headerSort(field) {
+  const cur = getSortDir(field)
+  const next = !cur ? [{ field, direction: 'asc' }] : cur === 'asc' ? [{ field, direction: 'desc' }] : []
+  sortStates.value = next
+  tableRef.value?.setSortState(next)
+}
 
 const groupAggregations = {
   amount: ['sum', 'avg', 'count'],
@@ -134,12 +162,19 @@ const groupAggregations = {
 
 &lt;template&gt;
   &lt;Table
+    ref="tableRef"
     :rows="rows"
     :columns="columns"
     group-by="region"
     :group-aggregations="groupAggregations"
     v-model:expandedGroupKeys="expandedGroupKeys"
   &gt;
+    &lt;template #header="{ column }"&gt;
+      &lt;div class="sort-header" @click.stop="headerSort(String(column.field))"&gt;
+        &lt;span&gt;{{ column.header ?? column.field }}&lt;/span&gt;
+        &lt;span class="sort-icon"&gt;{{ getSortDir(column.field) === 'asc' ? '↑' : getSortDir(column.field) === 'desc' ? '↓' : '' }}&lt;/span&gt;
+      &lt;/div&gt;
+    &lt;/template&gt;
     &lt;template #group-header="{ group, expanded, toggle }"&gt;
       &lt;div @click="toggle()"&gt;
         {{ expanded ? '▼' : '▶' }} {{ group.value }}

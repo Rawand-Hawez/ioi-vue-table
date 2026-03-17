@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { ref } from 'vue';
-import { Table, type ColumnDef, type AutoSizeOptions } from '@ioi-dev/vue-table';
+import { Table, type ColumnDef, type AutoSizeOptions, type SortState } from '@ioi-dev/vue-table';
 import { useTheme } from '../composables/useTheme';
 
 const { activeTheme } = useTheme();
@@ -18,6 +18,7 @@ interface StatusRow extends Record<string, unknown> {
 // don't work with InstanceType<typeof Table> in vue-tsc
 interface TableRef {
   autoSizeColumns: (columnIds?: string[], options?: AutoSizeOptions) => void;
+  setSortState: (s: SortState[]) => void;
 }
 
 const columns: ColumnDef<StatusRow>[] = [
@@ -58,6 +59,17 @@ function autoSizeStatusColumn(): void {
 }
 
 const stringClassMode = ref(false);
+
+const sortStates = ref<SortState[]>([]);
+function getSortDir(field: string): 'asc' | 'desc' | '' {
+  return sortStates.value.find(s => s.field === field)?.direction ?? '';
+}
+function headerSort(field: string): void {
+  const cur = getSortDir(field);
+  const next: SortState[] = !cur ? [{ field, direction: 'asc' }] : cur === 'asc' ? [{ field, direction: 'desc' }] : [];
+  sortStates.value = next;
+  tableRef.value?.setSortState(next);
+}
 </script>
 
 <template>
@@ -86,14 +98,33 @@ const stringClassMode = ref(false);
           row-key="id"
           :height="320"
           :row-class="stringClassMode ? 'custom-row-class' : getRowClass"
-        />
+        >
+          <template #header="{ column }">
+            <div class="sort-header" @click.stop="headerSort(String(column.field))">
+              <span>{{ column.header ?? column.field }}</span>
+              <span class="sort-icon">{{ getSortDir(String(column.field)) === 'asc' ? '↑' : getSortDir(String(column.field)) === 'desc' ? '↓' : '' }}</span>
+            </div>
+          </template>
+        </Table>
       </div>
     </section>
 
     <section class="code-section">
       <h3>Usage</h3>
       <pre v-pre class="code-block"><code>&lt;script setup&gt;
-// Function returning an object
+import { ref } from 'vue'
+
+// Sort
+const sortStates = ref([])
+function getSortDir(field) { return sortStates.value.find(s => s.field === field)?.direction ?? '' }
+function headerSort(field) {
+  const cur = getSortDir(field)
+  const next = !cur ? [{ field, direction: 'asc' }] : cur === 'asc' ? [{ field, direction: 'desc' }] : []
+  sortStates.value = next
+  tableRef.value?.setSortState(next)
+}
+
+// Row class — function returning an object
 function getRowClass(row, rowIndex) {
   return {
     [`row-status--${row.status}`]: true,
@@ -106,7 +137,14 @@ const rowClass = 'my-custom-row-class';
 &lt;/script&gt;
 
 &lt;template&gt;
-  &lt;Table :rows="rows" :row-class="getRowClass" /&gt;
+  &lt;Table ref="tableRef" :rows="rows" :row-class="getRowClass"&gt;
+    &lt;template #header="{ column }"&gt;
+      &lt;div class="sort-header" @click.stop="headerSort(String(column.field))"&gt;
+        &lt;span&gt;{{ column.header ?? column.field }}&lt;/span&gt;
+        &lt;span class="sort-icon"&gt;{{ getSortDir(column.field) === 'asc' ? '↑' : getSortDir(column.field) === 'desc' ? '↓' : '' }}&lt;/span&gt;
+      &lt;/div&gt;
+    &lt;/template&gt;
+  &lt;/Table&gt;
 &lt;/template&gt;
 
 &lt;style&gt;

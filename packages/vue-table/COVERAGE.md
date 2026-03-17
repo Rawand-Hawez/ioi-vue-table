@@ -1,7 +1,7 @@
 # Test Coverage Report
 
-**Generated**: 2026-03-09  
-**Version**: v0.2.3
+**Generated**: 2026-03-17
+**Version**: v0.2.4
 
 ## Summary
 

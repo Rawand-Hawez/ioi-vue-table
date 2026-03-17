@@ -1,13 +1,26 @@
 <script setup lang="ts">
 import { ref } from 'vue';
 import { Table } from '@ioi-dev/vue-table';
-import type { CellSlotProps, ColumnDef } from '@ioi-dev/vue-table';
+import type { CellSlotProps, ColumnDef, SortState } from '@ioi-dev/vue-table';
 import { useTheme } from '../composables/useTheme';
 import { createProducts, type ProductRow } from '../utils/demoData';
 
 const { activeTheme } = useTheme();
 
 const rows = ref<ProductRow[]>(createProducts(300));
+
+interface TableRef { setSortState: (s: SortState[]) => void; }
+const tableRef = ref<TableRef | null>(null);
+const sortStates = ref<SortState[]>([]);
+function getSortDir(field: string): 'asc' | 'desc' | '' {
+  return sortStates.value.find(s => s.field === field)?.direction ?? '';
+}
+function headerSort(field: string): void {
+  const cur = getSortDir(field);
+  const next: SortState[] = !cur ? [{ field, direction: 'asc' }] : cur === 'asc' ? [{ field, direction: 'desc' }] : [];
+  sortStates.value = next;
+  tableRef.value?.setSortState(next);
+}
 
 const columns: ColumnDef<ProductRow>[] = [
   { id: 'id',       field: 'id',       header: 'ID',       type: 'number', width: 72 },
@@ -55,6 +68,7 @@ function badgeStyle(badge: string | null): Record<string, string> {
 
     <div :class="`theme-${activeTheme}`">
       <Table
+        ref="tableRef"
         :rows="rows"
         :columns="columns"
         row-key="id"
@@ -62,6 +76,12 @@ function badgeStyle(badge: string | null): Record<string, string> {
         :row-height="40"
         :overscan="8"
       >
+        <template #header="{ column }">
+          <div class="sort-header" @click.stop="headerSort(String(column.field))">
+            <span>{{ column.header ?? column.field }}</span>
+            <span class="sort-icon">{{ getSortDir(String(column.field)) === 'asc' ? '↑' : getSortDir(String(column.field)) === 'desc' ? '↓' : '' }}</span>
+          </div>
+        </template>
         <template #cell="{ column, value }: CellSlotProps<ProductRow>">
           <!-- Badge column -->
           <template v-if="column.field === 'badge'">
@@ -119,7 +139,15 @@ function badgeStyle(badge: string | null): Record<string, string> {
 
     <section class="code-section">
       <h3>Usage</h3>
-      <pre v-pre class="code-block"><code>&lt;Table :rows="rows" :columns="columns" row-key="id"&gt;
+      <pre v-pre class="code-block"><code>&lt;Table ref="tableRef" :rows="rows" :columns="columns" row-key="id"&gt;
+  &lt;!-- Sort header slot --&gt;
+  &lt;template #header="{ column }"&gt;
+    &lt;div class="sort-header" @click.stop="headerSort(String(column.field))"&gt;
+      &lt;span&gt;{{ column.header ?? column.field }}&lt;/span&gt;
+      &lt;span class="sort-icon"&gt;{{ getSortDir(column.field) === 'asc' ? '↑' : getSortDir(column.field) === 'desc' ? '↓' : '' }}&lt;/span&gt;
+    &lt;/div&gt;
+  &lt;/template&gt;
+
   &lt;template #cell="{ column, value, row }"&gt;
 
     &lt;!-- Match on column.field to render custom content --&gt;
