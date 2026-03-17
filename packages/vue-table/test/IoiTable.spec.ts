@@ -739,4 +739,73 @@ describe('IoiTable', () => {
       expect(headers[2]!.attributes('data-column-id')).toBe('c');
     });
   });
+
+  describe('v0.2.4 features', () => {
+    it('emits update:expandedRowKeys when a row is toggled via toggleRowExpansion', async () => {
+      const wrapper = mount(IoiTable, {
+        props: {
+          columns: [{ field: 'id', header: 'ID' }, { field: 'name', header: 'Name' }],
+          rows: [{ id: 1, name: 'Alice' }, { id: 2, name: 'Bob' }],
+          expandable: true,
+          rowKey: 'id'
+        }
+      });
+
+      (wrapper.vm as { toggleRowExpansion: (key: string | number) => void }).toggleRowExpansion(1);
+      await nextTick();
+      const emitted = wrapper.emitted('update:expandedRowKeys');
+      expect(emitted).toBeTruthy();
+      expect((emitted![0] as Array<unknown>[])[0]).toContain(1);
+    });
+
+    it('controlled expandedRowKeys prop determines which rows are expanded', async () => {
+      const wrapper = mount(IoiTable, {
+        props: {
+          columns: [{ field: 'id', header: 'ID' }],
+          rows: [{ id: 1 }, { id: 2 }],
+          expandable: true,
+          rowKey: 'id',
+          expandedRowKeys: [1]
+        }
+      });
+
+      await nextTick();
+      const expandedRows = wrapper.findAll('tr.ioi-table__row--expanded');
+      expect(expandedRows.length).toBeGreaterThanOrEqual(1);
+    });
+
+    it('emits update:expandedGroupKeys when a group toggle button is clicked', async () => {
+      const wrapper = mount(IoiTable, {
+        props: {
+          columns: [{ field: 'group', header: 'Group' }, { field: 'value', header: 'Value' }],
+          rows: [{ id: 1, group: 'A', value: 10 }, { id: 2, group: 'B', value: 20 }],
+          groupBy: 'group',
+          rowKey: 'id',
+          expandedGroupKeys: []
+        }
+      });
+
+      const toggle = wrapper.find('button.ioi-table__group-toggle');
+      expect(toggle.exists()).toBe(true);
+      await toggle.trigger('click');
+      const emitted = wrapper.emitted('update:expandedGroupKeys');
+      expect(emitted).toBeTruthy();
+    });
+
+    it('controlled expandedGroupKeys prop determines which groups start expanded', async () => {
+      const wrapper = mount(IoiTable, {
+        props: {
+          columns: [{ field: 'group', header: 'Group' }, { field: 'value', header: 'Value' }],
+          rows: [{ id: 1, group: 'A', value: 10 }, { id: 2, group: 'B', value: 20 }],
+          groupBy: 'group',
+          rowKey: 'id',
+          expandedGroupKeys: ['A']
+        }
+      });
+
+      await nextTick();
+      const groupRows = wrapper.findAll('tr.ioi-table__group-header');
+      expect(groupRows.length).toBeGreaterThanOrEqual(1);
+    });
+  });
 });

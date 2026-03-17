@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { ref } from 'vue';
 import { Table } from '@ioi-dev/vue-table';
-import type { ColumnDef, ExportCsvOptions, ExportCsvScope, SelectAllScope } from '@ioi-dev/vue-table';
+import type { ColumnDef, ExportCsvOptions, ExportCsvScope, SelectAllScope, SortState } from '@ioi-dev/vue-table';
 import { usePerf } from '../composables/usePerf';
 import { useTheme } from '../composables/useTheme';
 import { createEmployeeColumns, createEmployees, type Employee } from '../utils/demoData';
@@ -27,8 +27,22 @@ interface TableRef {
   selectAll: (scope?: SelectAllScope) => void;
   clearSelection: () => void;
   getSelectedKeys: () => Array<string | number>;
+  setSortState: (s: SortState[]) => void;
+  setPageIndex: (i: number) => void;
 }
 const tableRef = ref<TableRef | null>(null);
+
+const sortStates = ref<SortState[]>([]);
+function getSortDir(field: string): 'asc' | 'desc' | '' {
+  return sortStates.value.find(s => s.field === field)?.direction ?? '';
+}
+function headerSort(field: string): void {
+  const cur = getSortDir(field);
+  const next: SortState[] = !cur ? [{ field, direction: 'asc' }] : cur === 'asc' ? [{ field, direction: 'desc' }] : [];
+  sortStates.value = next;
+  tableRef.value?.setSortState(next);
+  tableRef.value?.setPageIndex(0);
+}
 
 function syncSelected(): void {
   selectedCount.value = tableRef.value?.getSelectedKeys().length ?? 0;
@@ -159,7 +173,14 @@ const scopes: Array<{ value: ExportCsvScope; label: string; desc: string }> = [
         v-model:pageIndex="pageIndex"
         v-model:pageSize="pageSize"
         @state-change="syncSelected"
-      />
+      >
+        <template #header="{ column }">
+          <div class="sort-header" @click.stop="headerSort(String(column.field))">
+            <span>{{ column.header ?? column.field }}</span>
+            <span class="sort-icon">{{ getSortDir(String(column.field)) === 'asc' ? '↑' : getSortDir(String(column.field)) === 'desc' ? '↓' : '' }}</span>
+          </div>
+        </template>
+      </Table>
     </div>
 
     <!-- Pagination -->
@@ -183,6 +204,10 @@ const scopes: Array<{ value: ExportCsvScope; label: string; desc: string }> = [
     <section class="code-section">
       <h3>Usage</h3>
       <pre v-pre class="code-block"><code>const tableRef = ref(null)
+
+// Sort — click column headers to cycle asc → desc → clear
+tableRef.value.setSortState([{ field: 'name', direction: 'asc' }])
+tableRef.value.setSortState([])  // clear
 
 // Export by scope
 const csv = tableRef.value.exportCSV({ scope: 'visible' })    // current page

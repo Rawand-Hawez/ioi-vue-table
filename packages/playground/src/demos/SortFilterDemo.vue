@@ -266,13 +266,6 @@ const keys = tableRef.value.getSelectedKeys()</code></pre>
 .btn-danger { background: #fee2e2; color: #dc2626; border: 1px solid #fca5a5; }
 .btn-danger:hover { background: #fecaca; }
 
-/* Sort header */
-.sort-header {
-  display: flex; align-items: center; gap: 0.3rem;
-  cursor: pointer; user-select: none; width: 100%;
-}
-.sort-header:hover { color: #0f5bd4; }
-.sort-icon { font-size: 0.75rem; font-weight: 700; color: #0f5bd4; min-width: 0.8rem; }
 
 
 .pagination-bar {

@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { ref } from 'vue';
 import { Table } from '@ioi-dev/vue-table';
-import type { ColumnDef, ColumnStateSnapshot } from '@ioi-dev/vue-table';
+import type { ColumnDef, ColumnStateSnapshot, SortState } from '@ioi-dev/vue-table';
 import { useTheme } from '../composables/useTheme';
 import { createProjectColumns, createProjects, type ProjectRow } from '../utils/demoData';
 
@@ -17,9 +17,21 @@ interface TableRef {
   setColumnSizing: (id: string, sizing: { width?: number }) => void;
   setColumnVisibility: (id: string, hidden: boolean) => void;
   getColumnStateSnapshot: () => ColumnStateSnapshot;
+  setSortState: (s: SortState[]) => void;
 }
 
 const tableRef = ref<TableRef | null>(null);
+
+const sortStates = ref<SortState[]>([]);
+function getSortDir(field: string): 'asc' | 'desc' | '' {
+  return sortStates.value.find(s => s.field === field)?.direction ?? '';
+}
+function headerSort(field: string): void {
+  const cur = getSortDir(field);
+  const next: SortState[] = !cur ? [{ field, direction: 'asc' }] : cur === 'asc' ? [{ field, direction: 'desc' }] : [];
+  sortStates.value = next;
+  tableRef.value?.setSortState(next);
+}
 
 function capture(): void {
   snapshot.value = tableRef.value?.getColumnStateSnapshot() ?? null;
@@ -91,7 +103,14 @@ function toggleRiskVisibility(): void {
         :height="520"
         :row-height="34"
         :overscan="6"
-      />
+      >
+        <template #header="{ column }">
+          <div class="sort-header" @click.stop="headerSort(String(column.field))">
+            <span>{{ column.header ?? column.field }}</span>
+            <span class="sort-icon">{{ getSortDir(String(column.field)) === 'asc' ? '↑' : getSortDir(String(column.field)) === 'desc' ? '↓' : '' }}</span>
+          </div>
+        </template>
+      </Table>
     </div>
 
     <div v-if="snapshot" class="snapshot-panel">
@@ -102,6 +121,10 @@ function toggleRiskVisibility(): void {
     <section class="code-section">
       <h3>Usage</h3>
       <pre v-pre class="code-block"><code>const tableRef = ref(null)
+
+// Sort — click any header to cycle asc → desc → clear
+tableRef.value.setSortState([{ field: 'name', direction: 'asc' }])
+tableRef.value.setSortState([])  // clear
 
 // Pin columns
 tableRef.value.setColumnPin('name', 'left')

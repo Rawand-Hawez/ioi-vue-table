@@ -153,3 +153,16 @@ code {
   border-color: #0f5bd4;
   box-shadow: 0 0 0 3px rgba(15, 91, 212, 0.1);
 }
+
+/* ── Sort header (shared across all demo tables) ── */
+.sort-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  cursor: pointer;
+  user-select: none;
+  width: 100%;
+  gap: 0.25rem;
+}
+.sort-header:hover { color: #0f5bd4; }
+.sort-icon { font-size: 0.75rem; font-weight: 700; color: #0f5bd4; min-width: 0.8rem; flex-shrink: 0; }

@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { ref, shallowRef } from 'vue';
 import { Table } from '@ioi-dev/vue-table';
-import type { CellSlotProps, ColumnDef, IoiCellCommitPayload } from '@ioi-dev/vue-table';
+import type { CellSlotProps, ColumnDef, IoiCellCommitPayload, SortState } from '@ioi-dev/vue-table';
 import { useTheme } from '../composables/useTheme';
 import { createTeamMembers, type TeamMember } from '../utils/demoData';
 
@@ -35,8 +35,20 @@ interface TableRef {
   setEditDraft: (v: unknown) => void;
   commitEdit: () => boolean;
   cancelEdit: () => void;
+  setSortState: (s: SortState[]) => void;
 }
 const tableRef = ref<TableRef | null>(null);
+
+const sortStates = ref<SortState[]>([]);
+function getSortDir(field: string): 'asc' | 'desc' | '' {
+  return sortStates.value.find(s => s.field === field)?.direction ?? '';
+}
+function headerSort(field: string): void {
+  const cur = getSortDir(field);
+  const next: SortState[] = !cur ? [{ field, direction: 'asc' }] : cur === 'asc' ? [{ field, direction: 'desc' }] : [];
+  sortStates.value = next;
+  tableRef.value?.setSortState(next);
+}
 
 const editingCell = ref<{ field: string; rowKey: string | number } | null>(null);
 const editingError = ref<string | null>(null);
@@ -108,6 +120,12 @@ function onCellCommit(payload: IoiCellCommitPayload<TeamMember>): void {
         :overscan="8"
         @cell-commit="onCellCommit"
       >
+        <template #header="{ column }">
+          <div class="sort-header" @click.stop="headerSort(String(column.field))">
+            <span>{{ column.header ?? column.field }}</span>
+            <span class="sort-icon">{{ getSortDir(String(column.field)) === 'asc' ? '↑' : getSortDir(String(column.field)) === 'desc' ? '↓' : '' }}</span>
+          </div>
+        </template>
         <template #cell="slotProps: CellSlotProps<TeamMember>">
           <!-- Editable cell: editing state -->
           <template
@@ -170,7 +188,11 @@ function onCellCommit(payload: IoiCellCommitPayload<TeamMember>): void {
 
     <section class="code-section">
       <h3>Usage</h3>
-      <pre v-pre class="code-block"><code>// All columns are editable by default. Opt out with editable: false.
+      <pre v-pre class="code-block"><code>// Sort — add #header slot to cycle asc → desc → clear on click
+tableRef.value.setSortState([{ field: 'name', direction: 'asc' }])
+tableRef.value.setSortState([])  // clear
+
+// All columns are editable by default. Opt out with editable: false.
 const columns = [
   { field: 'name',  header: 'Name',  type: 'text' },
   { field: 'score', header: 'Score', type: 'number',

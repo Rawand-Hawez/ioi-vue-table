@@ -97,7 +97,9 @@ const perfColor = computed(() => {
           class="sidebar-toggle"
           :title="collapsed ? 'Expand sidebar' : 'Collapse sidebar'"
           @click="collapsed = !collapsed"
-        >{{ collapsed ? '›' : '‹' }}</button>
+        >
+          {{ collapsed ? '›' : '‹' }}
+        </button>
       </div>
 
       <nav class="sidebar-nav" aria-label="Demo sections">
@@ -122,7 +124,9 @@ const perfColor = computed(() => {
             :key="t.id"
             :class="['theme-btn', { 'theme-btn--active': activeTheme === t.id }]"
             @click="setTheme(t.id)"
-          >{{ t.label }}</button>
+          >
+            {{ t.label }}
+          </button>
         </div>
         <div v-if="lastPerfEntry" class="toolbar-perf" :style="{ color: perfColor }">
           <span>&#9889;</span>

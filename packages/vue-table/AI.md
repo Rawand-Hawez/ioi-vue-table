@@ -1,4 +1,4 @@
-# @ioi-dev/vue-table v0.2.3
+# @ioi-dev/vue-table v0.2.4
 
 A performance-first Vue 3 data table component with virtual scrolling, server-side data fetching, row expansion, grouping, CSV import/export, inline editing, and a streamlined API surface.
 
