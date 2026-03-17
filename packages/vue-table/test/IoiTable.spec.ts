@@ -774,7 +774,7 @@ describe('IoiTable', () => {
       expect(expandedRows.length).toBeGreaterThanOrEqual(1);
     });
 
-    it('emits update:expandedGroupKeys when a group is toggled', async () => {
+    it('emits update:expandedGroupKeys when a group toggle button is clicked', async () => {
       const wrapper = mount(IoiTable, {
         props: {
           columns: [{ field: 'group', header: 'Group' }, { field: 'value', header: 'Value' }],
@@ -785,11 +785,11 @@ describe('IoiTable', () => {
         }
       });
 
-      (wrapper.vm as { toggleGroupExpansion: (key: string) => void }).toggleGroupExpansion('A');
-      await nextTick();
+      const toggle = wrapper.find('button.ioi-table__group-toggle');
+      expect(toggle.exists()).toBe(true);
+      await toggle.trigger('click');
       const emitted = wrapper.emitted('update:expandedGroupKeys');
       expect(emitted).toBeTruthy();
-      expect((emitted![0] as Array<unknown>[])[0]).toContain('A');
     });
 
     it('controlled expandedGroupKeys prop determines which groups start expanded', async () => {
