@@ -2,7 +2,7 @@
 
 A performance-first Vue 3 data table component with a streamlined API surface and JavaScript-first defaults. Designed to deliver enterprise-grade performance without the complexity of larger alternatives.
 
-> **v0.2.3** - Server-Side Mode, Full Accessibility (WCAG 2.1 AA), and Performance Benchmarks
+> **v0.2.4** - Dynamic Row Classes and Auto-Size Columns
 
 ## Overview
 
@@ -12,7 +12,11 @@ IOI Vue Table provides a lightweight yet powerful solution for rendering large d
 
 - **Performance-First Architecture**: Optimised for rendering thousands of rows with minimal overhead
 - **Virtual Scrolling**: Built-in virtualisation for smooth scrolling through large datasets
+- **Dynamic Row Classes**: Apply CSS classes per-row via string, object, or `(row, index) => ...` function
+- **Auto-Size Columns**: Programmatically size columns to fit content with a single call
 - **Row Grouping**: Group rows by single or multiple columns with aggregate calculations
+- **Inline Editing**: Cell-level editing with validation, keyboard commit/cancel, and Tab navigation
+- **Row Selection**: Single and multi-row selection with shift-click range and Ctrl+A
 - **Flexible Column Definitions**: Strongly-typed column configuration with support for various data types
 - **Headless Pagination**: Full control over pagination state with reactive bindings
 - **Header Filters**: Built-in support for text and select-based column filtering
@@ -20,8 +24,7 @@ IOI Vue Table provides a lightweight yet powerful solution for rendering large d
 - **CSV Export/Import**: Secure data export with formula sanitisation and preview-based import
 - **Server-Side Mode**: Fetch data from server with debounced requests, loading/error states, cursor-based pagination, and infinite scroll support
 - **Accessibility (a11y)**: Full keyboard navigation (Arrow keys, Home/End, PageUp/PageDown), focus management, ARIA attributes, live region announcements, and WCAG 2.1 AA compliance
-- **Performance Benchmarks**: Built-in benchmark harness with 8 scenarios for measuring render, sort, filter, and scroll performance
-- **TypeScript Support**: Comprehensive type definitions for enhanced developer experience
+- **TypeScript Support**: Comprehensive type definitions with full generic inference
 - **Zero-Dependency Core**: Minimal external dependencies to reduce bundle size
 
 ## Keywords
@@ -207,6 +210,160 @@ const serverOptions: ServerDataOptions<UserRow> = {
 </template>
 ```
 
+### Row Selection
+
+Single and multi-row selection with reactive state:
+
+```vue
+<script setup lang="ts">
+import { ref } from 'vue';
+import { Table, type ColumnDef } from '@ioi-dev/vue-table';
+
+interface UserRow { id: number; name: string; role: string; }
+
+const columns: ColumnDef<UserRow>[] = [
+  { field: 'name', header: 'Name' },
+  { field: 'role', header: 'Role' }
+];
+
+const rows: UserRow[] = [
+  { id: 1, name: 'Alice', role: 'Admin' },
+  { id: 2, name: 'Bob', role: 'Editor' }
+];
+
+const selectedKeys = ref<number[]>([]);
+</script>
+
+<template>
+  <Table
+    v-model:selectedRowKeys="selectedKeys"
+    :rows="rows"
+    :columns="columns"
+    row-key="id"
+    selection-mode="multi"
+  />
+  <p>Selected: {{ selectedKeys }}</p>
+</template>
+```
+
+### Inline Editing
+
+Enable cell editing per column. Commit with Enter, cancel with Escape, Tab to move between cells:
+
+```vue
+<script setup lang="ts">
+import { ref } from 'vue';
+import { Table, type ColumnDef } from '@ioi-dev/vue-table';
+
+interface ProductRow { id: number; name: string; price: number; }
+
+const rows = ref<ProductRow[]>([
+  { id: 1, name: 'Widget', price: 9.99 },
+  { id: 2, name: 'Gadget', price: 24.99 }
+]);
+
+const columns: ColumnDef<ProductRow>[] = [
+  { field: 'id', header: 'ID', editable: false },
+  { field: 'name', header: 'Name' },
+  { field: 'price', header: 'Price', type: 'number' }
+];
+
+function onCellEdit(payload: { field: string; rowIndex: number; oldValue: unknown; newValue: unknown }) {
+  const row = rows.value[payload.rowIndex];
+  (row as Record<string, unknown>)[payload.field] = payload.newValue;
+}
+</script>
+
+<template>
+  <Table
+    :rows="rows"
+    :columns="columns"
+    row-key="id"
+    @cell-edit-commit="onCellEdit"
+  />
+</template>
+```
+
+> All columns are editable by default. Set `editable: false` on a column to opt out.
+
+### Dynamic Row Classes
+
+Apply CSS classes to rows based on data using a string, object, or function:
+
+```vue
+<script setup lang="ts">
+import { Table, type ColumnDef } from '@ioi-dev/vue-table';
+
+interface OrderRow { id: number; status: 'active' | 'pending' | 'error'; total: number; }
+
+const columns: ColumnDef<OrderRow>[] = [
+  { field: 'id', header: 'ID' },
+  { field: 'status', header: 'Status' },
+  { field: 'total', header: 'Total', type: 'number' }
+];
+
+const rows: OrderRow[] = [
+  { id: 1, status: 'active', total: 120 },
+  { id: 2, status: 'pending', total: 45 },
+  { id: 3, status: 'error', total: 0 }
+];
+
+function getRowClass(row: OrderRow): Record<string, boolean> {
+  return {
+    'row--active': row.status === 'active',
+    'row--pending': row.status === 'pending',
+    'row--error': row.status === 'error'
+  };
+}
+</script>
+
+<template>
+  <Table :rows="rows" :columns="columns" row-key="id" :row-class="getRowClass" />
+</template>
+
+<style>
+.row--active { background: #f0fdf4; }
+.row--pending { background: #fffbeb; }
+.row--error  { background: #fef2f2; }
+</style>
+```
+
+### Auto-Size Columns
+
+Resize columns to fit their content based on rendered cell widths:
+
+```vue
+<script setup lang="ts">
+import { ref } from 'vue';
+import { Table } from '@ioi-dev/vue-table';
+
+const tableRef = ref<InstanceType<typeof Table> | null>(null);
+
+function fitAll() {
+  tableRef.value?.autoSizeColumns();
+}
+
+function fitNameOnly() {
+  tableRef.value?.autoSizeColumns(['name'], { maxWidth: 300 });
+}
+</script>
+
+<template>
+  <button @click="fitAll">Fit All</button>
+  <button @click="fitNameOnly">Fit Name</button>
+  <Table ref="tableRef" :rows="rows" :columns="columns" row-key="id" />
+</template>
+```
+
+`autoSizeColumns(columnIds?, options?)` accepts an optional list of column IDs and an options object:
+
+| Option | Default | Description |
+|--------|---------|-------------|
+| `includeHeaders` | `true` | Include header cell widths in the calculation |
+| `padding` | `16` | Extra padding added to each measured cell |
+| `minWidth` | `50` | Floor width in pixels |
+| `maxWidth` | `500` | Ceiling width in pixels |
+
 ### Accessibility
 
 The table is built with accessibility in mind:
@@ -241,11 +398,10 @@ The table is built with accessibility in mind:
 
 ## Documentation
 
-- **[API Reference](./API-REFERENCE.md)** - Complete API documentation with examples
-- **[Migration Guide](./MIGRATION.md)** - Guide for upgrading between versions
-- **[Server-Side Mode](./docs/SERVER-SIDE.md)** - Comprehensive server-side integration guide
-- **Repository**: [https://github.com/Rawand-Hawez/ioi-vue-table](https://github.com/Rawand-Hawez/ioi-vue-table)
-- **Full Guide**: [https://github.com/Rawand-Hawez/ioi-vue-table#readme](https://github.com/Rawand-Hawez/ioi-vue-table#readme)
+- **[Live Demo](https://rawand-hawez.github.io/ioi-vue-table/)** - Interactive playground with all features
+- **[API Reference](https://github.com/Rawand-Hawez/ioi-vue-table/blob/main/packages/vue-table/API-REFERENCE.md)** - Complete API documentation with examples
+- **[Migration Guide](https://github.com/Rawand-Hawez/ioi-vue-table/blob/main/packages/vue-table/MIGRATION.md)** - Guide for upgrading between versions
+- **[Repository](https://github.com/Rawand-Hawez/ioi-vue-table)** - Source code and issue tracker
 
 ## Requirements
 

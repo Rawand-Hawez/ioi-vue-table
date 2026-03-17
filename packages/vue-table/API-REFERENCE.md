@@ -85,6 +85,7 @@ const rows: UserRow[] = [
 | `rowHeight` | `number` | `36` | Row height in pixels |
 | `overscan` | `number` | `5` | Extra rows to render outside viewport |
 | `height` | `number` | `320` | Table viewport height |
+| `rowClass` | `string \| Record<string, boolean> \| ((row: TRow, rowIndex: number) => string \| Record<string, boolean> \| undefined)` | - | CSS class(es) to apply to each row — static string, object, or function |
 
 ### Server-Side Props
 
@@ -358,6 +359,18 @@ tableRef.value.toggleRowExpansion(rowKey);
 | `setColumnPin` | `(id: string, pin: 'left' \| 'right' \| 'none') => void` | Pin column |
 | `setColumnSizing` | `(id: string, width: number) => void` | Resize column |
 | `getColumnStateSnapshot` | `() => ColumnStateSnapshot` | Get column state |
+| `autoSizeColumns` | `(columnIds?: string[], options?: AutoSizeOptions) => void` | Auto-size columns to fit content |
+
+#### AutoSizeOptions
+
+```typescript
+interface AutoSizeOptions {
+  includeHeaders?: boolean;  // Include header width (default: true)
+  padding?: number;          // Extra padding per cell (default: 16)
+  minWidth?: number;         // Minimum width (default: 50)
+  maxWidth?: number;         // Maximum width (default: 500)
+}
+```
 
 ---
 

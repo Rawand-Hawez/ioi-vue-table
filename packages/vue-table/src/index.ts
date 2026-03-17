@@ -69,6 +69,7 @@ export type {
   StartEditOptions,
   TextColumnFilter,
   TextFilterOperator,
+  AutoSizeOptions,
   ToggleRowOptions
 } from './types';
 

@@ -11,6 +11,7 @@ type RouteId =
   | 'virtual-scroll'
   | 'column-control'
   | 'row-grouping'
+  | 'row-styling'
   | 'custom-cells'
   | 'editing'
   | 'csv-export';
@@ -27,6 +28,7 @@ const routes: NavRoute[] = [
   { id: 'virtual-scroll', label: 'Virtual Scroll' },
   { id: 'column-control', label: 'Columns' },
   { id: 'row-grouping', label: 'Grouping', badge: 'v0.2' },
+  { id: 'row-styling', label: 'Row Styling', badge: 'v0.2.4' },
   { id: 'custom-cells', label: 'Custom Cells' },
   { id: 'editing', label: 'Editing' },
   { id: 'csv-export', label: 'CSV Export' },
@@ -38,6 +40,7 @@ const componentMap: Record<RouteId, ReturnType<typeof defineAsyncComponent>> = {
   'virtual-scroll': defineAsyncComponent(() => import('./demos/VirtualScrollDemo.vue')),
   'column-control': defineAsyncComponent(() => import('./demos/ColumnControlDemo.vue')),
   'row-grouping': defineAsyncComponent(() => import('./demos/RowGroupingDemo.vue')),
+  'row-styling': defineAsyncComponent(() => import('./demos/RowStylingDemo.vue')),
   'custom-cells': defineAsyncComponent(() => import('./demos/CustomCellsDemo.vue')),
   'editing': defineAsyncComponent(() => import('./demos/InlineEditingDemo.vue')),
   'csv-export': defineAsyncComponent(() => import('./demos/CsvExportDemo.vue')),

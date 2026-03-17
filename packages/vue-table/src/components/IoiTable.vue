@@ -4,6 +4,7 @@ import { useColumnState } from '../composables/useColumnState';
 import { createKeyboardNavigation } from '../composables/ioiTable/keyboard';
 import { useIoiTable } from '../composables/useIoiTable';
 import type {
+  AutoSizeOptions,
   CellSlotProps,
   ColumnDef,
   HeaderFilterSlotProps,
@@ -44,6 +45,7 @@ const props = withDefaults(
     ariaLabel?: string;
     dataMode?: 'client' | 'server';
     serverOptions?: IoiTableOptions<TRow>['serverOptions'];
+    rowClass?: string | Record<string, boolean> | ((row: TRow, rowIndex: number) => string | Record<string, boolean> | undefined);
   }>(),
   {
     rows: () => [],
@@ -169,6 +171,7 @@ const table = useIoiTable<TRow>(
 );
 
 const viewportRef = ref<HTMLDivElement | null>(null);
+const tableBodyRef = ref<HTMLTableSectionElement | null>(null);
 const viewportStyle = computed<Record<string, string>>(() => {
   if (table.paginationEnabled.value) {
     return {
@@ -814,6 +817,18 @@ function toggleGroupExpansion(groupKey: string): void {
   table.toggleGroupExpansion(groupKey);
 }
 
+function getRowClass(row: TRow, rowIndex: number): string | Record<string, boolean> | undefined {
+  if (!props.rowClass) {
+    return undefined;
+  }
+
+  if (typeof props.rowClass === 'function') {
+    return props.rowClass(row, rowIndex);
+  }
+
+  return props.rowClass;
+}
+
 function getRenderEntryKey(entry: (typeof renderEntries.value)[number]): string {
   return entry.renderKey;
 }
@@ -1002,6 +1017,71 @@ function setHeaderFilterValue(column: ColumnDef<TRow>, nextValue: string): void 
   });
 }
 
+function autoSizeColumns(columnIds?: string[], options: AutoSizeOptions = {}): void {
+  const {
+    includeHeaders = true,
+    padding = 16,
+    minWidth = 50,
+    maxWidth = 500
+  } = options;
+
+  if (!tableBodyRef.value) {
+    return;
+  }
+
+  const targetColumnIds = columnIds ?? renderColumns.value.map((col) => col.id);
+  const columnWidths = new Map<string, number>();
+
+  for (const colId of targetColumnIds) {
+    columnWidths.set(colId, minWidth);
+  }
+
+  if (includeHeaders) {
+    const headerCells = viewportRef.value?.querySelectorAll('.ioi-table__header');
+    if (headerCells) {
+      headerCells.forEach((headerCell) => {
+        const columnId = headerCell.getAttribute('data-column-id');
+        if (columnId && columnWidths.has(columnId)) {
+          const currentWidth = columnWidths.get(columnId) ?? minWidth;
+          const measuredWidth = (headerCell as HTMLElement).scrollWidth + padding;
+          columnWidths.set(columnId, Math.max(currentWidth, measuredWidth));
+        }
+      });
+    }
+  }
+
+  const bodyRows = tableBodyRef.value.querySelectorAll('tr[data-row-index]');
+  bodyRows.forEach((row) => {
+    const cells = row.querySelectorAll('td[data-col-index]');
+    cells.forEach((cell) => {
+      const colIndex = cell.getAttribute('data-col-index');
+      if (colIndex === null) {
+        return;
+      }
+      const column = renderColumns.value[parseInt(colIndex, 10)];
+      if (!column || !columnWidths.has(column.id)) {
+        return;
+      }
+      const currentWidth = columnWidths.get(column.id) ?? minWidth;
+      const measuredWidth = (cell as HTMLElement).scrollWidth + padding;
+      columnWidths.set(column.id, Math.max(currentWidth, measuredWidth));
+    });
+  });
+
+  for (const [colId, width] of columnWidths) {
+    const column = renderColumns.value.find((col) => col.id === colId);
+    if (!column) {
+      continue;
+    }
+
+    const columnMinWidth = column.minWidth ?? minWidth;
+    const columnMaxWidth = column.maxWidth ?? maxWidth;
+    const finalWidth = Math.max(columnMinWidth, Math.min(columnMaxWidth, width));
+
+    columnState.setColumnSizing(colId, { width: finalWidth });
+  }
+}
+
 defineExpose({
   scrollToRow: table.scrollToRow,
   exportCSV: table.exportCSV,
@@ -1039,6 +1119,7 @@ defineExpose({
   setColumnPin: columnState.setColumnPin,
   setColumnSizing: columnState.setColumnSizing,
   getColumnStateSnapshot: columnState.getSnapshot,
+  autoSizeColumns,
   focusRow,
   focusedRowIndex,
   focusedColumnIndex,
@@ -1169,7 +1250,7 @@ defineExpose({
             </th>
           </tr>
         </thead>
-        <tbody role="rowgroup">
+        <tbody ref="tableBodyRef" role="rowgroup">
           <tr
             v-if="table.virtualPaddingTop.value > 0"
             class="ioi-table__spacer"
@@ -1212,13 +1293,16 @@ defineExpose({
             <tr
               v-else
               role="row"
-              :class="{
-                'ioi-table__row': true,
-                'ioi-table__row--selected': isRowSelected(entry.row, entry.rowIndex),
-                'ioi-table__row--editing': isRowEditing(entry.row, entry.rowIndex),
-                'ioi-table__row--expanded': isRowExpanded(entry.row, entry.rowIndex),
-                'ioi-table__row--focused': isRowFocused(entry.rowIndex)
-              }"
+              :class="[
+                {
+                  'ioi-table__row': true,
+                  'ioi-table__row--selected': isRowSelected(entry.row, entry.rowIndex),
+                  'ioi-table__row--editing': isRowEditing(entry.row, entry.rowIndex),
+                  'ioi-table__row--expanded': isRowExpanded(entry.row, entry.rowIndex),
+                  'ioi-table__row--focused': isRowFocused(entry.rowIndex)
+                },
+                getRowClass(entry.row, entry.rowIndex)
+              ]"
               :data-row-index="entry.rowIndex"
               :aria-rowindex="getAriaRowIndex(entry)"
               :style="{ height: `${normalizedRowHeight}px` }"
