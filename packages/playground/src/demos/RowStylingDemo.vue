@@ -71,7 +71,7 @@ const stringClassMode = ref(false);
 
       <div class="controls">
         <button class="btn" @click="autoSizeAllColumns">Auto-size All Columns</button>
-        <button class="btn btn--secondary" @click="autoSizeStatusColumn">Auto-size Status Only</button>
+        <button class="btn btn-secondary" @click="autoSizeStatusColumn">Auto-size Status Only</button>
         <label class="toggle-label">
           <input v-model="stringClassMode" type="checkbox">
           Use string class
@@ -183,30 +183,6 @@ h3 {
   align-items: center;
 }
 
-.btn {
-  padding: 0.5rem 1rem;
-  background: #0f5bd4;
-  color: white;
-  border: none;
-  border-radius: 6px;
-  font-size: 0.85rem;
-  font-weight: 500;
-  cursor: pointer;
-  transition: background 120ms;
-}
-
-.btn:hover {
-  background: #0a4aa8;
-}
-
-.btn--secondary {
-  background: #f1f5f9;
-  color: #334155;
-}
-
-.btn--secondary:hover {
-  background: #e2e8f0;
-}
 
 .toggle-label {
   display: flex;

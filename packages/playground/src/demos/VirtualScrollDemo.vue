@@ -94,37 +94,57 @@ function msColor(ms: number): string {
       </div>
     </div>
 
-    <div class="layout">
-      <div ref="tableWrapperRef" :class="`theme-${activeTheme}`">
-        <Table
-          ref="tableRef"
-          :rows="rows"
-          :columns="columns"
-          row-key="c01"
-          :height="560"
-          :row-height="30"
-          :overscan="8"
-        />
-      </div>
-
-      <aside class="perf-panel">
-        <div class="perf-panel-header">
-          <span class="perf-panel-title">Benchmark log</span>
-          <code class="perf-hint">performance.now()</code>
-        </div>
-        <div class="metric-row" v-if="genMs !== null">
-          <span>Data generation</span>
-          <strong :style="{ color: msColor(genMs) }">{{ genMs }}ms</strong>
-        </div>
-        <ul v-if="perfHistory.length" class="perf-list">
-          <li v-for="entry in perfHistory" :key="entry.id" class="perf-entry">
-            <span class="perf-entry-label">{{ entry.label }}</span>
-            <strong class="perf-entry-ms" :style="{ color: msColor(entry.ms) }">{{ entry.ms }}ms</strong>
-          </li>
-        </ul>
-        <p v-if="!perfHistory.length" class="perf-empty">Click "Run Benchmark" to start.</p>
-      </aside>
+    <div ref="tableWrapperRef" :class="`theme-${activeTheme}`">
+      <Table
+        ref="tableRef"
+        :rows="rows"
+        :columns="columns"
+        row-key="c01"
+        :height="560"
+        :row-height="30"
+        :overscan="8"
+      />
     </div>
+
+    <aside v-if="genMs !== null || perfHistory.length" class="perf-panel">
+      <div class="perf-panel-header">
+        <span class="perf-panel-title">Benchmark log</span>
+        <code class="perf-hint">performance.now()</code>
+      </div>
+      <div v-if="genMs !== null" class="metric-row">
+        <span>Data generation</span>
+        <strong :style="{ color: msColor(genMs) }">{{ genMs }}ms</strong>
+      </div>
+      <ul v-if="perfHistory.length" class="perf-list">
+        <li v-for="entry in perfHistory" :key="entry.id" class="perf-entry">
+          <span class="perf-entry-label">{{ entry.label }}</span>
+          <strong class="perf-entry-ms" :style="{ color: msColor(entry.ms) }">{{ entry.ms }}ms</strong>
+        </li>
+      </ul>
+      <p v-if="!perfHistory.length" class="perf-empty">Click "Run Benchmark" to start.</p>
+    </aside>
+
+    <section class="code-section">
+      <h3>Usage</h3>
+      <pre v-pre class="code-block"><code>// Virtual scrolling activates automatically when :height is set.
+// Only rows within the visible viewport + overscan are in the DOM.
+&lt;Table
+  :rows="rows"           // 100,000 rows
+  :columns="columns"
+  row-key="id"
+  :height="560"          // required — fixes the scroll container height
+  :row-height="30"       // fixed row height for the virtual window
+  :overscan="8"          // extra rows rendered above/below viewport
+/&gt;
+
+// Scroll to a specific row index (0-based)
+tableRef.value.scrollToRow(49999)
+
+// Benchmark operations
+tableRef.value.setSortState([{ field: 'c01', direction: 'asc' }])
+tableRef.value.setColumnFilter('c02', { type: 'text', operator: 'contains', value: 'R1' })
+tableRef.value.clearAllFilters()</code></pre>
+    </section>
   </div>
 </template>
 
@@ -147,25 +167,10 @@ function msColor(ms: number): string {
 }
 
 .jump-form { display: flex; align-items: center; gap: 0.4rem; }
-.ctrl-label { font-size: 0.75rem; font-weight: 600; color: #64748b; white-space: nowrap; }
-.ctrl-input {
-  border: 1px solid #cbd5e1; border-radius: 7px; padding: 0.3rem 0.55rem;
-  font-size: 0.8rem; outline: none; width: 100px;
-}
-.ctrl-input:focus { border-color: #0f5bd4; }
-
-.btn {
-  border: none; border-radius: 8px; padding: 0.42rem 0.8rem;
-  font-size: 0.78rem; font-weight: 600; cursor: pointer;
-  background: #0f5bd4; color: #fff; transition: background 120ms;
-}
-.btn:hover { background: #0c4baf; }
+.ctrl-input { width: 100px; }
 .btn-accent { background: #7c3aed; }
 .btn-accent:hover { background: #6d28d9; }
-.btn-ghost { background: transparent; color: #94a3b8; border: 1px solid #e2e8f0; }
-.btn-ghost:hover { background: #f8fafc; }
 
-.layout { display: grid; grid-template-columns: 1fr 260px; gap: 0.85rem; align-items: start; }
 
 .perf-panel { background: #fff; border: 1px solid #e2e8f0; border-radius: 10px; padding: 0.85rem 1rem; }
 .perf-panel-header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 0.65rem; }
@@ -185,7 +190,4 @@ function msColor(ms: number): string {
 .perf-entry-ms { font-weight: 700; }
 .perf-empty { margin: 0; font-size: 0.78rem; color: #94a3b8; }
 
-@media (max-width: 860px) {
-  .layout { grid-template-columns: 1fr; }
-}
 </style>

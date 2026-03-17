@@ -167,6 +167,34 @@ function onCellCommit(payload: IoiCellCommitPayload<TeamMember>): void {
       <span class="hint-icon">&#9432;</span>
       Editable columns are highlighted on hover. Click a cell to start editing.
     </div>
+
+    <section class="code-section">
+      <h3>Usage</h3>
+      <pre v-pre class="code-block"><code>// All columns are editable by default. Opt out with editable: false.
+const columns = [
+  { field: 'name',  header: 'Name',  type: 'text' },
+  { field: 'score', header: 'Score', type: 'number',
+    validate: (v) => {
+      const n = Number(v)
+      if (isNaN(n) || n &lt; 0 || n &gt; 100) return 'Must be 0–100'
+      return true
+    }
+  },
+  { field: 'id', header: 'ID', editable: false },  // read-only
+]
+
+// Listen for committed edits
+&lt;Table @cell-commit="onCellCommit" /&gt;
+
+function onCellCommit({ rowKey, field, oldValue, newValue }) {
+  // update your local data here
+}
+
+// Programmatic editing via table ref
+tableRef.value.startEdit({ field: 'name', rowKey: 1, value: 'Alice' })
+tableRef.value.commitEdit()   // returns false if validation fails
+tableRef.value.cancelEdit()</code></pre>
+    </section>
   </div>
 </template>
 

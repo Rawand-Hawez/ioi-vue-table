@@ -98,6 +98,32 @@ function toggleRiskVisibility(): void {
       <div class="snapshot-header">Column State Snapshot</div>
       <pre class="snapshot-body">{{ JSON.stringify(snapshot, null, 2) }}</pre>
     </div>
+
+    <section class="code-section">
+      <h3>Usage</h3>
+      <pre v-pre class="code-block"><code>const tableRef = ref(null)
+
+// Pin columns
+tableRef.value.setColumnPin('name', 'left')
+tableRef.value.setColumnPin('actions', 'right')
+tableRef.value.setColumnPin('name', 'none')   // unpin
+
+// Resize a column
+tableRef.value.setColumnSizing('name', { width: 280 })
+
+// Reorder (by field id, within the same pin group)
+tableRef.value.setColumnOrder(['id', 'status', 'name', 'role'])
+
+// Show / hide
+tableRef.value.setColumnVisibility('risk', true)   // hidden: true = invisible
+
+// Snapshot current column state
+const snap = tableRef.value.getColumnStateSnapshot()
+// snap.order   → string[]
+// snap.pin     → Record&lt;string, 'left' | 'right' | 'none'&gt;
+// snap.sizing  → Record&lt;string, { width: number }&gt;
+// snap.hidden  → Record&lt;string, boolean&gt;</code></pre>
+    </section>
   </div>
 </template>
 
@@ -110,14 +136,6 @@ function toggleRiskVisibility(): void {
 
 .actions { display: flex; flex-wrap: wrap; gap: 0.45rem; align-items: center; }
 
-.btn {
-  border: none; border-radius: 8px; padding: 0.42rem 0.8rem;
-  font-size: 0.78rem; font-weight: 600; cursor: pointer;
-  background: #0f5bd4; color: #fff; transition: background 120ms;
-}
-.btn:hover { background: #0c4baf; }
-.btn-secondary { background: #f1f5f9; color: #334155; border: 1px solid #e2e8f0; }
-.btn-secondary:hover { background: #e2e8f0; }
 
 .snapshot-panel {
   border: 1px solid #e2e8f0;

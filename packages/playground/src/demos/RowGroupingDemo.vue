@@ -77,59 +77,80 @@ const groupCount = computed(() => {
       </div>
     </div>
 
-    <div class="layout">
-      <div :class="`theme-${activeTheme}`">
-        <Table
-          :rows="rows"
-          :columns="columns"
-          row-key="id"
-          :height="500"
-          :row-height="36"
-          :overscan="6"
-          :group-by="groupByField"
-          :group-aggregations="groupAggregations"
-          v-model:expandedGroupKeys="expandedGroupKeys"
-        >
-          <!-- Custom group header showing aggregations -->
-          <template #group-header="{ group, expanded, toggle }">
-            <div class="group-row" @click="toggle()">
-              <span class="group-arrow">{{ expanded ? '▼' : '▶' }}</span>
-              <span class="group-value">{{ group.value }}</span>
-              <span class="group-count">{{ group.count }} rows</span>
-              <span class="group-agg">
-                Sum: <strong>£{{ fmt(group.aggregations['amount_sum']) }}</strong>
-              </span>
-              <span class="group-agg">
-                Avg: <strong>£{{ fmt(group.aggregations['amount_avg'], 0) }}</strong>
-              </span>
-              <span class="group-agg">
-                Units: <strong>{{ fmt(group.aggregations['units_sum']) }}</strong>
-              </span>
-            </div>
-          </template>
-        </Table>
-      </div>
-
-      <aside class="perf-panel">
-        <div class="perf-panel-header">
-          <span class="perf-panel-title">Group timing</span>
-          <code class="perf-hint">performance.now()</code>
-        </div>
-        <ul v-if="perfHistory.length" class="perf-list">
-          <li v-for="entry in perfHistory" :key="entry.id" class="perf-entry">
-            <span class="perf-entry-label">{{ entry.label }}</span>
-            <strong class="perf-entry-ms" :style="{ color: msColor(entry.ms) }">{{ entry.ms }}ms</strong>
-          </li>
-        </ul>
-        <p v-else class="perf-empty">Switch the group-by field to log timings.</p>
-
-        <div class="agg-legend">
-          <div class="agg-title">Aggregations configured</div>
-          <code class="agg-code">amount: ['sum', 'avg', 'count']
-units:  ['sum', 'avg']</code>
-        </div>
-      </aside>
+    <div :class="`theme-${activeTheme}`">
+      <Table
+        :rows="rows"
+        :columns="columns"
+        row-key="id"
+        :height="500"
+        :row-height="36"
+        :overscan="6"
+        :group-by="groupByField"
+        :group-aggregations="groupAggregations"
+        v-model:expandedGroupKeys="expandedGroupKeys"
+      >
+        <template #group-header="{ group, expanded, toggle }">
+          <div class="group-row" @click="toggle()">
+            <span class="group-arrow">{{ expanded ? '▼' : '▶' }}</span>
+            <span class="group-value">{{ group.value }}</span>
+            <span class="group-count">{{ group.count }} rows</span>
+            <span class="group-agg">
+              Sum: <strong>£{{ fmt(group.aggregations['amount_sum']) }}</strong>
+            </span>
+            <span class="group-agg">
+              Avg: <strong>£{{ fmt(group.aggregations['amount_avg'], 0) }}</strong>
+            </span>
+            <span class="group-agg">
+              Units: <strong>{{ fmt(group.aggregations['units_sum']) }}</strong>
+            </span>
+          </div>
+        </template>
+      </Table>
     </div>
+
+    <aside v-if="perfHistory.length" class="perf-panel">
+      <div class="perf-panel-header">
+        <span class="perf-panel-title">Group timing</span>
+        <code class="perf-hint">performance.now()</code>
+      </div>
+      <ul class="perf-list">
+        <li v-for="entry in perfHistory" :key="entry.id" class="perf-entry">
+          <span class="perf-entry-label">{{ entry.label }}</span>
+          <strong class="perf-entry-ms" :style="{ color: msColor(entry.ms) }">{{ entry.ms }}ms</strong>
+        </li>
+      </ul>
+    </aside>
+
+    <section class="code-section">
+      <h3>Usage</h3>
+      <pre v-pre class="code-block"><code>&lt;script setup&gt;
+const expandedGroupKeys = ref([])
+
+const groupAggregations = {
+  amount: ['sum', 'avg', 'count'],
+  units:  ['sum', 'avg'],
+}
+&lt;/script&gt;
+
+&lt;template&gt;
+  &lt;Table
+    :rows="rows"
+    :columns="columns"
+    group-by="region"
+    :group-aggregations="groupAggregations"
+    v-model:expandedGroupKeys="expandedGroupKeys"
+  &gt;
+    &lt;template #group-header="{ group, expanded, toggle }"&gt;
+      &lt;div @click="toggle()"&gt;
+        {{ expanded ? '▼' : '▶' }} {{ group.value }}
+        ({{ group.count }} rows)
+        Sum: {{ group.aggregations['amount_sum'] }}
+        Avg: {{ group.aggregations['amount_avg'] }}
+      &lt;/div&gt;
+    &lt;/template&gt;
+  &lt;/Table&gt;
+&lt;/template&gt;</code></pre>
+    </section>
   </div>
 </template>
 
@@ -148,19 +169,7 @@ units:  ['sum', 'avg']</code>
 
 .controls { display: flex; align-items: center; gap: 0.5rem; flex-wrap: wrap; }
 
-.segment { display: flex; gap: 2px; background: #f1f5f9; border-radius: 8px; padding: 3px; }
-.seg-btn {
-  border: none; background: transparent; color: #64748b;
-  font-size: 0.75rem; font-weight: 500; padding: 0.28rem 0.7rem;
-  border-radius: 6px; cursor: pointer; transition: all 100ms;
-}
-.seg-btn:hover { color: #0f172a; background: #e2e8f0; }
-.seg-btn--active { background: #fff; color: #0f5bd4; font-weight: 700; box-shadow: 0 1px 3px rgba(0,0,0,0.1); }
 
-.btn-ghost { border: none; background: transparent; color: #94a3b8; border: 1px solid #e2e8f0; border-radius: 8px; padding: 0.36rem 0.7rem; font-size: 0.75rem; cursor: pointer; }
-.btn-ghost:hover { background: #f8fafc; }
-
-.layout { display: grid; grid-template-columns: 1fr 260px; gap: 0.85rem; align-items: start; }
 
 /* Group header slot styling */
 .group-row {
@@ -196,5 +205,4 @@ units:  ['sum', 'avg']</code>
   color: #334155; white-space: pre; line-height: 1.6;
 }
 
-@media (max-width: 860px) { .layout { grid-template-columns: 1fr; } }
 </style>

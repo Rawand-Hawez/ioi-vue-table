@@ -53,6 +53,7 @@ function parseHash(hash: string): RouteId {
 
 const currentRoute = ref<RouteId>(parseHash(window.location.hash));
 const activeComponent = computed(() => componentMap[currentRoute.value]);
+const collapsed = ref(false);
 
 function onHashChange(): void {
   currentRoute.value = parseHash(window.location.hash);
@@ -83,52 +84,61 @@ const perfColor = computed(() => {
 
 <template>
   <div class="app-shell">
-    <header class="top-nav">
-      <a class="nav-brand" href="#overview">
-        <span class="nav-logo">IOI</span>
-        <span class="nav-title">Vue Table</span>
-        <span class="nav-version">v0.2.4</span>
-      </a>
+    <aside class="sidebar" :class="{ 'sidebar--collapsed': collapsed }">
+      <div class="sidebar-top">
+        <a class="nav-brand" href="#overview">
+          <span class="nav-logo">IOI</span>
+          <div class="nav-brand-text">
+            <span class="nav-title">Vue Table</span>
+            <span class="nav-version">v0.2.4</span>
+          </div>
+        </a>
+        <button
+          class="sidebar-toggle"
+          :title="collapsed ? 'Expand sidebar' : 'Collapse sidebar'"
+          @click="collapsed = !collapsed"
+        >{{ collapsed ? '›' : '‹' }}</button>
+      </div>
 
-      <nav class="nav-tabs" aria-label="Demo sections">
+      <nav class="sidebar-nav" aria-label="Demo sections">
+        <span class="sidebar-label">Demos</span>
         <a
           v-for="route in routes"
           :key="route.id"
           :href="`#${route.id}`"
-          :class="['nav-tab', { 'nav-tab--active': route.id === currentRoute }]"
+          :class="['sidebar-link', { 'sidebar-link--active': route.id === currentRoute }]"
         >
           {{ route.label }}
-          <span v-if="route.badge" class="nav-tab-badge">{{ route.badge }}</span>
+          <span v-if="route.badge" class="nav-badge">{{ route.badge }}</span>
         </a>
       </nav>
+    </aside>
 
-      <div class="nav-right">
+    <main class="demo-stage">
+      <div class="stage-toolbar">
         <div class="theme-switcher" role="group" aria-label="Table theme">
           <button
             v-for="t in themes"
             :key="t.id"
             :class="['theme-btn', { 'theme-btn--active': activeTheme === t.id }]"
             @click="setTheme(t.id)"
-          >
-            {{ t.label }}
-          </button>
+          >{{ t.label }}</button>
         </div>
-
-        <div v-if="lastPerfEntry" class="perf-pill" :style="{ color: perfColor }">
-          <span class="perf-pill__icon">&#9889;</span>
-          <span class="perf-pill__ms">{{ lastPerfEntry.ms }}ms</span>
-          <span class="perf-pill__label">{{ lastPerfEntry.label }}</span>
+        <div v-if="lastPerfEntry" class="toolbar-perf" :style="{ color: perfColor }">
+          <span>&#9889;</span>
+          <span>{{ lastPerfEntry.ms }}ms</span>
+          <span class="toolbar-perf__label">{{ lastPerfEntry.label }}</span>
         </div>
       </div>
-    </header>
 
-    <main class="demo-stage">
-      <Suspense>
-        <component :is="activeComponent" />
-        <template #fallback>
-          <div class="demo-loading">Loading…</div>
-        </template>
-      </Suspense>
+      <div class="stage-content">
+        <Suspense>
+          <component :is="activeComponent" />
+          <template #fallback>
+            <div class="demo-loading">Loading…</div>
+          </template>
+        </Suspense>
+      </div>
     </main>
   </div>
 </template>
@@ -136,31 +146,58 @@ const perfColor = computed(() => {
 <style scoped>
 .app-shell {
   display: flex;
-  flex-direction: column;
-  min-height: 100dvh;
+  flex-direction: row;
+  height: 100dvh;
+  overflow: hidden;
 }
 
-.top-nav {
-  position: sticky;
-  top: 0;
-  z-index: 100;
+/* ── Sidebar ── */
+.sidebar {
+  width: 220px;
+  flex-shrink: 0;
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  overflow: hidden;
+  background: #ffffff;
+  border-right: 1px solid #e2e8f0;
+  transition: width 200ms ease;
+}
+
+.sidebar--collapsed {
+  width: 48px;
+}
+
+.sidebar-top {
   display: flex;
   align-items: center;
-  height: 52px;
-  background: #ffffff;
-  border-bottom: 1px solid #e2e8f0;
-  padding: 0 1rem;
-  box-shadow: 0 1px 3px rgba(15, 23, 42, 0.06);
-  gap: 0;
+  justify-content: space-between;
+  padding: 1rem 0.75rem 1rem 1rem;
+  border-bottom: 1px solid #f1f5f9;
+  flex-shrink: 0;
+  gap: 0.5rem;
+  min-height: 52px;
+}
+
+.sidebar--collapsed .sidebar-top {
+  justify-content: center;
+  padding: 1rem 0;
 }
 
 .nav-brand {
   display: flex;
   align-items: center;
-  gap: 0.45rem;
+  gap: 0.5rem;
   text-decoration: none;
-  flex-shrink: 0;
-  margin-right: 1rem;
+  flex: 1;
+  overflow: hidden;
+  opacity: 1;
+  transition: opacity 150ms ease;
+}
+
+.sidebar--collapsed .nav-brand {
+  opacity: 0;
+  pointer-events: none;
 }
 
 .nav-logo {
@@ -169,72 +206,137 @@ const perfColor = computed(() => {
   font-size: 0.68rem;
   font-weight: 800;
   letter-spacing: 0.06em;
-  padding: 0.18rem 0.38rem;
+  padding: 0.22rem 0.4rem;
   border-radius: 5px;
+  flex-shrink: 0;
+}
+
+.nav-brand-text {
+  display: flex;
+  flex-direction: column;
+  gap: 0.05rem;
+  overflow: hidden;
 }
 
 .nav-title {
   font-weight: 700;
-  font-size: 0.92rem;
+  font-size: 0.88rem;
   color: #0f172a;
+  line-height: 1.2;
+  white-space: nowrap;
 }
 
 .nav-version {
-  font-size: 0.68rem;
+  font-size: 0.65rem;
   font-weight: 600;
-  background: #f1f5f9;
-  color: #64748b;
-  border-radius: 20px;
-  padding: 0.12rem 0.45rem;
+  color: #94a3b8;
+  line-height: 1.2;
 }
 
-.nav-tabs {
-  display: flex;
-  align-items: center;
-  flex: 1;
-  overflow-x: auto;
-  scrollbar-width: none;
-  height: 100%;
-}
-.nav-tabs::-webkit-scrollbar { display: none; }
-
-.nav-tab {
-  display: flex;
-  align-items: center;
-  gap: 0.28rem;
-  height: 100%;
-  padding: 0 0.85rem;
-  text-decoration: none;
-  color: #64748b;
-  font-size: 0.81rem;
-  font-weight: 500;
-  border-bottom: 2px solid transparent;
-  white-space: nowrap;
-  transition: color 100ms, border-color 100ms;
+.sidebar-toggle {
   flex-shrink: 0;
+  width: 26px;
+  height: 26px;
+  border: 1px solid #e2e8f0;
+  background: #f8fafc;
+  border-radius: 6px;
+  cursor: pointer;
+  font-size: 1rem;
+  color: #64748b;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: background 120ms, color 120ms;
+  padding: 0;
+  line-height: 1;
 }
-.nav-tab:hover { color: #0f172a; }
-.nav-tab--active {
+
+.sidebar-toggle:hover {
+  background: #e2e8f0;
+  color: #0f172a;
+}
+
+/* ── Nav links ── */
+.sidebar-nav {
+  flex: 1;
+  padding: 0.85rem 0 0.5rem;
+  display: flex;
+  flex-direction: column;
+  overflow-y: auto;
+  opacity: 1;
+  transition: opacity 150ms ease;
+}
+
+.sidebar--collapsed .sidebar-nav {
+  opacity: 0;
+  pointer-events: none;
+}
+
+.sidebar-label {
+  display: block;
+  padding: 0 1rem 0.45rem;
+  font-size: 0.62rem;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  color: #94a3b8;
+  text-transform: uppercase;
+}
+
+.sidebar-link {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0.42rem 1rem;
+  font-size: 0.82rem;
+  font-weight: 500;
+  color: #475569;
+  text-decoration: none;
+  border-left: 2px solid transparent;
+  transition: background 80ms, color 80ms;
+  white-space: nowrap;
+}
+
+.sidebar-link:hover {
+  background: #f8fafc;
+  color: #0f172a;
+}
+
+.sidebar-link--active {
   color: var(--brand, #0f5bd4);
-  border-bottom-color: var(--brand, #0f5bd4);
+  background: #eff6ff;
+  border-left-color: var(--brand, #0f5bd4);
   font-weight: 600;
 }
 
-.nav-tab-badge {
-  font-size: 0.6rem;
+.nav-badge {
+  font-size: 0.58rem;
   font-weight: 700;
   background: #eff6ff;
   color: #0f5bd4;
   border-radius: 20px;
-  padding: 0.08rem 0.32rem;
+  padding: 0.06rem 0.3rem;
+  flex-shrink: 0;
 }
 
-.nav-right {
+/* ── Stage ── */
+.demo-stage {
+  flex: 1;
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  min-width: 0;
+}
+
+.stage-toolbar {
   display: flex;
   align-items: center;
-  gap: 0.65rem;
+  justify-content: flex-end;
+  gap: 0.75rem;
+  padding: 0.5rem 1.25rem;
+  background: #ffffff;
+  border-bottom: 1px solid #e2e8f0;
   flex-shrink: 0;
-  margin-left: 0.5rem;
 }
 
 .theme-switcher {
@@ -249,15 +351,20 @@ const perfColor = computed(() => {
   border: none;
   background: transparent;
   color: #64748b;
-  font-size: 0.74rem;
+  font-size: 0.72rem;
   font-weight: 500;
-  padding: 0.26rem 0.6rem;
-  border-radius: 6px;
+  padding: 0.24rem 0.55rem;
+  border-radius: 5px;
   cursor: pointer;
-  transition: all 100ms;
+  transition: all 80ms;
   white-space: nowrap;
 }
-.theme-btn:hover { color: #0f172a; background: #e2e8f0; }
+
+.theme-btn:hover {
+  color: #0f172a;
+  background: #e2e8f0;
+}
+
 .theme-btn--active {
   background: #ffffff;
   color: var(--brand, #0f5bd4);
@@ -265,32 +372,27 @@ const perfColor = computed(() => {
   box-shadow: 0 1px 3px rgba(15, 23, 42, 0.12);
 }
 
-.perf-pill {
+.toolbar-perf {
   display: flex;
   align-items: center;
   gap: 0.28rem;
-  font-size: 0.73rem;
+  font-size: 0.71rem;
   font-weight: 600;
-  background: #f8fafc;
-  border: 1px solid #e2e8f0;
-  border-radius: 20px;
-  padding: 0.22rem 0.6rem;
-  white-space: nowrap;
-}
-.perf-pill__label {
-  color: #94a3b8;
-  font-weight: 400;
-  max-width: 120px;
-  overflow: hidden;
-  text-overflow: ellipsis;
 }
 
-.demo-stage {
+.toolbar-perf__label {
+  color: #94a3b8;
+  font-weight: 400;
+  max-width: 200px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.stage-content {
   flex: 1;
-  padding: 1.5rem;
-  max-width: 1440px;
-  width: 100%;
-  margin: 0 auto;
+  overflow-y: auto;
+  padding: 2rem;
   box-sizing: border-box;
 }
 
@@ -303,8 +405,9 @@ const perfColor = computed(() => {
   font-size: 0.875rem;
 }
 
-@media (max-width: 860px) {
-  .perf-pill { display: none; }
-  .demo-stage { padding: 1rem 0.75rem; }
+@media (max-width: 700px) {
+  .sidebar { width: 180px; }
+  .sidebar--collapsed { width: 44px; }
+  .stage-content { padding: 1rem; }
 }
 </style>
