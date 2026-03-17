@@ -92,7 +92,7 @@ const stringClassMode = ref(false);
 
     <section class="code-section">
       <h3>Usage</h3>
-      <pre class="code-block"><code>&lt;script setup&gt;
+      <pre v-pre class="code-block"><code>&lt;script setup&gt;
 // Function returning an object
 function getRowClass(row, rowIndex) {
   return {
@@ -123,7 +123,7 @@ const rowClass = 'my-custom-row-class';
       <p class="section-desc">
         Programmatically size columns to fit their content. Only measures visible rows for performance.
       </p>
-      <pre class="code-block"><code>// Auto-size all columns
+      <pre v-pre class="code-block"><code>// Auto-size all columns
 tableRef.autoSizeColumns();
 
 // Auto-size specific columns with options
@@ -232,6 +232,7 @@ h3 {
 }
 
 .code-block code {
+  background: transparent;
   color: #e2e8f0;
   font-family: 'SFMono-Regular', Menlo, Consolas, monospace;
   font-size: 0.8rem;

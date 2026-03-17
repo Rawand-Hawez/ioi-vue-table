@@ -87,7 +87,7 @@ const perfColor = computed(() => {
       <a class="nav-brand" href="#overview">
         <span class="nav-logo">IOI</span>
         <span class="nav-title">Vue Table</span>
-        <span class="nav-version">v0.2.2</span>
+        <span class="nav-version">v0.2.4</span>
       </a>
 
       <nav class="nav-tabs" aria-label="Demo sections">
