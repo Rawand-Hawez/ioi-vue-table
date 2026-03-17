@@ -145,6 +145,32 @@ const features = [
         </div>
       </div>
     </section>
+
+    <section class="quickstart">
+      <h2 class="section-title">Key Props</h2>
+      <pre v-pre class="code-block"><code>&lt;Table
+  :rows="rows"                   // required — array of row objects
+  :columns="columns"             // required — ColumnDef[]
+  row-key="id"                   // required — unique row identifier field
+
+  :height="400"                  // px — enables virtual scrolling
+  :row-height="36"               // px — fixed row height for virtual window
+  :overscan="6"                  // extra rows rendered beyond viewport edges
+
+  group-by="region"              // field name to group rows by
+  :group-aggregations="{ ... }"  // { field: AggregationType[] }
+  v-model:expandedGroupKeys="keys"
+
+  v-model:pageIndex="page"       // controlled pagination
+  v-model:pageSize="size"
+
+  row-key-field="id"
+  :row-class="getRowClass"       // string | object | (row, i) =&gt; string | object
+
+  @cell-commit="onCommit"        // fired when an inline edit is committed
+  @state-change="onStateChange"  // fired on sort/filter/page/selection change
+/&gt;</code></pre>
+    </section>
   </div>
 </template>
 

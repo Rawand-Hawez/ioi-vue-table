@@ -116,6 +116,33 @@ function badgeStyle(badge: string | null): Record<string, string> {
         </template>
       </Table>
     </div>
+
+    <section class="code-section">
+      <h3>Usage</h3>
+      <pre v-pre class="code-block"><code>&lt;Table :rows="rows" :columns="columns" row-key="id"&gt;
+  &lt;template #cell="{ column, value, row }"&gt;
+
+    &lt;!-- Match on column.field to render custom content --&gt;
+    &lt;template v-if="column.field === 'status'"&gt;
+      &lt;span :class="['chip', `chip--${value}`]"&gt;{{ value }}&lt;/span&gt;
+    &lt;/template&gt;
+
+    &lt;template v-else-if="column.field === 'progress'"&gt;
+      &lt;div class="bar"&gt;
+        &lt;div :style="{ width: value + '%' }" /&gt;
+      &lt;/div&gt;
+    &lt;/template&gt;
+
+    &lt;template v-else-if="column.field === 'price'"&gt;
+      £{{ value.toFixed(2) }}
+    &lt;/template&gt;
+
+    &lt;!-- Fallback: render the raw value for all other columns --&gt;
+    &lt;template v-else&gt;{{ value }}&lt;/template&gt;
+
+  &lt;/template&gt;
+&lt;/Table&gt;</code></pre>
+    </section>
   </div>
 </template>
 

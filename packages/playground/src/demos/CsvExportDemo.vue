@@ -19,7 +19,7 @@ const sanitize = ref(true);
 const headerMode = ref<'header' | 'field'>('header');
 
 const pageIndex = ref(0);
-const pageSize = ref(25);
+const pageSize = ref(10);
 const selectedCount = ref(0);
 
 interface TableRef {
@@ -179,6 +179,33 @@ const scopes: Array<{ value: ExportCsvScope; label: string; desc: string }> = [
         <button class="page-btn" @click="pageIndex++">&rarr;</button>
       </div>
     </div>
+
+    <section class="code-section">
+      <h3>Usage</h3>
+      <pre v-pre class="code-block"><code>const tableRef = ref(null)
+
+// Export by scope
+const csv = tableRef.value.exportCSV({ scope: 'visible' })    // current page
+const csv = tableRef.value.exportCSV({ scope: 'filtered' })   // all filtered rows
+const csv = tableRef.value.exportCSV({ scope: 'selected' })   // selected rows only
+const csv = tableRef.value.exportCSV({ scope: 'allLoaded' })  // all rows
+
+// Full options
+const csv = tableRef.value.exportCSV({
+  scope: 'filtered',
+  delimiter: ';',            // ',' | ';' | '\t'  (default: ',')
+  includeHeader: true,       // include header row  (default: true)
+  sanitizeFormulas: true,    // escape = + - @ to prevent CSV injection
+  headerMode: 'header',      // 'header' = use column label, 'field' = use field key
+})
+
+// Trigger download
+const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' })
+const url  = URL.createObjectURL(blob)
+const a    = Object.assign(document.createElement('a'), { href: url, download: 'export.csv' })
+a.click()
+URL.revokeObjectURL(url)</code></pre>
+    </section>
   </div>
 </template>
 
@@ -219,16 +246,6 @@ const scopes: Array<{ value: ExportCsvScope; label: string; desc: string }> = [
 
 .config-actions { display: flex; gap: 0.5rem; flex-wrap: wrap; border-top: 1px solid #f1f5f9; padding-top: 0.85rem; }
 
-.btn {
-  border: none; border-radius: 8px; padding: 0.45rem 0.9rem;
-  font-size: 0.8rem; font-weight: 600; cursor: pointer;
-  background: #0f5bd4; color: #fff; transition: background 120ms;
-}
-.btn:hover { background: #0c4baf; }
-.btn-secondary { background: #f1f5f9; color: #334155; border: 1px solid #e2e8f0; }
-.btn-secondary:hover { background: #e2e8f0; }
-.btn-ghost { background: transparent; color: #94a3b8; border: 1px solid #e2e8f0; }
-.btn-ghost:hover { background: #f8fafc; }
 
 .pagination-bar {
   display: flex; align-items: center; justify-content: space-between;

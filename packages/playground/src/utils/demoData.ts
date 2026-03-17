@@ -71,8 +71,8 @@ export function createEmployeeColumns(): ColumnDef<Employee>[] {
 // Sales data — Row Grouping demo
 // ============================================================
 
-const REGIONS = ['South East', 'North West', 'Scotland', 'Midlands', 'Yorkshire', 'Wales', 'East Anglia', 'South West', 'Northern Ireland', 'North East'];
-const CATEGORIES = ['Software', 'Hardware', 'Services', 'Support', 'Training'];
+const REGIONS = ['South East', 'North West', 'Scotland', 'Midlands', 'Yorkshire', 'Wales', 'East Anglia', 'South West'];
+const CATEGORIES = ['Software', 'Hardware', 'Services', 'Support', 'Training', 'Consulting', 'Cloud'];
 const REPS = ['Oliver Smith', 'Harry Jones', 'Charlotte Williams', 'James Taylor', 'Emily Brown',
   'William Davies', 'Sophie Evans', 'Thomas Wilson', 'Emma Roberts', 'Jack Johnson'];
 const PRODUCTS = ['ProSuite', 'DataGrid', 'CloudPack', 'SupportHub', 'DevKit', 'AnalyticsPro', 'SecureVault', 'FlowEngine'];

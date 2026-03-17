@@ -5,7 +5,6 @@
   --brand: #0f5bd4;
   --brand-dim: #0c4baf;
   --brand-light: #eff6ff;
-  --nav-h: 52px;
 }
 
 *, *::before, *::after {
@@ -26,12 +25,10 @@ body {
 }
 
 #app {
-  min-height: 100dvh;
-  display: flex;
-  flex-direction: column;
+  height: 100dvh;
 }
 
-/* Code blocks */
+/* Inline code */
 code {
   font-family: 'SFMono-Regular', 'Fira Code', Menlo, Consolas, monospace;
   font-size: 0.85em;
@@ -41,8 +38,118 @@ code {
   color: #0f5bd4;
 }
 
+/* Shared demo code section */
+.code-section {
+  display: grid;
+  gap: 0.75rem;
+  margin-top: 2rem;
+  padding-top: 1.5rem;
+  border-top: 1px solid #e2e8f0;
+}
+
+.code-section h3 {
+  margin: 0;
+  font-size: 1rem;
+  font-weight: 600;
+  color: #334155;
+}
+
+.code-block {
+  background: #0f172a;
+  border-radius: 8px;
+  padding: 1rem 1.25rem;
+  overflow-x: auto;
+  margin: 0;
+}
+
+.code-block code {
+  background: transparent;
+  color: #e2e8f0;
+  font-size: 0.8rem;
+  padding: 0;
+  border-radius: 0;
+  line-height: 1.65;
+  white-space: pre;
+}
+
 /* Scrollbar styling */
 ::-webkit-scrollbar { width: 6px; height: 6px; }
 ::-webkit-scrollbar-track { background: transparent; }
 ::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 9px; }
 ::-webkit-scrollbar-thumb:hover { background: #94a3b8; }
+
+/* ── Shared demo button styles ── */
+.btn {
+  border: none;
+  border-radius: 8px;
+  padding: 0.4rem 0.75rem;
+  font-size: 0.78rem;
+  font-weight: 600;
+  cursor: pointer;
+  background: #0f5bd4;
+  color: #fff;
+  transition: background 120ms;
+}
+.btn:hover { background: #0c4baf; }
+
+.btn-secondary {
+  background: #f1f5f9;
+  color: #334155;
+  border: 1px solid #e2e8f0;
+}
+.btn-secondary:hover { background: #e2e8f0; }
+
+.btn-ghost {
+  background: transparent;
+  color: #94a3b8;
+  border: 1px solid #e2e8f0;
+}
+.btn-ghost:hover { background: #f8fafc; color: #475569; }
+
+/* ── Segment control ── */
+.segment {
+  display: flex;
+  gap: 2px;
+  background: #f1f5f9;
+  border-radius: 8px;
+  padding: 3px;
+}
+.seg-btn {
+  border: none;
+  background: transparent;
+  color: #64748b;
+  font-size: 0.75rem;
+  font-weight: 500;
+  padding: 0.28rem 0.7rem;
+  border-radius: 6px;
+  cursor: pointer;
+  transition: all 100ms;
+  white-space: nowrap;
+}
+.seg-btn:hover { color: #0f172a; background: #e2e8f0; }
+.seg-btn--active {
+  background: #fff;
+  color: #0f5bd4;
+  font-weight: 700;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+}
+
+/* ── Shared form controls ── */
+.ctrl-label {
+  font-size: 0.75rem;
+  font-weight: 600;
+  color: #64748b;
+  white-space: nowrap;
+}
+.ctrl-input {
+  border: 1px solid #cbd5e1;
+  border-radius: 7px;
+  padding: 0.3rem 0.55rem;
+  font-size: 0.8rem;
+  outline: none;
+  transition: border-color 120ms;
+}
+.ctrl-input:focus {
+  border-color: #0f5bd4;
+  box-shadow: 0 0 0 3px rgba(15, 91, 212, 0.1);
+}
