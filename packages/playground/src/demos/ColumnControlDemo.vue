@@ -10,6 +10,8 @@ const { activeTheme } = useTheme();
 const rows = ref<ProjectRow[]>(createProjects(1_200));
 const columns = ref<ColumnDef<ProjectRow>[]>(createProjectColumns());
 const snapshot = ref<ColumnStateSnapshot | null>(null);
+const ownerPinned = ref(false);
+const riskHidden = ref(false);
 
 interface TableRef {
   setColumnOrder: (order: string[]) => void;
@@ -60,17 +62,16 @@ function widenPins(): void {
 function toggleOwnerPin(): void {
   const t = tableRef.value;
   if (!t) return;
-  const pin = t.getColumnStateSnapshot().pin['owner'] ?? 'none';
-  t.setColumnPin('owner', pin === 'right' ? 'none' : 'right');
+  ownerPinned.value = !ownerPinned.value;
+  t.setColumnPin('owner', ownerPinned.value ? 'right' : 'none');
   capture();
 }
 
 function toggleRiskVisibility(): void {
   const t = tableRef.value;
   if (!t) return;
-  const vis = t.getColumnStateSnapshot().hidden;
-  const hidden = vis['risk'] ?? false;
-  t.setColumnVisibility('risk', !hidden);
+  riskHidden.value = !riskHidden.value;
+  t.setColumnVisibility('risk', riskHidden.value);
   capture();
 }
 </script>
@@ -85,12 +86,14 @@ function toggleRiskVisibility(): void {
           reorder within the same pin group, and toggle visibility — all state-snapshotted.
         </p>
       </div>
-      <div class="actions">
-        <button class="btn" @click="rotateOrder">Rotate Order</button>
-        <button class="btn btn-secondary" @click="widenPins">Widen Pins</button>
-        <button class="btn btn-secondary" @click="toggleOwnerPin">Toggle Owner Pin</button>
-        <button class="btn btn-secondary" @click="toggleRiskVisibility">Toggle Risk</button>
-        <button class="btn btn-secondary" @click="capture">Capture Snapshot</button>
+      <div class="controls">
+        <div class="segment" role="group">
+          <button class="seg-btn" @click="rotateOrder">Rotate Order</button>
+          <button class="seg-btn" @click="widenPins">Widen Pins</button>
+          <button :class="['seg-btn', { 'seg-btn--active': ownerPinned }]" @click="toggleOwnerPin">Pin Owner</button>
+          <button :class="['seg-btn', { 'seg-btn--active': riskHidden }]" @click="toggleRiskVisibility">Hide Risk</button>
+        </div>
+        <button class="btn btn-ghost" @click="capture">Capture Snapshot</button>
       </div>
     </div>
 
@@ -157,7 +160,7 @@ const snap = tableRef.value.getColumnStateSnapshot()
 .demo-title { margin: 0; font-size: 1.2rem; font-weight: 700; color: #0f172a; }
 .demo-desc { margin: 0.25rem 0 0; color: #64748b; font-size: 0.82rem; max-width: 60ch; }
 
-.actions { display: flex; flex-wrap: wrap; gap: 0.45rem; align-items: center; }
+.controls { display: flex; align-items: center; gap: 0.5rem; flex-wrap: wrap; }
 
 
 .snapshot-panel {
