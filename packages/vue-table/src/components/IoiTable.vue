@@ -4,6 +4,7 @@ import { useColumnState } from '../composables/useColumnState';
 import { createKeyboardNavigation } from '../composables/ioiTable/keyboard';
 import { useIoiTable } from '../composables/useIoiTable';
 import type {
+  AutoSizeOptions,
   CellSlotProps,
   ColumnDef,
   HeaderFilterSlotProps,
@@ -1014,13 +1015,6 @@ function setHeaderFilterValue(column: ColumnDef<TRow>, nextValue: string): void 
     value,
     caseSensitive: false
   });
-}
-
-interface AutoSizeOptions {
-  includeHeaders?: boolean;
-  padding?: number;
-  minWidth?: number;
-  maxWidth?: number;
 }
 
 function autoSizeColumns(columnIds?: string[], options: AutoSizeOptions = {}): void {

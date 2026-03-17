@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { ref } from 'vue';
-import { Table, type ColumnDef } from '@ioi-dev/vue-table';
+import { Table, type ColumnDef, type AutoSizeOptions } from '@ioi-dev/vue-table';
 import { useTheme } from '../composables/useTheme';
 
 const { activeTheme } = useTheme();
@@ -16,12 +16,6 @@ interface StatusRow extends Record<string, unknown> {
 
 // Local type for the exposed autoSizeColumns method — generic Vue components
 // don't work with InstanceType<typeof Table> in vue-tsc
-interface AutoSizeOptions {
-  includeHeaders?: boolean;
-  padding?: number;
-  minWidth?: number;
-  maxWidth?: number;
-}
 interface TableRef {
   autoSizeColumns: (columnIds?: string[], options?: AutoSizeOptions) => void;
 }

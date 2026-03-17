@@ -506,3 +506,16 @@ export interface ServerDataOptions<TRow = Record<string, unknown>> {
   /** Callback when fetch fails */
   onFetchError?: (error: Error) => void;
 }
+
+/** Options for the autoSizeColumns method */
+export interface AutoSizeOptions {
+  /** Include header cell widths in the calculation (default: true) */
+  includeHeaders?: boolean;
+  /** Extra padding added to each measured cell in pixels (default: 16) */
+  padding?: number;
+  /** Minimum column width in pixels (default: 50) */
+  minWidth?: number;
+  /** Maximum column width in pixels (default: 500) */
+  maxWidth?: number;
+}
+
