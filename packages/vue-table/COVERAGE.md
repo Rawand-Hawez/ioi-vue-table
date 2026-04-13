@@ -1,7 +1,7 @@
 # Test Coverage Report
 
-**Generated**: 2026-03-17
-**Version**: v0.2.4
+**Generated**: 2026-04-04
+**Version**: v0.2.5 (metrics reflect v0.2.4 implemented code — v0.2.5 features not yet landed)
 
 ## Summary
 

@@ -2,6 +2,7 @@
   "extends": "../../tsconfig.base.json",
   "include": ["src/**/*.ts", "src/**/*.vue", "test/**/*.ts"],
   "compilerOptions": {
+    "ignoreDeprecations": "5.0",
     "baseUrl": ".",
     "incremental": true,
     "tsBuildInfoFile": "../../.cache/tsbuildinfo/vue-table.typecheck.tsbuildinfo"

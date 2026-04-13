@@ -71,6 +71,7 @@ const themes: { id: Theme; label: string }[] = [
   { id: 'default', label: 'Default' },
   { id: 'tailwind', label: 'Tailwind' },
   { id: 'bootstrap', label: 'Bootstrap' },
+  { id: 'minimal', label: 'Minimal' },
 ];
 
 const perfColor = computed(() => {
@@ -90,7 +91,7 @@ const perfColor = computed(() => {
           <span class="nav-logo">IOI</span>
           <div class="nav-brand-text">
             <span class="nav-title">Vue Table</span>
-            <span class="nav-version">v0.2.4</span>
+            <span class="nav-version">v0.2.5</span>
           </div>
         </a>
         <button

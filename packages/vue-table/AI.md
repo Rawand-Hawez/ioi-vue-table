@@ -1,4 +1,4 @@
-# @ioi-dev/vue-table v0.2.4
+# @ioi-dev/vue-table v0.2.5
 
 A performance-first Vue 3 data table component with virtual scrolling, server-side data fetching, row expansion, grouping, CSV import/export, inline editing, and a streamlined API surface.
 
@@ -71,6 +71,7 @@ import '@ioi-dev/vue-table/styles.css'; // or style.css
 // Types
 import type {
   ColumnDef,
+  ColumnGroup,
   IoiTableApi,
   IoiTableOptions,
   IoiTableState,
@@ -86,6 +87,14 @@ import type {
 ```typescript
 import { IoiTable, useIoiTable } from '@ioi-dev/vue-table/unstyled';
 // No CSS import needed - you provide all styles
+```
+
+### Minimal CSS Entry
+
+```typescript
+import { IoiTable, useIoiTable } from '@ioi-dev/vue-table/unstyled';
+import '@ioi-dev/vue-table/minimal';
+// Functional-only CSS: padding, borders, hover, focus ring. No brand colours or design opinions.
 ```
 
 ### Composables Entry
@@ -144,6 +153,15 @@ interface IoiTableProps<TRow> {
   groupAggregations?: Record<string, AggregationType[]>;
   expandedGroupKeys?: Array<string>;
 
+  // Column Groups (v0.2.5)
+  columnGroups?: ColumnGroup[];
+
+  // Row Reorder (v0.2.5)
+  rowDraggable?: boolean;                 // Default: false
+
+  // Clipboard Copy (v0.2.5)
+  copyable?: boolean;                     // Default: true when selection enabled
+
   // Server-Side Mode
   dataMode?: 'client' | 'server';         // Default: 'client'
   serverOptions?: ServerDataOptions<TRow>;
@@ -159,6 +177,7 @@ interface IoiTableProps<TRow> {
 interface IoiTableEvents<TRow> {
   'row-click': [payload: { row: TRow; rowIndex: number }];
   'state-change': [event: IoiSemanticEvent<unknown>];
+  'row-reorder': [payload: { fromIndex: number; toIndex: number; row: TRow }];
   'update:pageIndex': [value: number];
   'update:pageSize': [value: number];
   'pagination-change': [payload: IoiPaginationChangePayload];
@@ -204,6 +223,11 @@ interface IoiTableSlots<TRow> {
     group: GroupHeader;
     expanded: boolean;
     toggle: () => void;
+  }) => VNode;
+
+  // Column group header (v0.2.5)
+  'column-group-header'?: (props: {
+    group: ColumnGroup;
   }) => VNode;
 
   // Empty state
@@ -261,6 +285,7 @@ interface IoiTableExpose<TRow> {
   clearSelection: () => void;
   selectAll: (scope?: SelectAllScope) => void;
   getSelectedKeys: () => Array<string | number>;
+  copySelectionToClipboard: () => Promise<void>;  // v0.2.5
 
   // Row Expansion
   toggleRowExpansion: (key: string | number) => void;
@@ -419,6 +444,15 @@ interface IoiTableOptions<TRow> {
   groupBy?: string | string[];
   groupAggregations?: Record<string, AggregationType[]>;
   expandedGroupKeys?: Array<string>;
+
+  // Column Groups (v0.2.5)
+  columnGroups?: ColumnGroup[];
+
+  // Row Reorder (v0.2.5)
+  rowDraggable?: boolean;
+
+  // Clipboard Copy (v0.2.5)
+  copyable?: boolean;
 
   // Server Mode
   dataMode?: 'client' | 'server';
@@ -650,6 +684,16 @@ interface GroupHeader {
   value: unknown;
   count: number;
   aggregations: Record<string, number>;
+}
+```
+
+### Column Group Types (v0.2.5)
+
+```typescript
+interface ColumnGroup {
+  id: string;           // Unique group identifier
+  header: string;       // Group header label
+  columnIds: string[];  // Column IDs that belong to this group
 }
 ```
 
@@ -1265,6 +1309,16 @@ function handleExport() {
 .ioi-table__group-toggle { }
 .ioi-table__group-value { }
 .ioi-table__group-count { }
+
+/* Column group header (v0.2.5) */
+.ioi-table__group-header-row { }
+.ioi-table__group-header-cell { }
+.ioi-table__group-header-cell--empty { }
+
+/* Row reorder (v0.2.5) */
+.ioi-table__drag-handle { }
+.ioi-table__row--dragging { }
+.ioi-table__row--drag-over { }
 
 /* Empty state */
 .ioi-table__empty { }

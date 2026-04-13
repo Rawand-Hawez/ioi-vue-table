@@ -2,7 +2,7 @@
 
 A performance-first Vue 3 data table component with a streamlined API surface and JavaScript-first defaults. Designed to deliver enterprise-grade performance without the complexity of larger alternatives.
 
-> **v0.2.4** - Dynamic Row Classes and Auto-Size Columns
+> **v0.2.5** - Minimal CSS tier, row reorder, clipboard copy, column groups
 
 ## Overview
 
@@ -45,10 +45,25 @@ The default package entry includes library CSS. For zero-CSS integration, use th
 @ioi-dev/vue-table/unstyled
 ```
 
+**Available entry points:**
+
+| Entry Point | CSS | Use Case |
+|-------------|-----|----------|
+| `@ioi-dev/vue-table` | Full styles | Quick start |
+| `@ioi-dev/vue-table/minimal` | Functional-only (padding, borders, hover) | Custom design systems |
+| `@ioi-dev/vue-table/unstyled` | None | Headless / full CSS control |
+
 **Available CSS import paths:**
 
 - Canonical: `@ioi-dev/vue-table/styles.css`
 - Compatibility alias: `@ioi-dev/vue-table/style.css`
+
+The minimal CSS tier provides cell padding, row borders, sticky header, subtle hover, and keyboard focus ring — with zero brand colours, rounded corners, or shadows. Ideal as a starting point for custom themes:
+
+```ts
+import { Table } from '@ioi-dev/vue-table/unstyled';
+import '@ioi-dev/vue-table/minimal';
+```
 
 ## Quick Start
 
@@ -383,6 +398,106 @@ The table is built with accessibility in mind:
   />
 </template>
 ```
+
+### Row Reorder
+
+Enable drag-and-drop row reordering. The table does **not** mutate your data — it fires a `row-reorder` event with the source and destination indices so you can update your data source:
+
+```vue
+<script setup lang="ts">
+import { ref } from 'vue';
+import { Table, type ColumnDef } from '@ioi-dev/vue-table';
+
+interface TaskRow { id: number; title: string; priority: number; }
+
+const rows = ref<TaskRow[]>([
+  { id: 1, title: 'Design mockups', priority: 1 },
+  { id: 2, title: 'Implement API', priority: 2 },
+  { id: 3, title: 'Write tests', priority: 3 }
+]);
+
+const columns: ColumnDef<TaskRow>[] = [
+  { field: 'id', header: 'ID', type: 'number' },
+  { field: 'title', header: 'Title' },
+  { field: 'priority', header: 'Priority', type: 'number' }
+];
+
+function onReorder(payload: { fromIndex: number; toIndex: number }) {
+  const [moved] = rows.value.splice(payload.fromIndex, 1);
+  rows.value.splice(payload.toIndex, 0, moved);
+}
+</script>
+
+<template>
+  <Table
+    :rows="rows"
+    :columns="columns"
+    row-key="id"
+    row-draggable
+    @row-reorder="onReorder"
+  />
+</template>
+```
+
+Drag handles are keyboard-accessible: use Alt+Arrow keys to move the focused row up or down.
+
+### Clipboard Copy
+
+When row selection is active, pressing Ctrl+C (Cmd+C on macOS) copies selected rows as tab-separated values to the clipboard. Headers are included and hidden columns are excluded.
+
+```ts
+copyable?: boolean  // default: true when selection is enabled
+```
+
+You can also call the method programmatically via the table ref:
+
+```vue
+<script setup lang="ts">
+import { ref } from 'vue';
+import { Table } from '@ioi-dev/vue-table';
+
+const tableRef = ref<InstanceType<typeof Table> | null>(null);
+
+async function copySelected() {
+  await tableRef.value?.copySelectionToClipboard();
+}
+</script>
+
+<template>
+  <button @click="copySelected">Copy Selection</button>
+  <Table ref="tableRef" :rows="rows" :columns="columns" row-key="id" selection-mode="multi" />
+</template>
+```
+
+### Column Groups
+
+Render spanning multi-level column headers by grouping columns under shared header cells:
+
+```vue
+<script setup lang="ts">
+import { Table, type ColumnDef, type ColumnGroup } from '@ioi-dev/vue-table';
+
+interface SalesRow { id: number; q1: number; q2: number; q3: number; q4: number; region: string; }
+
+const columns: ColumnDef<SalesRow>[] = [
+  { id: 'region', field: 'region', header: 'Region' },
+  { id: 'q1', field: 'q1', header: 'Q1', type: 'number' },
+  { id: 'q2', field: 'q2', header: 'Q2', type: 'number' },
+  { id: 'q3', field: 'q3', header: 'Q3', type: 'number' },
+  { id: 'q4', field: 'q4', header: 'Q4', type: 'number' }
+];
+
+const columnGroups: ColumnGroup[] = [
+  { id: 'quarters', header: 'Quarterly Revenue', columnIds: ['q1', 'q2', 'q3', 'q4'] }
+];
+</script>
+
+<template>
+  <Table :rows="rows" :columns="columns" :column-groups="columnGroups" row-key="id" />
+</template>
+```
+
+Column groups support a `#column-group-header` slot for custom group header content. Single-level only in v0.2.5; nested groups are planned for a future release.
 
 ## Configuration Options
 

@@ -1,5 +1,34 @@
 # @ioi-dev/vue-table
 
+## 0.2.5
+
+### Features
+
+- **Minimal CSS entry point**: New `@ioi-dev/vue-table/minimal` — functional baseline styles with no design opinions. Pair with custom CSS or any design system.
+- **Row drag-and-drop reorder**: `rowDraggable` prop renders a drag handle column and emits `row-reorder` with `{ fromIndex, toIndex, row }`. Alt+ArrowUp / Alt+ArrowDown also reorders when a row is focused.
+- **Clipboard copy**: Ctrl/Cmd+C copies selected rows as TSV; `copyable` prop toggles behavior (default `true`). New `copySelectionToClipboard()` method exposed on the table ref. Emits `IoiClipboardCopyPayload` via `data:extract` semantic event.
+- **Column groups**: `columnGroups` prop for spanning header rows. Define `{ id, header, columnIds[] }` and opt into a `#column-group-header` slot with `{ group, colspan }` props.
+
+### Bug Fixes
+
+- `ioi-table__row--expanded` base style added to `styles.css`.
+- Row drag indicator BEM modifiers (`--dragging`, `--drag-over-above`, `--drag-over-below`) added to base styles.
+- `tsconfig.json` `ignoreDeprecations` changed from `"6.0"` to `"5.0"` to match TypeScript 5.9.x (was blocking `vue-tsc` declaration emit).
+
+### New Exports
+
+- Types: `ColumnGroup`, `ColumnGroupHeaderSlotProps`, `IoiClipboardCopyPayload`, `IoiRowReorderPayload`.
+- Event: `row-reorder`.
+- Slot: `#column-group-header`.
+- Method: `copySelectionToClipboard()`.
+- Package export path: `@ioi-dev/vue-table/minimal` and `./minimal.css`.
+
+## 0.2.4
+
+### Features
+
+- Dynamic row classes and auto-size columns
+
 ## 0.2.3
 
 ### Documentation

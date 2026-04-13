@@ -7,9 +7,12 @@ import type {
   AutoSizeOptions,
   CellSlotProps,
   ColumnDef,
+  ColumnGroup,
+  ColumnGroupHeaderSlotProps,
   HeaderFilterSlotProps,
   HeaderSlotProps,
   IoiPaginationChangePayload,
+  IoiRowReorderPayload,
   IoiSemanticEvent,
   IoiTableOptions,
   RowClickPayload
@@ -46,6 +49,9 @@ const props = withDefaults(
     dataMode?: 'client' | 'server';
     serverOptions?: IoiTableOptions<TRow>['serverOptions'];
     rowClass?: string | Record<string, boolean> | ((row: TRow, rowIndex: number) => string | Record<string, boolean> | undefined);
+    copyable?: boolean;
+    rowDraggable?: boolean;
+    columnGroups?: ColumnGroup[];
   }>(),
   {
     rows: () => [],
@@ -65,7 +71,10 @@ const props = withDefaults(
     expandedGroupKeys: undefined,
     ariaLabel: 'Data table',
     dataMode: undefined,
-    serverOptions: undefined
+    serverOptions: undefined,
+    copyable: true,
+    rowDraggable: false,
+    columnGroups: undefined
   }
 );
 
@@ -79,6 +88,7 @@ const emit = defineEmits<{
   'row-expand': [payload: { row: TRow; rowIndex: number; rowKey: string | number; expanded: boolean }];
   'update:expandedGroupKeys': [value: Array<string>];
   'group-expand': [payload: { groupKey: string; groupValue: unknown; expanded: boolean; rowCount: number }];
+  'row-reorder': [payload: IoiRowReorderPayload<TRow>];
 }>();
 
 defineSlots<{
@@ -87,6 +97,7 @@ defineSlots<{
   cell?: (slotProps: CellSlotProps<TRow>) => unknown;
   'expanded-row'?: (slotProps: { row: TRow; rowIndex: number }) => unknown;
   'group-header'?: (slotProps: import('../types').GroupHeaderSlotProps) => unknown;
+  'column-group-header'?: (slotProps: ColumnGroupHeaderSlotProps) => unknown;
   empty?: () => unknown;
   loading?: () => unknown;
   error?: (slotProps: { error: string | null }) => unknown;
@@ -201,7 +212,85 @@ const renderColumns = computed(() => [
   ...centerColumns.value,
   ...pinnedRightColumns.value
 ]);
-const bodyColspan = computed(() => Math.max(renderColumns.value.length + (props.expandable ? 1 : 0), 1));
+const bodyColspan = computed(() => Math.max(
+  renderColumns.value.length + (props.expandable ? 1 : 0) + (props.rowDraggable ? 1 : 0),
+  1
+));
+
+type ColumnGroupRowCell =
+  | { type: 'spacer'; key: string }
+  | { type: 'group'; key: string; group: ColumnGroup; colspan: number };
+
+const columnGroupRow = computed<ColumnGroupRowCell[] | null>(() => {
+  const groups = props.columnGroups;
+  if (!groups || groups.length === 0) {
+    return null;
+  }
+
+  const groupById = new Map<string, ColumnGroup>();
+  const groupIdByColumnId = new Map<string, string>();
+  for (const group of groups) {
+    groupById.set(group.id, group);
+    for (const columnId of group.columnIds) {
+      groupIdByColumnId.set(columnId, group.id);
+    }
+  }
+
+  const cells: ColumnGroupRowCell[] = [];
+  const columns = renderColumns.value;
+
+  if (props.rowDraggable) {
+    cells.push({ type: 'spacer', key: '__drag-spacer' });
+  }
+  if (props.expandable) {
+    cells.push({ type: 'spacer', key: '__expand-spacer' });
+  }
+
+  let index = 0;
+  while (index < columns.length) {
+    const column = columns[index];
+    if (!column) {
+      index += 1;
+      continue;
+    }
+
+    const columnKey = resolveColumnId(column);
+    const groupId = groupIdByColumnId.get(columnKey) ?? (column.id ? groupIdByColumnId.get(column.id) : undefined) ?? groupIdByColumnId.get(String(column.field));
+    const group = groupId ? groupById.get(groupId) : undefined;
+
+    if (!group) {
+      cells.push({ type: 'spacer', key: `spacer-${columnKey}` });
+      index += 1;
+      continue;
+    }
+
+    let span = 1;
+    let lookahead = index + 1;
+    while (lookahead < columns.length) {
+      const nextColumn = columns[lookahead];
+      if (!nextColumn) {
+        break;
+      }
+      const nextKey = resolveColumnId(nextColumn);
+      const nextGroupId = groupIdByColumnId.get(nextKey) ?? (nextColumn.id ? groupIdByColumnId.get(nextColumn.id) : undefined) ?? groupIdByColumnId.get(String(nextColumn.field));
+      if (nextGroupId !== group.id) {
+        break;
+      }
+      span += 1;
+      lookahead += 1;
+    }
+
+    cells.push({
+      type: 'group',
+      key: `group-${group.id}-${index}`,
+      group,
+      colspan: span
+    });
+    index += span;
+  }
+
+  return cells;
+});
 const renderEntries = computed(() => table.renderEntries.value);
 
 const headerFacetOptionsByField = computed(() => {
@@ -335,6 +424,8 @@ function moveFocusToRow(rowIndex: number, columnIndex?: number): void {
   });
 }
 
+const copyableRef = computed(() => props.copyable);
+
 const keyboard = createKeyboardNavigation<TRow>({
   state: table.state,
   api: table,
@@ -342,6 +433,7 @@ const keyboard = createKeyboardNavigation<TRow>({
   rowCount: table.totalRows,
   pageSize: table.pageSize,
   paginationEnabled: table.paginationEnabled,
+  copyable: copyableRef,
   onFocusChange: moveFocusToRow,
   onAnnounce: announce
 });
@@ -363,6 +455,10 @@ const draggingColumnId = ref<string | null>(null);
 const draggingPinGroup = ref<PinGroup | null>(null);
 const dragTargetColumnId = ref<string | null>(null);
 const dragOverDirection = ref<'left' | 'right' | null>(null);
+
+const draggingRowIndex = ref<number | null>(null);
+const dragOverRowIndex = ref<number | null>(null);
+const rowDragOverDirection = ref<'above' | 'below' | null>(null);
 
 const leftStickyOffsets = computed(() => {
   let offset = 0;
@@ -671,6 +767,75 @@ function onHeaderDragEnd(): void {
   dragOverDirection.value = null;
 }
 
+function onRowDragStart(event: DragEvent, rowIndex: number): void {
+  draggingRowIndex.value = rowIndex;
+  dragOverRowIndex.value = null;
+  rowDragOverDirection.value = null;
+
+  if (event.dataTransfer) {
+    event.dataTransfer.effectAllowed = 'move';
+    event.dataTransfer.setData('text/plain', String(rowIndex));
+  }
+}
+
+function onRowDragOver(event: DragEvent, rowIndex: number): void {
+  if (draggingRowIndex.value === null) {
+    return;
+  }
+
+  event.preventDefault();
+  if (event.dataTransfer) {
+    event.dataTransfer.dropEffect = 'move';
+  }
+
+  dragOverRowIndex.value = rowIndex;
+
+  const targetRow = (event.currentTarget as HTMLElement | null)?.closest('tr');
+  if (targetRow && typeof event.clientY === 'number') {
+    const rect = targetRow.getBoundingClientRect();
+    if (rect.height > 0) {
+      const midY = rect.top + rect.height / 2;
+      rowDragOverDirection.value = event.clientY < midY ? 'above' : 'below';
+    }
+  }
+}
+
+function onRowDrop(event: DragEvent, targetRowIndex: number, targetRow: TRow): void {
+  event.preventDefault();
+  const sourceRowIndex = draggingRowIndex.value;
+  const direction = rowDragOverDirection.value;
+  onRowDragEnd();
+
+  if (sourceRowIndex === null || sourceRowIndex === targetRowIndex) {
+    return;
+  }
+
+  const sourceRow = table.rows.value[sourceRowIndex];
+  if (sourceRow === undefined) {
+    return;
+  }
+
+  const resolvedToIndex = direction === 'below' ? targetRowIndex + 1 : targetRowIndex;
+  const adjustedToIndex = sourceRowIndex < resolvedToIndex ? resolvedToIndex - 1 : resolvedToIndex;
+
+  if (adjustedToIndex === sourceRowIndex) {
+    return;
+  }
+
+  void targetRow;
+  emit('row-reorder', {
+    fromIndex: sourceRowIndex,
+    toIndex: adjustedToIndex,
+    row: sourceRow
+  });
+}
+
+function onRowDragEnd(): void {
+  draggingRowIndex.value = null;
+  dragOverRowIndex.value = null;
+  rowDragOverDirection.value = null;
+}
+
 function getColumnStyle(
   column: ColumnDef<TRow>,
   section: 'header' | 'body' = 'body',
@@ -864,13 +1029,28 @@ function onRowClick(row: TRow, rowIndex: number): void {
 }
 
 function onRowKeydown(event: KeyboardEvent, row: TRow, rowIndex: number): void {
+  if (props.rowDraggable && event.altKey && (event.key === 'ArrowUp' || event.key === 'ArrowDown')) {
+    event.preventDefault();
+    const direction = event.key === 'ArrowUp' ? -1 : 1;
+    const targetIndex = rowIndex + direction;
+    if (targetIndex < 0 || targetIndex >= table.rows.value.length) {
+      return;
+    }
+    emit('row-reorder', {
+      fromIndex: rowIndex,
+      toIndex: targetIndex,
+      row
+    });
+    return;
+  }
+
   const handled = keyboard.handleKeyDown(event);
   if (handled) {
     return;
   }
 
   const key = event.key;
-  
+
   if (key === 'Enter' || key === ' ') {
     if (props.expandable && isRowExpandable(row, rowIndex)) {
       event.preventDefault();
@@ -1129,6 +1309,7 @@ defineExpose({
   loading: table.loading,
   error: table.error,
   hasMore: table.hasMore,
+  copySelectionToClipboard: table.copySelectionToClipboard,
 });
 </script>
 
@@ -1138,7 +1319,7 @@ defineExpose({
     role="grid"
     :aria-label="ariaLabel"
     :aria-rowcount="table.totalRows.value"
-    :aria-colcount="renderColumns.length + (expandable ? 1 : 0)"
+    :aria-colcount="renderColumns.length + (expandable ? 1 : 0) + (rowDraggable ? 1 : 0)"
     @keydown="keyboard.handleKeyDown"
   >
     <div class="ioi-table__sr-only" role="status" aria-live="polite" aria-atomic="true">{{ liveRegionMessage }}</div>
@@ -1152,6 +1333,24 @@ defineExpose({
     >
       <table class="ioi-table__table">
         <thead role="rowgroup">
+          <tr v-if="columnGroupRow" role="row" class="ioi-table__group-header-row">
+            <th
+              v-for="cell in columnGroupRow"
+              :key="cell.key"
+              role="columnheader"
+              :class="{
+                'ioi-table__group-header-cell': true,
+                'ioi-table__group-header-cell--empty': cell.type === 'spacer'
+              }"
+              :colspan="cell.type === 'group' ? cell.colspan : 1"
+            >
+              <template v-if="cell.type === 'group'">
+                <slot name="column-group-header" :group="cell.group" :colspan="cell.colspan">
+                  <span class="ioi-table__group-header-label">{{ cell.group.header }}</span>
+                </slot>
+              </template>
+            </th>
+          </tr>
           <tr role="row">
             <th
               v-for="(column, columnIndex) in renderColumns"
@@ -1168,7 +1367,7 @@ defineExpose({
                 'ioi-table__header--pinned-right-edge': isFirstPinnedRightColumn(column)
               }"
               :data-column-id="column.id"
-              :aria-colindex="columnIndex + 1 + (expandable ? 1 : 0)"
+              :aria-colindex="columnIndex + 1 + (expandable ? 1 : 0) + (rowDraggable ? 1 : 0)"
               :draggable="true"
               :style="getColumnStyle(column, 'header')"
               :aria-sort="getHeaderAriaSort(column)"
@@ -1203,7 +1402,7 @@ defineExpose({
                 'ioi-table__filter-cell--pinned-left-edge': isLastPinnedLeftColumn(column),
                 'ioi-table__filter-cell--pinned-right-edge': isFirstPinnedRightColumn(column)
               }"
-              :aria-colindex="columnIndex + 1 + (expandable ? 1 : 0)"
+              :aria-colindex="columnIndex + 1 + (expandable ? 1 : 0) + (rowDraggable ? 1 : 0)"
               :style="getColumnStyle(column, 'header', true)"
             >
               <div v-if="column.headerFilter" class="ioi-table__header-filter">
@@ -1299,7 +1498,11 @@ defineExpose({
                   'ioi-table__row--selected': isRowSelected(entry.row, entry.rowIndex),
                   'ioi-table__row--editing': isRowEditing(entry.row, entry.rowIndex),
                   'ioi-table__row--expanded': isRowExpanded(entry.row, entry.rowIndex),
-                  'ioi-table__row--focused': isRowFocused(entry.rowIndex)
+                  'ioi-table__row--focused': isRowFocused(entry.rowIndex),
+                  'ioi-table__row--dragging': draggingRowIndex === entry.rowIndex,
+                  'ioi-table__row--drag-over': dragOverRowIndex === entry.rowIndex && draggingRowIndex !== entry.rowIndex,
+                  'ioi-table__row--drag-over-above': dragOverRowIndex === entry.rowIndex && rowDragOverDirection === 'above' && draggingRowIndex !== entry.rowIndex,
+                  'ioi-table__row--drag-over-below': dragOverRowIndex === entry.rowIndex && rowDragOverDirection === 'below' && draggingRowIndex !== entry.rowIndex
                 },
                 getRowClass(entry.row, entry.rowIndex)
               ]"
@@ -1313,10 +1516,26 @@ defineExpose({
               @keydown="onRowKeydown($event, entry.row, entry.rowIndex)"
             >
               <td
+                v-if="rowDraggable"
+                role="gridcell"
+                class="ioi-table__cell ioi-table__drag-handle"
+                :aria-colindex="1"
+                :aria-label="'Drag to reorder row'"
+                :style="{ width: '32px', textAlign: 'center', cursor: 'grab' }"
+                draggable="true"
+                @dragstart="onRowDragStart($event, entry.rowIndex)"
+                @dragover="onRowDragOver($event, entry.rowIndex)"
+                @drop="onRowDrop($event, entry.rowIndex, entry.row)"
+                @dragend="onRowDragEnd"
+                @click.stop
+              >
+                <span aria-hidden="true">⠿</span>
+              </td>
+              <td
                 v-if="expandable"
                 role="gridcell"
                 class="ioi-table__cell ioi-table__cell--expand"
-                :aria-colindex="1"
+                :aria-colindex="rowDraggable ? 2 : 1"
                 :style="{ width: '40px', textAlign: 'center' }"
               >
                 <button
@@ -1334,7 +1553,7 @@ defineExpose({
                 v-for="(column, columnIndex) in renderColumns"
                 :key="column.id"
                 role="gridcell"
-                :aria-colindex="columnIndex + 1 + (expandable ? 1 : 0)"
+                :aria-colindex="columnIndex + 1 + (expandable ? 1 : 0) + (rowDraggable ? 1 : 0)"
                 :class="{
                   'ioi-table__cell': true,
                   'ioi-table__cell--editing': isEditingCell(entry.row, entry.rowIndex, column),

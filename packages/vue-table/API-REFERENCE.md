@@ -1,8 +1,8 @@
 # API Reference
 
 **Package**: @ioi-dev/vue-table  
-**Version**: 0.2.3  
-**Last Updated**: 2026-03-09
+**Version**: 0.2.5  
+**Last Updated**: 2026-04-04
 
 ---
 
@@ -31,10 +31,13 @@ npm install @ioi-dev/vue-table
 | Entry Point | Description | Use Case |
 |-------------|-------------|----------|
 | `@ioi-dev/vue-table` | Default (includes CSS) | Quick start |
+| `@ioi-dev/vue-table/minimal` | CSS-only — functional styling without design opinions | Custom design systems |
 | `@ioi-dev/vue-table/unstyled` | No CSS | Headless/custom styling |
 | `@ioi-dev/vue-table/composables/useIoiTable` | Composable only | Maximum control |
 | `@ioi-dev/vue-table/composables/useColumnState` | Column state management | Advanced usage |
 | `@ioi-dev/vue-table/utils/nestedPath` | Nested path utilities | Standalone usage |
+
+> **Note**: The `/minimal` entry point is CSS-only — `import '@ioi-dev/vue-table/minimal'` adds functional styles (padding, borders, hover, focus ring) without any brand colours or design opinions. Import components from `/unstyled` and pair with `/minimal` for a clean starting point.
 
 ---
 
@@ -86,6 +89,8 @@ const rows: UserRow[] = [
 | `overscan` | `number` | `5` | Extra rows to render outside viewport |
 | `height` | `number` | `320` | Table viewport height |
 | `rowClass` | `string \| Record<string, boolean> \| ((row: TRow, rowIndex: number) => string \| Record<string, boolean> \| undefined)` | - | CSS class(es) to apply to each row — static string, object, or function |
+| `rowDraggable` | `boolean` | `false` | Enable drag-and-drop row reorder (adds drag handle column) |
+| `copyable` | `boolean` | `true` (when selection enabled) | Enable Ctrl+C to copy selected rows as TSV |
 
 ### Server-Side Props
 
@@ -162,6 +167,24 @@ interface ServerFetchResult<TRow> {
 type AggregationType = 'sum' | 'avg' | 'count' | 'min' | 'max';
 ```
 
+### Column Group Props
+
+| Prop | Type | Default | Description |
+|------|------|---------|-------------|
+| `columnGroups` | `ColumnGroup[]` | - | Multi-level column headers (single-level in v0.2.5) |
+
+#### ColumnGroup
+
+```typescript
+interface ColumnGroup {
+  id: string;           // Unique group identifier
+  header: string;       // Group header label
+  columnIds: string[];  // Column IDs that belong to this group
+}
+```
+
+> **Note**: Column groups require columns to have `id` fields set. Hidden columns are excluded from `colspan` calculations. Single-level grouping only in v0.2.5; nested groups are planned for a future release.
+
 ### Debounce Props
 
 | Prop | Type | Default | Description |
@@ -179,6 +202,7 @@ type AggregationType = 'sum' | 'avg' | 'count' | 'min' | 'max';
 |-------|---------|-------------|
 | `row-click` | `{ row: TRow, rowIndex: number }` | Row clicked |
 | `state-change` | `IoiSemanticEvent<unknown>` | Table state changed |
+| `row-reorder` | `{ fromIndex: number, toIndex: number, row: TRow }` | Row dragged to new position (does not mutate rows) |
 
 ### Pagination Events
 
@@ -226,6 +250,7 @@ interface IoiGroupExpandPayload {
 | `cell` | `{ row: TRow, rowIndex: number, column: ColumnDef, columnIndex: number, value: unknown }` | Custom cell content |
 | `expanded-row` | `{ row: TRow, rowIndex: number }` | Expanded row content |
 | `group-header` | `{ group: GroupHeader }` | Custom group header content |
+| `column-group-header` | `{ group: ColumnGroup, colspan: number }` | Custom spanning header cell for column groups |
 | `empty` | - | Empty state content |
 
 ### GroupHeader Props
@@ -322,6 +347,7 @@ tableRef.value.toggleRowExpansion(rowKey);
 | `clearSelection` | `() => void` | Clear selection |
 | `selectAll` | `(scope?: SelectAllScope) => void` | Select all rows |
 | `getSelectedKeys` | `() => Array<string \| number>` | Get selected keys |
+| `copySelectionToClipboard` | `() => Promise<void>` | Copy selected rows as TSV to clipboard |
 
 ### Expansion Methods
 
@@ -674,6 +700,17 @@ The table uses semantic class names for styling. No inline styles are applied (e
 | `.ioi-table__group-header` | TR | Group header row |
 | `.ioi-table__group-content` | TD | Group header content cell |
 | `.ioi-table__group-toggle` | Button | Group expand/collapse button |
+| `.ioi-table__group-header-row` | TR | Column group spanning header row |
+| `.ioi-table__group-header-cell` | TH | Column group spanning header cell |
+| `.ioi-table__group-header-cell--empty` | TH | Placeholder cell for ungrouped columns |
+
+#### Row Reorder Classes
+
+| Class | Element | Description |
+|-------|---------|-------------|
+| `.ioi-table__drag-handle` | TD | Drag handle cell for row reorder |
+| `.ioi-table__row--dragging` | TR | Row currently being dragged |
+| `.ioi-table__row--drag-over` | TR | Drop target row |
 
 #### Cell Classes
 
@@ -893,45 +930,6 @@ table.exportCSV();
 | `loading` | `ComputedRef<boolean>` | Loading state (server mode) |
 | `error` | `ComputedRef<string \| null>` | Error state (server mode) |
 | `hasMore` | `ComputedRef<boolean>` | Whether more rows available (server mode with cursorMode) |
-
-### Render Entries API
-
-When using grouping, `renderEntries` provides a unified way to render both groups and rows:
-
-```typescript
-interface IoiRenderEntry<TRow> {
-  type: 'group' | 'row';
-  renderKey: string;
-  // For groups:
-  group?: GroupHeader;
-  // For rows:
-  row?: TRow;
-  rowIndex?: number;
-}
-```
-
-```vue
-<script setup lang="ts">
-import { useIoiTable } from '@ioi-dev/vue-table';
-
-const table = useIoiTable({
-  rows: myRows,
-  columns: myColumns,
-  groupBy: 'category'
-});
-</script>
-
-<template>
-  <div v-for="entry in table.renderEntries.value" :key="entry.renderKey">
-    <div v-if="entry.type === 'group'" class="group-header">
-      {{ entry.group.value }} ({{ entry.group.count }})
-    </div>
-    <div v-else class="row">
-      {{ entry.row.name }}
-    </div>
-  </div>
-</template>
-```
 
 ### Render Entries API
 
