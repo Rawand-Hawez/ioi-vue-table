@@ -2,7 +2,7 @@
 
 **Package**: @ioi-dev/vue-table  
 **Version**: 0.2.5  
-**Last Updated**: 2026-04-04
+**Last Updated**: 2026-04-13
 
 ---
 
@@ -103,7 +103,7 @@ const rows: UserRow[] = [
 
 ```typescript
 interface ServerDataOptions<TRow> {
-  fetch: (params: ServerFetchParams) => Promise<ServerFetchResult<TRow>>;
+  query: (params: ServerFetchParams) => Promise<ServerFetchResult<TRow>>;
   debounceMs?: number;           // Default: 300
   initialPageSize?: number;      // Default: 50
   cursorMode?: boolean;          // Default: false

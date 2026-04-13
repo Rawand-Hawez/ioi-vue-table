@@ -218,8 +218,8 @@ const bodyColspan = computed(() => Math.max(
 ));
 
 type ColumnGroupRowCell =
-  | { type: 'spacer'; key: string }
-  | { type: 'group'; key: string; group: ColumnGroup; colspan: number };
+  | { type: 'spacer'; key: string; isPinnedLeft: boolean; isPinnedRight: boolean; columnKey?: string }
+  | { type: 'group'; key: string; group: ColumnGroup; colspan: number; isPinnedLeft: boolean; isPinnedRight: boolean };
 
 const columnGroupRow = computed<ColumnGroupRowCell[] | null>(() => {
   const groups = props.columnGroups;
@@ -240,10 +240,10 @@ const columnGroupRow = computed<ColumnGroupRowCell[] | null>(() => {
   const columns = renderColumns.value;
 
   if (props.rowDraggable) {
-    cells.push({ type: 'spacer', key: '__drag-spacer' });
+    cells.push({ type: 'spacer', key: '__drag-spacer', isPinnedLeft: true, isPinnedRight: false });
   }
   if (props.expandable) {
-    cells.push({ type: 'spacer', key: '__expand-spacer' });
+    cells.push({ type: 'spacer', key: '__expand-spacer', isPinnedLeft: true, isPinnedRight: false });
   }
 
   let index = 0;
@@ -259,7 +259,13 @@ const columnGroupRow = computed<ColumnGroupRowCell[] | null>(() => {
     const group = groupId ? groupById.get(groupId) : undefined;
 
     if (!group) {
-      cells.push({ type: 'spacer', key: `spacer-${columnKey}` });
+      cells.push({
+        type: 'spacer',
+        key: `spacer-${columnKey}`,
+        columnKey,
+        isPinnedLeft: column.pin === 'left' && isLastPinnedLeftColumn(column),
+        isPinnedRight: column.pin === 'right' && isFirstPinnedRightColumn(column)
+      });
       index += 1;
       continue;
     }
@@ -280,17 +286,50 @@ const columnGroupRow = computed<ColumnGroupRowCell[] | null>(() => {
       lookahead += 1;
     }
 
+    const firstColumn = column;
+    const lastColumn = columns[index + span - 1];
     cells.push({
       type: 'group',
       key: `group-${group.id}-${index}`,
       group,
-      colspan: span
+      colspan: span,
+      isPinnedLeft: firstColumn.pin === 'left' && isLastPinnedLeftColumn(firstColumn),
+      isPinnedRight: lastColumn.pin === 'right' && isFirstPinnedRightColumn(lastColumn)
     });
     index += span;
   }
 
   return cells;
 });
+
+function getGroupCellStyle(cell: ColumnGroupRowCell): Record<string, string> {
+  if (cell.type === 'spacer') {
+    if (cell.columnKey) {
+      const col = renderColumns.value.find(c => {
+        const id = resolveColumnId(c);
+        return id === cell.columnKey || c.id === cell.columnKey || String(c.field) === cell.columnKey;
+      });
+      if (col && col.pin) {
+        return getColumnStyle(col, 'header');
+      }
+      return {};
+    }
+    if (cell.isPinnedLeft) {
+      return { position: 'sticky', left: '0px', zIndex: '4' };
+    }
+    return {};
+  }
+  if (cell.isPinnedLeft || cell.isPinnedRight) {
+    const firstColId = cell.group.columnIds[0];
+    if (!firstColId) {
+      return {};
+    }
+    const col = renderColumns.value.find(c => c.id === firstColId || String(c.field) === firstColId);
+    return col ? getColumnStyle(col, 'header') : {};
+  }
+  return {};
+}
+
 const renderEntries = computed(() => table.renderEntries.value);
 
 const headerFacetOptionsByField = computed(() => {
@@ -1340,8 +1379,11 @@ defineExpose({
               role="columnheader"
               :class="{
                 'ioi-table__group-header-cell': true,
-                'ioi-table__group-header-cell--empty': cell.type === 'spacer'
+                'ioi-table__group-header-cell--empty': cell.type === 'spacer',
+                'ioi-table__header--pinned-left-edge': cell.isPinnedLeft,
+                'ioi-table__header--pinned-right-edge': cell.isPinnedRight
               }"
+              :style="getGroupCellStyle(cell)"
               :colspan="cell.type === 'group' ? cell.colspan : 1"
             >
               <template v-if="cell.type === 'group'">

@@ -30,9 +30,9 @@ export interface ColumnGroupHeaderSlotProps {
 }
 
 export interface IoiRowReorderPayload<TRow = Record<string, unknown>> {
-  /** Source index in the current visible (rendered) order. */
+  /** Source index in the original data array (normalizedRows). */
   fromIndex: number;
-  /** Destination index in the current visible (rendered) order. */
+  /** Destination index in the original data array (normalizedRows). */
   toIndex: number;
   /** The row object at the source index. */
   row: TRow;
