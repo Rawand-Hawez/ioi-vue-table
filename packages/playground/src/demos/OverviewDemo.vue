@@ -111,7 +111,7 @@ const features = [
       </div>
 
       <div class="hero-stats">
-        <div class="stat"><strong>0.2.5</strong><span>Latest</span></div>
+        <div class="stat"><strong>0.2.6</strong><span>Latest</span></div>
         <div class="stat"><strong>0</strong><span>Runtime deps</span></div>
         <div class="stat"><strong>TS</strong><span>TypeScript-first</span></div>
         <div class="stat"><strong>Vue 3</strong><span>Composition API</span></div>
