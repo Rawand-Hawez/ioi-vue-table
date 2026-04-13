@@ -576,7 +576,7 @@ interface ServerFetchResult<TRow> {
 }
 
 interface ServerDataOptions<TRow> {
-  fetch: (params: ServerFetchParams) => Promise<ServerFetchResult<TRow>>;
+  query: (params: ServerFetchParams) => Promise<ServerFetchResult<TRow>>;
   debounceMs?: number;           // Default: 300
   initialPageSize?: number;      // Default: 50
   cursorMode?: boolean;          // Enable cursor-based pagination
@@ -962,7 +962,7 @@ async function fetchUsers(params: ServerFetchParams): Promise<ServerFetchResult<
 }
 
 const serverOptions = {
-  fetch: fetchUsers,
+  query: fetchUsers,
   debounceMs: 300,
   initialPageSize: 50,
   onFetchStart: () => console.log('Fetching...'),
@@ -1741,7 +1741,7 @@ rowKey={(row) => row.uuid}
 ```typescript
 // ❌ Wrong - No error handling
 const serverOptions = {
-  fetch: async (params) => {
+  query: async (params) => {
     const res = await fetch('/api/data');
     return res.json();
   }
@@ -1749,7 +1749,7 @@ const serverOptions = {
 
 // ✅ Correct - Handle errors
 const serverOptions = {
-  fetch: async (params) => {
+  query: async (params) => {
     try {
       const res = await fetch('/api/data');
       if (!res.ok) throw new Error('Failed to fetch');

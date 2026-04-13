@@ -2,22 +2,48 @@
 
 ---
 
+## v0.2.5 → v1.0 (planned)
+
+v1.0 is an **API-freeze + stability release**. No breaking changes from v0.2.5 are planned. See [`docs/v1.0-PLAN.md`](../../docs/v1.0-PLAN.md) for the full plan and [`docs/ROADMAP.md`](../../docs/ROADMAP.md) for the post-v1.0 release line.
+
+### SemVer commitments (effective with v1.0.0)
+
+- Stable surface: every export from `@ioi-dev/vue-table` and `@ioi-dev/vue-table/unstyled`; every documented prop / event / slot / exposed method; `ServerFetchParams` and `ServerFetchResult` shape; the BEM class vocabulary (`ioi-table__*`).
+- Event payload `schemaVersion: 1` is **frozen for all v1.x**. Any payload break increments to `schemaVersion: 2` and ships in v2.0.
+- Experimental (`@experimental` JSDoc): `useColumnState` persistence adapter shape — may change in a minor.
+- Internal (not SemVer-covered): `src/composables/ioiTable/*` module boundaries; CSS class internals beyond the documented BEM vocabulary.
+
+### Scheduled deprecations for v2.0
+
+- `DataTable` alias is marked `@deprecated` in v1.0 and removed in v2.0. Migrate to `Table` (or `IoiTable`).
+
+---
+
 ## v0.2.x → v0.2.5
 
 No breaking changes. v0.2.5 is fully additive.
 
-### New features available
+### New features
 
 | Feature | How to use |
-|---------|-----------|
-| Minimal CSS | `import '@ioi-dev/vue-table/minimal'` instead of the default stylesheet |
-| Row reorder | Add `row-draggable` prop; listen to `@row-reorder` event |
-| Clipboard copy | `Ctrl+C` when rows are selected; or call `tableRef.copySelectionToClipboard()` |
-| Column groups | Add `column-groups` prop (see API reference) |
+|---------|------------|
+| Minimal CSS | `import '@ioi-dev/vue-table/minimal'` (or `'/minimal.css'`) for functional baseline styles. Pair with `'/unstyled'` for a clean starting point. |
+| Row reorder | Add `:row-draggable="true"` and listen to `@row-reorder="({ fromIndex, toIndex, row }) => …"`. Alt+ArrowUp / Alt+ArrowDown also reorders when a row is focused. |
+| Clipboard copy | Press `Ctrl/Cmd+C` while rows are selected, or call `tableRef.copySelectionToClipboard()`. Toggle with `:copyable="false"`. |
+| Column groups | Pass `:column-groups="[{ id, header, columnIds }]"`. Override per-group rendering with `#column-group-header="{ group, colspan }"`. Single-level only in v0.2.5; nested groups are planned for v1.2. |
+| `ioi-table__row--expanded` base style | Now in `styles.css` — themes that overrode it should still work; themes that relied on the unstyled default should re-check. |
+
+### New exports
+
+- Types: `ColumnGroup`, `ColumnGroupHeaderSlotProps`, `IoiClipboardCopyPayload`, `IoiRowReorderPayload`.
+- Event: `row-reorder`.
+- Slot: `#column-group-header`.
+- Method: `copySelectionToClipboard()`.
+- Package export paths: `./minimal`, `./minimal.css`.
 
 ### Type imports — no longer need local definitions
 
-`GroupHeader` and `AggregationType` are now exported from the package. Remove any local definitions:
+`GroupHeader` and `AggregationType` are exported from the package. Remove any local copies:
 
 ```ts
 // Before (v0.2.x workaround)
@@ -27,6 +53,10 @@ interface GroupHeader { key: string; value: unknown; count: number; aggregations
 // After (v0.2.5)
 import type { AggregationType, GroupHeader } from '@ioi-dev/vue-table';
 ```
+
+### Internal fix
+
+`tsconfig.json` removed the obsolete `ignoreDeprecations: "6.0"` value that was breaking `vue-tsc` declaration emit on TypeScript 5.9.x. No public API change, but downstream consumers using TypeScript 5.9.x will now get clean type emit when building from source.
 
 ---
 
@@ -58,7 +88,7 @@ interface UserRow {
 }
 
 const serverOptions: ServerDataOptions<UserRow> = {
-  fetch: async (params) => {
+  query: async (params) => {
     const response = await fetch(`/api/users?page=${params.pageIndex}&size=${params.pageSize}`);
     const data = await response.json();
     return {
@@ -82,7 +112,7 @@ const api = useIoiTable({
 
 | Property | Type | Default | Description |
 |----------|------|---------|-------------|
-| `fetch` | `(params: ServerFetchParams) => Promise<ServerFetchResult>` | Required | Fetch function called when data is needed |
+| `query` | `(params: ServerFetchParams) => Promise<ServerFetchResult>` | Required | Query function called when data is needed |
 | `debounceMs` | `number` | `300` | Debounce delay in milliseconds |
 | `initialPageSize` | `number` | `50` | Initial page size for server mode |
 | `cursorMode` | `boolean` | `false` | Enable cursor-based pagination for infinite scroll |
@@ -96,7 +126,7 @@ const api = useIoiTable({
 const api = useIoiTable({
   dataMode: 'server',
   serverOptions: {
-    fetch: async (params) => {
+    query: async (params) => {
       const cursor = params.cursor ? `&cursor=${params.cursor}` : '';
       const response = await fetch(`/api/items?page=${params.pageIndex}${cursor}`);
       return await response.json();

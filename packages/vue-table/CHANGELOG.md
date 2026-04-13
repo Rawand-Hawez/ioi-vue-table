@@ -1,5 +1,13 @@
 # @ioi-dev/vue-table
 
+## 0.2.6
+
+### Bug Fixes
+
+- **Row reorder payload documentation**: `IoiRowReorderPayload` JSDoc incorrectly described `fromIndex`/`toIndex` as "current visible (rendered) order". These are positions in the original data array. JSDoc updated to match actual behavior.
+- **Ctrl+C clipboard copy no longer intercepts text inputs**: When the table had selected rows, `Ctrl+C` fired even when focus was inside an `<input>`, `<textarea>`, or `contenteditable` element, preventing native text copy. Added an early return when event target is a text input field.
+- **Column group header cells now respect pinned column styling**: Group header `<th>` cells were missing `position: sticky`, `left`/`right` offsets, and `ioi-table__header--pinned-left-edge` / `ioi-table__header--pinned-right-edge` classes, causing them to scroll out of view during horizontal scroll when columns were pinned. Fixed by propagating pinned-edge flags from the underlying column defs and applying matching styles.
+
 ## 0.2.5
 
 ### Features
@@ -27,7 +35,12 @@
 
 ### Features
 
-- Dynamic row classes and auto-size columns
+- **Dynamic row classes**: `rowClass` prop accepts a string, object, or function `(row, rowIndex) => string | Record<string, boolean>` for per-row styling.
+- **Auto-size columns**: `autoSizeColumns(columnIds?, options?)` exposed on the table ref. `AutoSizeOptions` controls `includeHeaders`, `padding`, `minWidth`, `maxWidth`.
+
+### Documentation
+
+- Playground gains a Row Styling demo and updated theme switcher.
 
 ## 0.2.3
 
@@ -50,7 +63,7 @@
 
 - **Server-Side Mode**: Full server-side data fetching support
   - `dataMode: 'server'` option in `useIoiTable` and `<Table data-mode="server">`
-  - `ServerDataOptions` configuration with `fetch`, `debounceMs`, `initialPageSize`, `cursorMode`
+  - `ServerDataOptions` configuration with `query`, `debounceMs`, `initialPageSize`, `cursorMode`
   - Automatic initial fetch on mount
   - `loading` and `error` computed refs in API
   - `fetchMore()` and `hasMore` for infinite scroll with cursor-based pagination

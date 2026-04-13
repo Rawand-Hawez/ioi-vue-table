@@ -119,7 +119,7 @@ import { ref } from 'vue';
 import { Table, type ServerDataOptions } from '@ioi-dev/vue-table';
 
 const serverOptions: ServerDataOptions<Row> = {
-  fetch: async ({ pageIndex, pageSize, sort, filters }) => {
+  query: async ({ pageIndex, pageSize, sort, filters }) => {
     const res = await fetch(`/api/data?page=${pageIndex}&size=${pageSize}`);
     const json = await res.json();
     return { rows: json.data, totalRows: json.total };
@@ -249,13 +249,13 @@ The component uses a BEM class API for styling hooks:
 
 | Version | Focus | Target |
 |---------|-------|--------|
-| **v0.2.5** | Minimal CSS tier, row reorder, clipboard copy, column groups | 2026-Q2 |
-| **v1.0** | Row expansion, stable API, full test coverage | 2026-Q2 |
-| **v1.1** | Optional Rust/WASM acceleration (sort, filter, virtual engine, CSV streaming) | 2026-Q3 |
-| **v1.2** | Column grouping (nested), undo/redo, state persistence, MCP bridge, real-time updates | 2026-Q4 |
-| **v2.0** | MCP advanced tier (multi-table, write-mode, guardrails) | 2027+ |
+| **v0.2.5** | Minimal CSS tier, row reorder, clipboard copy, column groups | ✅ Released 2026-04-13 |
+| **v1.0** | API freeze, SemVer commitments, bundle/a11y/SSR gates, doc truth-up | 2026-Q2 |
+| **v1.1** | Optional Rust/WASM acceleration (sort, filter, virtual engine, CSV streaming); horizontal virtualization; dark mode | 2026-Q3 |
+| **v1.2** | Nested column groups, RTL, router sync, undo/redo, MCP bridge | 2026-Q4 |
+| **v2.0** | MCP advanced tier (multi-table, write-mode, guardrails); drop `DataTable` alias | 2027+ |
 
-Core MCP bridge planned for v1.2. The WASM layer in v1.1 is fully opt-in via a separate entry point — the JavaScript implementation remains first-class with no breaking API changes. See [ROADMAP.md](./docs/ROADMAP.md) for full details.
+Core MCP bridge planned for v1.2. The WASM layer in v1.1 is fully opt-in via a separate entry point — the JavaScript implementation remains first-class with no breaking API changes. See [docs/ROADMAP.md](./docs/ROADMAP.md) and [docs/v1.0-PLAN.md](./docs/v1.0-PLAN.md) for full details.
 
 ## Development
 

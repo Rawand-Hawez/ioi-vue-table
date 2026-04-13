@@ -203,7 +203,7 @@ const columns: ColumnDef<UserRow>[] = [
 ];
 
 const serverOptions: ServerDataOptions<UserRow> = {
-  fetch: async (params) => {
+  query: async (params) => {
     const response = await fetch(`/api/users?page=${params.pageIndex}&size=${params.pageSize}`);
     const data = await response.json();
     return {

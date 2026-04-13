@@ -213,6 +213,10 @@ export function createKeyboardNavigation<TRow = Record<string, unknown>>(
 
       case 'a':
         if (ctrlKey || metaKey) {
+          const target = event.target as HTMLElement | null;
+          if (target && (target.tagName === 'INPUT' || target.tagName === 'TEXTAREA' || target.isContentEditable)) {
+            return false;
+          }
           event.preventDefault();
           api.selectAll('filtered');
           const selectedCount = api.state.value.selectedRowKeys.length;
@@ -223,6 +227,10 @@ export function createKeyboardNavigation<TRow = Record<string, unknown>>(
 
       case 'c':
         if ((ctrlKey || metaKey) && !shiftKey) {
+          const target = event.target as HTMLElement | null;
+          if (target && (target.tagName === 'INPUT' || target.tagName === 'TEXTAREA' || target.isContentEditable)) {
+            return false;
+          }
           const copyEnabled = copyable ? copyable.value : true;
           if (!copyEnabled) {
             return false;
