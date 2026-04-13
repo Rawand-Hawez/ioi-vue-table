@@ -23,7 +23,7 @@
     "lint": "node ../../node_modules/eslint/bin/eslint.js \"src/**/*.{ts,vue}\""
   },
   "dependencies": {
-    "@ioi-dev/vue-table": "^0.2.2",
+    "@ioi-dev/vue-table": "^0.2.6",
     "vue": "^3.4.0"
   },
   "devDependencies": {
