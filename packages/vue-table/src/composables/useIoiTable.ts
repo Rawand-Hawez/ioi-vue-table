@@ -1950,6 +1950,67 @@ export function useIoiTable<TRow = Record<string, unknown>>(
     }
   }
 
+  async function writeClipboardText(text: string): Promise<void> {
+    if (typeof navigator !== 'undefined' && navigator.clipboard && typeof navigator.clipboard.writeText === 'function') {
+      try {
+        await navigator.clipboard.writeText(text);
+        return;
+      } catch {
+        // fall through to execCommand fallback
+      }
+    }
+
+    if (typeof document === 'undefined') {
+      return;
+    }
+
+    const textarea = document.createElement('textarea');
+    textarea.value = text;
+    textarea.setAttribute('readonly', '');
+    textarea.style.position = 'absolute';
+    textarea.style.left = '-9999px';
+    document.body.appendChild(textarea);
+    textarea.select();
+    try {
+      document.execCommand('copy');
+    } finally {
+      document.body.removeChild(textarea);
+    }
+  }
+
+  async function copySelectionToClipboard(): Promise<void> {
+    if (!selectionEnabled.value || state.value.selectedRowKeys.length === 0) {
+      return;
+    }
+
+    const tsv = exportCSV({
+      delimiter: '\t',
+      scope: 'selected',
+      includeHeader: true,
+      headerMode: 'header',
+      includeHiddenColumns: false,
+      sanitizeFormulas: false
+    });
+
+    if (!tsv) {
+      return;
+    }
+
+    await writeClipboardText(tsv);
+
+    const lineCount = tsv.split('\n').length;
+    const rowCount = Math.max(0, lineCount - 1);
+    const columnCount = normalizedColumns.value.filter((column) => !column.hidden).length;
+
+    emitSemanticEvent('data:extract', {
+      reason: 'copyToClipboard',
+      format: 'tsv',
+      rowCount,
+      columnCount,
+      includesHeader: true
+    });
+  }
+
   const actions = {
     setRows,
     setColumns,
@@ -1986,6 +2047,7 @@ export function useIoiTable<TRow = Record<string, unknown>>(
     isGroupExpanded: groupExpansionApi.isGroupExpanded,
     getRowKey: resolveSelectionKeyByIndex,
     resetState,
+    copySelectionToClipboard,
     refresh,
     emitSemanticEvent
   };

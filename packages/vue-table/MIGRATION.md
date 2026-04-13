@@ -1,4 +1,36 @@
-# Migration Guide: v0.1.x to v0.2
+# Migration Guide
+
+---
+
+## v0.2.x → v0.2.5
+
+No breaking changes. v0.2.5 is fully additive.
+
+### New features available
+
+| Feature | How to use |
+|---------|-----------|
+| Minimal CSS | `import '@ioi-dev/vue-table/minimal'` instead of the default stylesheet |
+| Row reorder | Add `row-draggable` prop; listen to `@row-reorder` event |
+| Clipboard copy | `Ctrl+C` when rows are selected; or call `tableRef.copySelectionToClipboard()` |
+| Column groups | Add `column-groups` prop (see API reference) |
+
+### Type imports — no longer need local definitions
+
+`GroupHeader` and `AggregationType` are now exported from the package. Remove any local definitions:
+
+```ts
+// Before (v0.2.x workaround)
+type AggregationType = 'sum' | 'avg' | 'count' | 'min' | 'max';
+interface GroupHeader { key: string; value: unknown; count: number; aggregations: Record<string, number>; }
+
+// After (v0.2.5)
+import type { AggregationType, GroupHeader } from '@ioi-dev/vue-table';
+```
+
+---
+
+## v0.1.x → v0.2
 
 This guide helps you migrate from IOI Vue Table v0.1.x to v0.2.
 

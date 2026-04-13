@@ -12,7 +12,7 @@ A performance-first Vue 3 data table with virtual scrolling, rich filtering, row
 - **Inline Editing** — click-to-edit cells with per-column validation and commit/cancel lifecycle
 - **Column Control** — pin, reorder, resize, and toggle column visibility
 - **CSV Export** — export all, filtered, or selected rows; formula-injection safe
-- **Server-Side Mode** — plug in a `fetchFn`; the table handles paging, sorting, and filter state
+- **Server-Side Mode** — plug in a `serverOptions.fetch` function; the table handles paging, sorting, and filter state
 - **Headless-Capable** — import from `/unstyled` and apply Tailwind, Bootstrap, or any CSS
 - **TypeScript-First** — full type definitions with generic row types
 
@@ -115,17 +115,26 @@ const groupAggregations: Record<string, AggregationType[]> = {
 
 ```vue
 <script setup lang="ts">
-import { Table, type FetchFn } from '@ioi-dev/vue-table';
+import { ref } from 'vue';
+import { Table, type ServerDataOptions } from '@ioi-dev/vue-table';
 
-const fetchFn: FetchFn<Row> = async ({ page, pageSize, sort, filters }) => {
-  const res = await fetch(`/api/data?page=${page}&size=${pageSize}`);
-  const json = await res.json();
-  return { rows: json.data, total: json.total };
+const serverOptions: ServerDataOptions<Row> = {
+  fetch: async ({ pageIndex, pageSize, sort, filters }) => {
+    const res = await fetch(`/api/data?page=${pageIndex}&size=${pageSize}`);
+    const json = await res.json();
+    return { rows: json.data, totalRows: json.total };
+  },
 };
 </script>
 
 <template>
-  <Table :fetch-fn="fetchFn" :columns="columns" row-key="id" :height="500" />
+  <Table
+    data-mode="server"
+    :server-options="serverOptions"
+    :columns="columns"
+    row-key="id"
+    :height="500"
+  />
 </template>
 ```
 
@@ -240,12 +249,13 @@ The component uses a BEM class API for styling hooks:
 
 | Version | Focus | Target |
 |---------|-------|--------|
+| **v0.2.5** | Minimal CSS tier, row reorder, clipboard copy, column groups | 2026-Q2 |
 | **v1.0** | Row expansion, stable API, full test coverage | 2026-Q2 |
 | **v1.1** | Optional Rust/WASM acceleration (sort, filter, virtual engine, CSV streaming) | 2026-Q3 |
-| **v1.2** | Column grouping, undo/redo, state persistence, real-time updates | 2026-Q4 |
-| **v2.0** | AI/MCP integration (`@ioi-dev/vue-table-mcp`) | 2027+ |
+| **v1.2** | Column grouping (nested), undo/redo, state persistence, MCP bridge, real-time updates | 2026-Q4 |
+| **v2.0** | MCP advanced tier (multi-table, write-mode, guardrails) | 2027+ |
 
-The WASM layer in v1.1 is fully opt-in via a separate entry point — the JavaScript implementation remains first-class with no breaking API changes. See [ROADMAP.md](./docs/ROADMAP.md) for full details.
+Core MCP bridge planned for v1.2. The WASM layer in v1.1 is fully opt-in via a separate entry point — the JavaScript implementation remains first-class with no breaking API changes. See [ROADMAP.md](./docs/ROADMAP.md) for full details.
 
 ## Development
 

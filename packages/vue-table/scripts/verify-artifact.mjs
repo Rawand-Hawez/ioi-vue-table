@@ -28,6 +28,8 @@ function assertExports(packageJson) {
   const exportsField = packageJson.exports ?? {};
   const stylesExport = exportsField['./styles.css'];
   const styleAliasExport = exportsField['./style.css'];
+  const minimalExport = exportsField['./minimal'];
+  const minimalCssExport = exportsField['./minimal.css'];
 
   if (stylesExport !== './dist/style.css') {
     fail('package.json exports["./styles.css"] must point to "./dist/style.css"');
@@ -35,6 +37,14 @@ function assertExports(packageJson) {
 
   if (styleAliasExport !== './dist/style.css') {
     fail('package.json exports["./style.css"] must point to "./dist/style.css"');
+  }
+
+  if (minimalExport !== './dist/minimal.css') {
+    fail('package.json exports["./minimal"] must point to "./dist/minimal.css"');
+  }
+
+  if (minimalCssExport !== './dist/minimal.css') {
+    fail('package.json exports["./minimal.css"] must point to "./dist/minimal.css"');
   }
 }
 
@@ -84,7 +94,8 @@ function main() {
     'dist/ioi-vue-table.cjs',
     'dist/unstyled.js',
     'dist/unstyled.cjs',
-    'dist/style.css'
+    'dist/style.css',
+    'dist/minimal.css'
   ];
 
   for (const relativePath of requiredDistFiles) {
@@ -94,6 +105,11 @@ function main() {
   const cssStats = ensureFile(resolve(packageDir, 'dist/style.css'));
   if (cssStats.size <= 0) {
     fail('dist/style.css is empty');
+  }
+
+  const minimalCssStats = ensureFile(resolve(packageDir, 'dist/minimal.css'));
+  if (minimalCssStats.size <= 0) {
+    fail('dist/minimal.css is empty');
   }
 
   const runtimeText = collectRuntimeBundleText();

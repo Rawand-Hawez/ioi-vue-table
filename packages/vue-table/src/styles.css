@@ -106,6 +106,46 @@
   pointer-events: none;
 }
 
+.ioi-table__row--expanded {
+  background-color: #f0f7ff;
+}
+
+.ioi-table__drag-handle {
+  user-select: none;
+  color: #94a3b8;
+  font-family: system-ui, sans-serif;
+}
+
+.ioi-table__drag-handle:hover {
+  color: #475569;
+  cursor: grab;
+}
+
+.ioi-table__row--dragging {
+  opacity: 0.4;
+}
+
+.ioi-table__row--drag-over-above {
+  box-shadow: inset 0 2px 0 0 var(--ioi-table-focus-color, #0066cc);
+}
+
+.ioi-table__row--drag-over-below {
+  box-shadow: inset 0 -2px 0 0 var(--ioi-table-focus-color, #0066cc);
+}
+
+.ioi-table__group-header-cell {
+  text-align: center;
+  font-weight: 600;
+  padding: 6px 12px;
+  border-bottom: 1px solid var(--ioi-table-border, #d7dbe2);
+  background-color: #f8fafc;
+}
+
+.ioi-table__group-header-cell--empty {
+  background-color: transparent;
+  border-bottom: 1px solid var(--ioi-table-border, #d7dbe2);
+}
+
 .ioi-table__filter-row {
   position: sticky;
   top: var(--ioi-table-header-height, 36px);

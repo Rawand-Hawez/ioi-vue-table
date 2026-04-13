@@ -9,8 +9,10 @@ export default defineConfig({
   plugins: [vue(), tailwindcss() as any],
   resolve: {
     alias: {
-      '@ioi-dev/vue-table': resolve(__dirname, '../vue-table/src/index.ts'),
-      '@ioi-dev/vue-table/unstyled': resolve(__dirname, '../vue-table/src/unstyled.ts')
+      '@ioi-dev/vue-table/minimal.css': resolve(__dirname, '../vue-table/src/minimal.css'),
+      '@ioi-dev/vue-table/minimal': resolve(__dirname, '../vue-table/src/minimal.css'),
+      '@ioi-dev/vue-table/unstyled': resolve(__dirname, '../vue-table/src/unstyled.ts'),
+      '@ioi-dev/vue-table': resolve(__dirname, '../vue-table/src/index.ts')
     }
   }
 });

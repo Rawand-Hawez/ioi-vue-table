@@ -15,6 +15,36 @@ export interface IoiSemanticEvent<TPayload = unknown> {
   timestamp: string;
 }
 
+export interface ColumnGroup {
+  /** Unique identifier for the group. */
+  id: string;
+  /** Display label for the spanning header cell. */
+  header: string;
+  /** Column ids (or field names) that belong to this group. */
+  columnIds: string[];
+}
+
+export interface ColumnGroupHeaderSlotProps {
+  group: ColumnGroup;
+  colspan: number;
+}
+
+export interface IoiRowReorderPayload<TRow = Record<string, unknown>> {
+  /** Source index in the current visible (rendered) order. */
+  fromIndex: number;
+  /** Destination index in the current visible (rendered) order. */
+  toIndex: number;
+  /** The row object at the source index. */
+  row: TRow;
+}
+
+export interface IoiClipboardCopyPayload {
+  format: 'tsv';
+  rowCount: number;
+  columnCount: number;
+  includesHeader: boolean;
+}
+
 export interface ColumnDef<TRow = Record<string, unknown>> {
   id?: string;
   field: keyof TRow | string;
@@ -266,6 +296,12 @@ export interface IoiTableOptions<TRow = Record<string, unknown>> {
   serverOptions?: ServerDataOptions<TRow>;
   /** Expanded group keys for controlled mode. */
   expandedGroupKeys?: Array<string>;
+  /** Enable Ctrl+C copy of selected rows as TSV. Defaults to true when selection is enabled. */
+  copyable?: boolean;
+  /** Enable row drag-and-drop reorder. Adds a drag handle cell to each row. */
+  rowDraggable?: boolean;
+  /** Column groups (spanning headers) — single-level only in v0.2.5. */
+  columnGroups?: ColumnGroup[];
   onPaginationChange?: (payload: IoiPaginationChangePayload) => void;
   onCellCommit?: (payload: IoiCellCommitPayload<TRow>) => void;
   onRowUpdate?: (payload: IoiCellCommitPayload<TRow>) => void;
@@ -361,6 +397,8 @@ export interface IoiTableActions<TRow = Record<string, unknown>> {
   /** Gets the row key for a given row index. Returns null if rowKey is not configured. */
   getRowKey: (rowIndex: number) => string | number | null;
   resetState: () => void;
+  /** Copies currently selected rows to the clipboard as tab-separated values. */
+  copySelectionToClipboard: () => Promise<void>;
   /** Refreshes server-side data (only applicable in server mode). */
   refresh: () => void;
   /** Emits a schema-versioned semantic event. */

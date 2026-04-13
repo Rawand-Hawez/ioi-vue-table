@@ -8,6 +8,8 @@ export interface KeyboardOptions<TRow = Record<string, unknown>> {
   rowCount: ComputedRef<number>;
   pageSize: ComputedRef<number>;
   paginationEnabled: ComputedRef<boolean>;
+  /** Whether Ctrl+C copy of selection is enabled. Defaults to true. */
+  copyable?: ComputedRef<boolean>;
   onFocusChange?: (rowIndex: number, columnIndex?: number) => void;
   onAnnounce?: (message: string) => void;
 }
@@ -33,6 +35,7 @@ export function createKeyboardNavigation<TRow = Record<string, unknown>>(
     columns,
     rowCount,
     pageSize,
+    copyable,
     onFocusChange,
     onAnnounce
   } = options;
@@ -214,6 +217,22 @@ export function createKeyboardNavigation<TRow = Record<string, unknown>>(
           api.selectAll('filtered');
           const selectedCount = api.state.value.selectedRowKeys.length;
           announce(`${selectedCount} rows selected`);
+          return true;
+        }
+        return false;
+
+      case 'c':
+        if ((ctrlKey || metaKey) && !shiftKey) {
+          const copyEnabled = copyable ? copyable.value : true;
+          if (!copyEnabled) {
+            return false;
+          }
+          if (state.value.selectedRowKeys.length === 0) {
+            return false;
+          }
+          event.preventDefault();
+          void api.copySelectionToClipboard();
+          announce(`${state.value.selectedRowKeys.length} rows copied to clipboard`);
           return true;
         }
         return false;

@@ -63,6 +63,8 @@
     },
     "./styles.css": "./dist/style.css",
     "./style.css": "./dist/style.css",
+    "./minimal": "./dist/minimal.css",
+    "./minimal.css": "./dist/minimal.css",
     "./utils/nestedPath": {
       "types": "./dist/utils/nestedPath.d.ts",
       "import": "./dist/utils/nestedPath.js",
@@ -86,7 +88,7 @@
   ],
   "scripts": {
     "dev": "node ../../node_modules/vite/bin/vite.js --config vite.config.ts",
-    "build": "node ../../node_modules/vite/bin/vite.js build --config vite.config.ts && node ../../node_modules/vue-tsc/bin/vue-tsc.js --declaration --emitDeclarationOnly --outDir dist -p tsconfig.build.json",
+    "build": "node ../../node_modules/vite/bin/vite.js build --config vite.config.ts && node ../../node_modules/vue-tsc/bin/vue-tsc.js --declaration --emitDeclarationOnly --outDir dist -p tsconfig.build.json && node -e \"require('node:fs').copyFileSync('src/minimal.css', 'dist/minimal.css')\"",
     "verify:artifact": "node ./scripts/verify-artifact.mjs",
     "prepack": "npm run build && npm run verify:artifact",
     "test": "node ../../node_modules/vitest/vitest.mjs run --config vitest.config.ts",

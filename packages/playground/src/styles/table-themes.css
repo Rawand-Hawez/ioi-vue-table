@@ -11,8 +11,24 @@
    -------------------------------------------------------------------------- */
 .theme-default,
 .theme-tailwind,
-.theme-bootstrap {
+.theme-bootstrap,
+.theme-minimal {
   display: block;
+}
+
+/* ==========================================================================
+   MINIMAL THEME
+   Showcases @ioi-dev/vue-table/minimal.css — baseline structure, no design
+   opinions. Loaded dynamically via useTheme when selected.
+   ========================================================================== */
+
+.theme-minimal .ioi-table__viewport {
+  max-height: 520px;
+  overflow: auto;
+}
+
+.theme-minimal .ioi-table__row--selected td {
+  background: rgba(0, 0, 0, 0.06);
 }
 
 /* ==========================================================================
