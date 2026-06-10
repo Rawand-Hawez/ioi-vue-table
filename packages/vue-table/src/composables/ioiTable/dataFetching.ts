@@ -105,7 +105,7 @@ export function createDataFetching<TRow>(
       } else {
         onRowsReceived(result.rows, result.totalRows);
       }
-      
+
       if (result.nextCursor !== undefined) {
         currentCursor = result.nextCursor;
       }

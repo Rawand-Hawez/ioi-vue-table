@@ -129,7 +129,7 @@ describe('Row Expansion', () => {
 
       // Only active rows should be expandable
       table.expandAllRows();
-      
+
       // Only rows 1 and 3 are active
       expect(table.state.value.expandedRowKeys).toEqual([1, 3]);
     });
@@ -138,7 +138,7 @@ describe('Row Expansion', () => {
   describe('Expansion Events', () => {
     it('should emit onRowExpand callback when row is expanded', () => {
       let expandPayload: IoiRowExpandPayload<TestRow> | null = null;
-      
+
       const table = useIoiTable({
         rows,
         columns,
@@ -160,7 +160,7 @@ describe('Row Expansion', () => {
 
     it('should emit onRowExpand callback when row is collapsed', () => {
       let expandPayload: IoiRowExpandPayload<TestRow> | null = null;
-      
+
       const table = useIoiTable({
         rows,
         columns,
@@ -193,7 +193,7 @@ describe('Row Expansion', () => {
 
       // Apply filter
       table.setGlobalSearch('Bob');
-      
+
       // Row 1 should still be expanded even though it's filtered out
       expect(table.isRowExpanded(1)).toBe(true);
     });

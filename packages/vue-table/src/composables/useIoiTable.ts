@@ -458,7 +458,7 @@ export function useIoiTable<TRow = Record<string, unknown>>(
       getFieldValue
     );
   });
-  
+
   const groups = computed<GroupInfo[]>(() => {
     const groupBy = resolvedOptions.value.groupBy;
     if (!groupBy) {
@@ -911,7 +911,7 @@ export function useIoiTable<TRow = Record<string, unknown>>(
           .filter((key): key is string | number => key !== null)
       );
 
-      const nextExpandedKeys = state.value.expandedRowKeys.filter((key) => 
+      const nextExpandedKeys = state.value.expandedRowKeys.filter((key) =>
         availableKeys.has(key)
       );
 
@@ -1009,7 +1009,7 @@ export function useIoiTable<TRow = Record<string, unknown>>(
 
   // Server-side data fetching module
   let dataFetchingApi: DataFetchingApi | null = null;
-  
+
   function handleServerRowsReceived(rows: TRow[], totalRows: number): void {
     normalizedRows.value = [...rows];
     state.value = {
@@ -1044,11 +1044,11 @@ export function useIoiTable<TRow = Record<string, unknown>>(
   ): void {
     const normalizedPageSize = normalizePositiveInteger(nextPageSize, 0);
     const normalizedPageIndex = normalizeNonNegativeInteger(nextPageIndex, 0);
-    
+
     const effectiveRowCount = isServerMode.value && state.value.serverTotalRows !== null
       ? state.value.serverTotalRows
       : processedRowCount.value;
-    
+
     const payload = buildPaginationPayload(
       normalizedPageIndex,
       normalizedPageSize,
@@ -1220,13 +1220,13 @@ export function useIoiTable<TRow = Record<string, unknown>>(
       if (existing && existing.field === normalizedField) {
         const existingFilter = existing.filter;
         const isSameType = existingFilter.type === filter.type;
-        
+
         let isSameFilter = false;
         if (isSameType) {
           if (filter.type === 'text') {
             const tf = filter as TextColumnFilter;
             const ef = existingFilter as TextColumnFilter;
-            isSameFilter = ef.value === tf.value && 
+            isSameFilter = ef.value === tf.value &&
               ef.operator === tf.operator &&
               ef.caseSensitive === tf.caseSensitive;
           } else if (filter.type === 'number') {
@@ -1243,7 +1243,7 @@ export function useIoiTable<TRow = Record<string, unknown>>(
             isSameFilter = ef.value === df.value && ef.operator === df.operator;
           }
         }
-        
+
         if (isSameFilter) {
           return;
         }

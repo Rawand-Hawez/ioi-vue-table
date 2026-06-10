@@ -571,7 +571,7 @@
     background-color: Highlight;
     color: HighlightText;
   }
-  
+
   .ioi-table__row:focus,
   .ioi-table__cell:focus {
     outline: 3px solid CanvasText;
@@ -582,11 +582,11 @@
   .ioi-table__row--selected {
     outline: 2px solid Highlight;
   }
-  
+
   .ioi-table__row--focused {
     outline: 2px dashed Highlight;
   }
-  
+
   .ioi-table__cell--focused {
     outline: 2px dashed Highlight;
   }

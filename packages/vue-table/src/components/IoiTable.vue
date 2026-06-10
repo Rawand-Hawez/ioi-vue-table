@@ -1436,8 +1436,8 @@ defineExpose({
 </script>
 
 <template>
-  <div 
-    class="ioi-table" 
+  <div
+    class="ioi-table"
     role="grid"
     :aria-label="ariaLabel"
     :aria-rowcount="table.totalRows.value"

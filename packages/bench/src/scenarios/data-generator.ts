@@ -12,11 +12,11 @@ function randomInt(min: number, max: number): number {
 
 export function generateRows(count: number): any[] {
   const rows = [];
-  
+
   for (let i = 0; i < count; i++) {
     const firstName = randomItem(firstNames);
     const lastName = randomItem(lastNames);
-    
+
     rows.push({
       id: i,
       name: `${firstName} ${lastName}`,
@@ -28,6 +28,6 @@ export function generateRows(count: number): any[] {
       active: Math.random() > 0.1,
     });
   }
-  
+
   return rows;
 }
