@@ -129,3 +129,18 @@
 .ioi-table__expanded-content {
   padding: 0;
 }
+
+.ioi-table__empty {
+  text-align: center;
+  padding: 2rem;
+  color: #94a3b8;
+}
+
+.ioi-table__pagination {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.5rem 0.75rem;
+  border-top: 1px solid #e2e8f0;
+  font-size: 0.8125rem;
+}
