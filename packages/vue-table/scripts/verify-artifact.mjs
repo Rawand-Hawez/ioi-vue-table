@@ -30,6 +30,7 @@ function assertExports(packageJson) {
   const styleAliasExport = exportsField['./style.css'];
   const minimalExport = exportsField['./minimal'];
   const minimalCssExport = exportsField['./minimal.css'];
+  const shadcnExport = exportsField['./themes/shadcn.css'];
 
   if (stylesExport !== './dist/style.css') {
     fail('package.json exports["./styles.css"] must point to "./dist/style.css"');
@@ -45,6 +46,10 @@ function assertExports(packageJson) {
 
   if (minimalCssExport !== './dist/minimal.css') {
     fail('package.json exports["./minimal.css"] must point to "./dist/minimal.css"');
+  }
+
+  if (shadcnExport !== './dist/themes/shadcn.css') {
+    fail('package.json exports["./themes/shadcn.css"] must point to "./dist/themes/shadcn.css"');
   }
 }
 
@@ -95,7 +100,8 @@ function main() {
     'dist/unstyled.js',
     'dist/unstyled.cjs',
     'dist/style.css',
-    'dist/minimal.css'
+    'dist/minimal.css',
+    'dist/themes/shadcn.css'
   ];
 
   for (const relativePath of requiredDistFiles) {
@@ -123,6 +129,18 @@ function main() {
   const minimalCssStats = ensureFile(resolve(packageDir, 'dist/minimal.css'));
   if (minimalCssStats.size <= 0) {
     fail('dist/minimal.css is empty');
+  }
+
+  const shadcnCssStats = ensureFile(resolve(packageDir, 'dist/themes/shadcn.css'));
+  if (shadcnCssStats.size <= 0) {
+    fail('dist/themes/shadcn.css is empty');
+  }
+
+  const shadcnContent = readFileSync(resolve(packageDir, 'dist/themes/shadcn.css'), 'utf8');
+  const requiredShadcnVars = ['--background', '--foreground', '--muted', '--border', '--ring', '--accent'];
+  const missingShadcnVars = requiredShadcnVars.filter(v => !shadcnContent.includes(v));
+  if (missingShadcnVars.length > 0) {
+    fail(`dist/themes/shadcn.css missing required shadcn variables: ${missingShadcnVars.join(', ')}`);
   }
 
   const runtimeText = collectRuntimeBundleText();

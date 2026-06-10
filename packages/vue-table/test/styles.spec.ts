@@ -162,3 +162,46 @@ describe('minimal.css — structural baseline contract', () => {
     expect(css).toContain('padding');
   });
 });
+
+describe('themes/shadcn.css — shadcn variable contract', () => {
+  let css: string;
+
+  beforeAll(() => {
+    css = readStylesheet('themes/shadcn.css');
+  });
+
+  const requiredShadcnVars = [
+    '--background',
+    '--foreground',
+    '--muted',
+    '--muted-foreground',
+    '--card',
+    '--card-foreground',
+    '--accent',
+    '--accent-foreground',
+    '--border',
+    '--input',
+    '--ring',
+    '--primary'
+  ];
+
+  it.each(requiredShadcnVars)('references shadcn variable "%s"', (variable: string) => {
+    expect(css).toContain(`var(${variable})`);
+  });
+
+  it('maps to ioi-table custom properties', () => {
+    expect(css).toContain('--ioi-table-bg');
+    expect(css).toContain('--ioi-table-color');
+    expect(css).toContain('--ioi-table-border');
+    expect(css).toContain('--ioi-table-header-bg');
+  });
+
+  it('does not use @apply or Tailwind directives', () => {
+    expect(css).not.toContain('@apply');
+    expect(css).not.toContain('@tailwind');
+  });
+
+  it('styles the pagination button with shadcn variables', () => {
+    expect(css).toContain('.ioi-table__pagination-btn');
+  });
+});

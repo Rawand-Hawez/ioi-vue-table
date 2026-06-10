@@ -1,0 +1,44 @@
+.ioi-table {
+  --ioi-table-bg: var(--background);
+  --ioi-table-color: var(--foreground);
+  --ioi-table-border: var(--border);
+  --ioi-table-header-bg: var(--muted);
+  --ioi-table-header-color: var(--muted-foreground);
+  --ioi-table-row-hover-bg: var(--accent);
+  --ioi-table-row-hover-color: var(--accent-foreground);
+  --ioi-table-row-selected-bg: var(--accent);
+  --ioi-table-row-selected-color: var(--accent-foreground);
+  --ioi-table-row-focused-bg: var(--accent);
+  --ioi-table-cell-focused-outline: 2px solid var(--ring);
+  --ioi-table-pagination-bg: var(--card);
+  --ioi-table-pagination-color: var(--card-foreground);
+  --ioi-table-pagination-border: var(--border);
+  --ioi-table-pagination-padding: 0.5rem 0.75rem;
+  --ioi-table-focus-outline: 2px solid var(--ring);
+  --ioi-table-focus-outline-offset: 2px;
+}
+
+.ioi-table__pagination-btn {
+  background: var(--background);
+  color: var(--foreground);
+  border: 1px solid var(--input);
+}
+
+.ioi-table__pagination-btn:hover:not(:disabled) {
+  background: var(--accent);
+  color: var(--accent-foreground);
+}
+
+.ioi-table__pagination-size {
+  background: var(--background);
+  color: var(--foreground);
+  border: 1px solid var(--input);
+}
+
+.ioi-table__sort-button:hover {
+  color: var(--foreground);
+}
+
+.ioi-table__sort-button--active {
+  color: var(--primary);
+}
