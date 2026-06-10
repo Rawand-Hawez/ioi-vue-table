@@ -5,10 +5,9 @@
   --ioi-table-header-bg: var(--muted);
   --ioi-table-header-color: var(--muted-foreground);
   --ioi-table-row-hover-bg: var(--accent);
-  --ioi-table-row-hover-color: var(--accent-foreground);
   --ioi-table-row-selected-bg: var(--accent);
-  --ioi-table-row-selected-color: var(--accent-foreground);
   --ioi-table-row-focused-bg: var(--accent);
+  --ioi-table-accent-color: var(--primary);
   --ioi-table-cell-focused-outline: 2px solid var(--ring);
   --ioi-table-pagination-bg: var(--card);
   --ioi-table-pagination-color: var(--card-foreground);
@@ -37,8 +36,4 @@
 
 .ioi-table__sort-button:hover {
   color: var(--foreground);
-}
-
-.ioi-table__sort-button--active {
-  color: var(--primary);
 }
