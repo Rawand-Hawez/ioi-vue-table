@@ -38,7 +38,7 @@ watch(selectionMode, () => { selectedKeys.value = []; });
           <button :class="['seg-btn', { 'seg-btn--active': selectionMode === 'single' }]" @click="selectionMode = 'single'">Single</button>
           <button :class="['seg-btn', { 'seg-btn--active': selectionMode === 'multi' }]" @click="selectionMode = 'multi'">Multi</button>
         </div>
-        <button class="btn btn-ghost" @click="selectedKeys = []">Clear Selection</button>
+        <button class="pg-btn pg-btn-ghost" @click="selectedKeys = []">Clear Selection</button>
       </div>
     </div>
 

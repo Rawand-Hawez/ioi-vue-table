@@ -98,8 +98,8 @@ function clearAll(): void {
           style="width:110px"
           @keydown.enter="runSalaryFilter"
         />
-        <button class="btn" @click="runSalaryFilter">Apply</button>
-        <button v-if="salaryMin !== ''" class="btn btn-ghost" @click="clearSalaryFilter">×</button>
+        <button class="pg-btn" @click="runSalaryFilter">Apply</button>
+        <button v-if="salaryMin !== ''" class="pg-btn pg-btn-ghost" @click="clearSalaryFilter">×</button>
       </div>
 
       <div class="ctrl-group">
@@ -110,14 +110,14 @@ function clearAll(): void {
           placeholder="Search all columns…"
           @keydown.enter="runGlobalSearch"
         />
-        <button class="btn" @click="runGlobalSearch">Search</button>
+        <button class="pg-btn" @click="runGlobalSearch">Search</button>
       </div>
 
       <div class="spacer" />
 
-      <button class="btn btn-secondary" @click="runSelectAll">Select Filtered</button>
-      <button class="btn btn-ghost" @click="clearAll">Clear All</button>
-      <button class="btn btn-ghost" @click="clearHistory">Clear Perf</button>
+      <button class="pg-btn pg-btn-secondary" @click="runSelectAll">Select Filtered</button>
+      <button class="pg-btn pg-btn-ghost" @click="clearAll">Clear All</button>
+      <button class="pg-btn pg-btn-ghost" @click="clearHistory">Clear Perf</button>
     </div>
 
     <div :class="`theme-${activeTheme}`">

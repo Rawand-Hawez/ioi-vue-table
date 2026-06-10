@@ -80,7 +80,7 @@ function refresh() {
         </p>
       </div>
       <div class="controls">
-        <button class="btn btn-secondary" @click="refresh">
+        <button class="pg-btn pg-btn-secondary" @click="refresh">
           Refresh Data
         </button>
       </div>

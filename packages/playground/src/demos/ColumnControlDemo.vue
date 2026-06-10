@@ -93,7 +93,7 @@ function toggleRiskVisibility(): void {
           <button :class="['seg-btn', { 'seg-btn--active': ownerPinned }]" @click="toggleOwnerPin">Pin Owner</button>
           <button :class="['seg-btn', { 'seg-btn--active': riskHidden }]" @click="toggleRiskVisibility">Hide Risk</button>
         </div>
-        <button class="btn btn-ghost" @click="capture">Capture Snapshot</button>
+        <button class="pg-btn pg-btn-ghost" @click="capture">Capture Snapshot</button>
       </div>
     </div>
 

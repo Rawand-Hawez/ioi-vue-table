@@ -86,7 +86,7 @@ function headerSort(field: string): void {
             {{ opt.label }}
           </button>
         </div>
-        <button class="btn btn-ghost" @click="clearHistory">Clear Log</button>
+        <button class="pg-btn pg-btn-ghost" @click="clearHistory">Clear Log</button>
       </div>
     </div>
 

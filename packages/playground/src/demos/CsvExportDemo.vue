@@ -154,9 +154,9 @@ const scopes: Array<{ value: ExportCsvScope; label: string; desc: string }> = [
       </div>
 
       <div class="config-actions">
-        <button class="btn" @click="doExport">Download CSV</button>
-        <button class="btn btn-secondary" @click="selectSome">Select Visible</button>
-        <button class="btn btn-ghost" @click="clearSel">Clear Selection</button>
+        <button class="pg-btn" @click="doExport">Download CSV</button>
+        <button class="pg-btn pg-btn-secondary" @click="selectSome">Select Visible</button>
+        <button class="pg-btn pg-btn-ghost" @click="clearSel">Clear Selection</button>
       </div>
     </div>
 
