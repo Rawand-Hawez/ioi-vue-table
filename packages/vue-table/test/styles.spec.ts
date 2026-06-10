@@ -102,6 +102,24 @@ describe('styles.css — default theme contract', () => {
     expect(css).toContain('.ioi-table__pagination');
   });
 
+  describe('pagination selectors', () => {
+    const paginationSelectors = [
+      '.ioi-table__pagination',
+      '.ioi-table__pagination-info',
+      '.ioi-table__pagination-size',
+      '.ioi-table__pagination-btn',
+      '.ioi-table__pagination-pages'
+    ];
+
+    it.each(paginationSelectors)('contains pagination selector "%s"', (selector: string) => {
+      expect(css).toContain(selector);
+    });
+
+    it('styles disabled pagination buttons', () => {
+      expect(css).toContain('.ioi-table__pagination-btn:disabled');
+    });
+  });
+
   it('has dark-mode token overrides via @media (prefers-color-scheme: dark)', () => {
     expect(css).toContain('prefers-color-scheme: dark');
   });

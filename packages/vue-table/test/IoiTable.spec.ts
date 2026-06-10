@@ -991,4 +991,146 @@ describe('IoiTable', () => {
       expect(th.attributes('aria-sort')).toBe('ascending');
     });
   });
+
+  describe('pagination UI', () => {
+    const rows = Array.from({ length: 50 }, (_, i) => ({ id: i + 1, name: `Row ${i + 1}` }));
+
+    it('renders default pagination controls when pageSize > 0', () => {
+      const wrapper = mount(IoiTable, {
+        props: {
+          columns: [{ field: 'name', header: 'Name' }],
+          rows,
+          pageSize: 10,
+          rowKey: 'id'
+        }
+      });
+
+      expect(wrapper.find('.ioi-table__pagination').exists()).toBe(true);
+      expect(wrapper.find('.ioi-table__pagination-info').exists()).toBe(true);
+      expect(wrapper.find('.ioi-table__pagination-prev').exists()).toBe(true);
+      expect(wrapper.find('.ioi-table__pagination-next').exists()).toBe(true);
+    });
+
+    it('displays page info text', () => {
+      const wrapper = mount(IoiTable, {
+        props: {
+          columns: [{ field: 'name', header: 'Name' }],
+          rows,
+          pageSize: 10,
+          rowKey: 'id'
+        }
+      });
+
+      const info = wrapper.find('.ioi-table__pagination-info');
+      expect(info.text()).toContain('1');
+      expect(info.text()).toContain('10');
+      expect(info.text()).toContain('50');
+    });
+
+    it('disables previous button on first page', () => {
+      const wrapper = mount(IoiTable, {
+        props: {
+          columns: [{ field: 'name', header: 'Name' }],
+          rows,
+          pageSize: 10,
+          rowKey: 'id'
+        }
+      });
+
+      const prev = wrapper.find('.ioi-table__pagination-prev');
+      expect(prev.attributes('disabled')).toBeDefined();
+    });
+
+    it('enables next button when more pages exist', () => {
+      const wrapper = mount(IoiTable, {
+        props: {
+          columns: [{ field: 'name', header: 'Name' }],
+          rows,
+          pageSize: 10,
+          rowKey: 'id'
+        }
+      });
+
+      const next = wrapper.find('.ioi-table__pagination-next');
+      expect(next.attributes('disabled')).toBeUndefined();
+    });
+
+    it('navigates to next page on next button click', async () => {
+      const wrapper = mount(IoiTable, {
+        props: {
+          columns: [{ field: 'name', header: 'Name' }],
+          rows,
+          pageSize: 10,
+          rowKey: 'id'
+        }
+      });
+
+      await wrapper.find('.ioi-table__pagination-next').trigger('click');
+      await nextTick();
+
+      expect(wrapper.emitted('update:pageIndex')?.[0]).toEqual([1]);
+    });
+
+    it('renders page size selector', () => {
+      const wrapper = mount(IoiTable, {
+        props: {
+          columns: [{ field: 'name', header: 'Name' }],
+          rows,
+          pageSize: 10,
+          rowKey: 'id',
+          pageSizeOptions: [5, 10, 25]
+        }
+      });
+
+      const select = wrapper.find('.ioi-table__pagination-size');
+      expect(select.exists()).toBe(true);
+      expect(select.findAll('option').length).toBe(3);
+    });
+
+    it('hides pagination when showPagination is false', () => {
+      const wrapper = mount(IoiTable, {
+        props: {
+          columns: [{ field: 'name', header: 'Name' }],
+          rows,
+          pageSize: 10,
+          rowKey: 'id',
+          showPagination: false
+        }
+      });
+
+      expect(wrapper.find('.ioi-table__pagination').exists()).toBe(false);
+    });
+
+    it('renders pagination slot when provided', () => {
+      const wrapper = mount(IoiTable, {
+        props: {
+          columns: [{ field: 'name', header: 'Name' }],
+          rows,
+          pageSize: 10,
+          rowKey: 'id'
+        },
+        slots: {
+          pagination: `<template #pagination="{ pageIndex, pageCount }"><div class="custom-pagination">{{ pageIndex }}/{{ pageCount }}</div></template>`
+        }
+      });
+
+      expect(wrapper.find('.custom-pagination').exists()).toBe(true);
+      expect(wrapper.find('.custom-pagination').text()).toBe('0/5');
+    });
+
+    it('handles zero rows', () => {
+      const wrapper = mount(IoiTable, {
+        props: {
+          columns: [{ field: 'name', header: 'Name' }],
+          rows: [],
+          pageSize: 10,
+          rowKey: 'id'
+        }
+      });
+
+      expect(wrapper.find('.ioi-table__pagination').exists()).toBe(true);
+      const info = wrapper.find('.ioi-table__pagination-info');
+      expect(info.text()).toContain('0');
+    });
+  });
 });

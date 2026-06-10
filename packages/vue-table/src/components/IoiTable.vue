@@ -1750,7 +1750,56 @@ defineExpose({
         :next-page="() => table.setPageIndex(currentPageIndex + 1)"
         :first-page="() => table.setPageIndex(0)"
         :last-page="() => table.setPageIndex(currentPageCount - 1)"
-      />
+      >
+        <span class="ioi-table__pagination-info">
+          {{ currentPageIndex * currentPageSize + 1 }}–{{ Math.min((currentPageIndex + 1) * currentPageSize, currentTotalRows) }} of {{ currentTotalRows }}
+        </span>
+        <select
+          v-if="pageSizeOptions && pageSizeOptions.length > 1"
+          class="ioi-table__pagination-size"
+          :value="currentPageSize"
+          @change="table.setPageSize(Number(($event.target as HTMLSelectElement).value))"
+        >
+          <option v-for="size in pageSizeOptions" :key="size" :value="size">{{ size }} / page</option>
+        </select>
+        <button
+          type="button"
+          class="ioi-table__pagination-btn ioi-table__pagination-first"
+          :disabled="currentPageIndex <= 0"
+          aria-label="First page"
+          @click="table.setPageIndex(0)"
+        >
+          &#171;
+        </button>
+        <button
+          type="button"
+          class="ioi-table__pagination-btn ioi-table__pagination-prev"
+          :disabled="currentPageIndex <= 0"
+          aria-label="Previous page"
+          @click="table.setPageIndex(currentPageIndex - 1)"
+        >
+          &#8249;
+        </button>
+        <span class="ioi-table__pagination-pages">{{ currentPageIndex + 1 }} / {{ currentPageCount }}</span>
+        <button
+          type="button"
+          class="ioi-table__pagination-btn ioi-table__pagination-next"
+          :disabled="currentPageIndex >= currentPageCount - 1"
+          aria-label="Next page"
+          @click="table.setPageIndex(currentPageIndex + 1)"
+        >
+          &#8250;
+        </button>
+        <button
+          type="button"
+          class="ioi-table__pagination-btn ioi-table__pagination-last"
+          :disabled="currentPageIndex >= currentPageCount - 1"
+          aria-label="Last page"
+          @click="table.setPageIndex(currentPageCount - 1)"
+        >
+          &#187;
+        </button>
+      </slot>
     </div>
     <div v-if="table.loading.value" class="ioi-table__loading-overlay">
       <slot name="loading">Loading...</slot>

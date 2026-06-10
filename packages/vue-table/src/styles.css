@@ -477,6 +477,55 @@
   font-size: 0.8125rem;
 }
 
+.ioi-table__pagination-info {
+  margin-right: auto;
+}
+
+.ioi-table__pagination-size {
+  padding: 0.2rem 0.4rem;
+  border: 1px solid var(--ioi-table-border);
+  border-radius: 4px;
+  font: inherit;
+  font-size: 0.78rem;
+  background: #ffffff;
+  color: var(--ioi-table-color);
+}
+
+.ioi-table__pagination-pages {
+  min-width: 4rem;
+  text-align: center;
+}
+
+.ioi-table__pagination-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 2rem;
+  height: 2rem;
+  border: 1px solid var(--ioi-table-border);
+  border-radius: 4px;
+  background: #ffffff;
+  color: var(--ioi-table-color);
+  font-size: 1rem;
+  cursor: pointer;
+  padding: 0;
+  line-height: 1;
+}
+
+.ioi-table__pagination-btn:hover:not(:disabled) {
+  background: var(--ioi-table-header-bg);
+}
+
+.ioi-table__pagination-btn:disabled {
+  opacity: 0.4;
+  cursor: default;
+}
+
+.ioi-table__pagination-btn:focus {
+  outline: var(--ioi-table-focus-outline);
+  outline-offset: 2px;
+}
+
 @media (prefers-reduced-motion: reduce) {
   .ioi-table__row,
   .ioi-table__cell {
