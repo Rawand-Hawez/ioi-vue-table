@@ -14,7 +14,8 @@ type RouteId =
   | 'row-styling'
   | 'custom-cells'
   | 'editing'
-  | 'csv-export';
+  | 'csv-export'
+  | 'server-data';
 
 interface NavRoute {
   id: RouteId;
@@ -32,6 +33,7 @@ const routes: NavRoute[] = [
   { id: 'custom-cells', label: 'Custom Cells' },
   { id: 'editing', label: 'Editing' },
   { id: 'csv-export', label: 'CSV Export' },
+  { id: 'server-data', label: 'Server Data', badge: 'v0.3' },
 ];
 
 const componentMap: Record<RouteId, ReturnType<typeof defineAsyncComponent>> = {
@@ -44,6 +46,7 @@ const componentMap: Record<RouteId, ReturnType<typeof defineAsyncComponent>> = {
   'custom-cells': defineAsyncComponent(() => import('./demos/CustomCellsDemo.vue')),
   'editing': defineAsyncComponent(() => import('./demos/InlineEditingDemo.vue')),
   'csv-export': defineAsyncComponent(() => import('./demos/CsvExportDemo.vue')),
+  'server-data': defineAsyncComponent(() => import('./demos/ServerDataDemo.vue')),
 };
 
 function parseHash(hash: string): RouteId {
