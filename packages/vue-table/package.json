@@ -88,7 +88,7 @@
   ],
   "scripts": {
     "dev": "node ../../node_modules/vite/bin/vite.js --config vite.config.ts",
-    "build": "node ../../node_modules/vite/bin/vite.js build --config vite.config.ts && node ../../node_modules/vue-tsc/bin/vue-tsc.js --declaration --emitDeclarationOnly --outDir dist -p tsconfig.build.json && node -e \"require('node:fs').copyFileSync('src/minimal.css', 'dist/minimal.css')\"",
+    "build": "node ../../node_modules/vite/bin/vite.js build --config vite.config.ts && node ../../node_modules/vue-tsc/bin/vue-tsc.js --declaration --emitDeclarationOnly --outDir dist -p tsconfig.build.json && node -e \"const fs=require('node:fs');fs.copyFileSync('src/minimal.css','dist/minimal.css');fs.copyFileSync('src/styles.css','dist/style.css')\"",
     "verify:artifact": "node ./scripts/verify-artifact.mjs",
     "prepack": "npm run build && npm run verify:artifact",
     "test": "node ../../node_modules/vitest/vitest.mjs run --config vitest.config.ts",

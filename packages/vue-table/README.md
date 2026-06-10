@@ -2,7 +2,7 @@
 
 A performance-first Vue 3 data table component with a streamlined API surface and JavaScript-first defaults. Designed to deliver enterprise-grade performance without the complexity of larger alternatives.
 
-> **v0.2.5** - Minimal CSS tier, row reorder, clipboard copy, column groups
+> **v0.3.0** — Complete default theme, visible pagination, default sortable headers, correct focus behaviour, selection bindings, editing events, and Tailwind/shadcn integration path
 
 ## Overview
 
@@ -39,10 +39,17 @@ npm install @ioi-dev/vue-table
 
 ### CSS Integration
 
-The default package entry includes library CSS. For zero-CSS integration, use the unstyled entry point:
+CSS is not auto-injected. Import the stylesheet explicitly alongside the component:
 
-```bash
-@ioi-dev/vue-table/unstyled
+```ts
+import { Table } from '@ioi-dev/vue-table';
+import '@ioi-dev/vue-table/styles.css';
+```
+
+For headless use (no CSS):
+
+```ts
+import { Table } from '@ioi-dev/vue-table/unstyled';
 ```
 
 **Available entry points:**

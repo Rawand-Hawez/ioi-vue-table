@@ -77,5 +77,3 @@ export type {
   AutoSizeOptions,
   ToggleRowOptions
 } from './types';
-
-import './styles.css';

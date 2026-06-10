@@ -107,6 +107,19 @@ function main() {
     fail('dist/style.css is empty');
   }
 
+  const cssContent = readFileSync(resolve(packageDir, 'dist/style.css'), 'utf8');
+  const requiredSelectors = [
+    '.ioi-table__row--selected',
+    '.ioi-table__row--focused',
+    '.ioi-table__pagination',
+    '--ioi-table-border',
+    '.ioi-table__empty'
+  ];
+  const missingSelectors = requiredSelectors.filter(s => !cssContent.includes(s));
+  if (missingSelectors.length > 0) {
+    fail(`dist/style.css missing required selectors: ${missingSelectors.join(', ')}`);
+  }
+
   const minimalCssStats = ensureFile(resolve(packageDir, 'dist/minimal.css'));
   if (minimalCssStats.size <= 0) {
     fail('dist/minimal.css is empty');
