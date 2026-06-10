@@ -16,7 +16,9 @@ type RouteId =
   | 'editing'
   | 'csv-export'
   | 'server-data'
-  | 'shadcn';
+  | 'shadcn'
+  | 'pagination'
+  | 'selection';
 
 interface NavRoute {
   id: RouteId;
@@ -36,6 +38,8 @@ const routes: NavRoute[] = [
   { id: 'csv-export', label: 'CSV Export' },
   { id: 'server-data', label: 'Server Data', badge: 'v0.3' },
   { id: 'shadcn', label: 'Shadcn', badge: 'v0.3' },
+  { id: 'pagination', label: 'Pagination', badge: 'v0.3' },
+  { id: 'selection', label: 'Selection', badge: 'v0.3' },
 ];
 
 const componentMap: Record<RouteId, ReturnType<typeof defineAsyncComponent>> = {
@@ -50,6 +54,8 @@ const componentMap: Record<RouteId, ReturnType<typeof defineAsyncComponent>> = {
   'csv-export': defineAsyncComponent(() => import('./demos/CsvExportDemo.vue')),
   'server-data': defineAsyncComponent(() => import('./demos/ServerDataDemo.vue')),
   'shadcn': defineAsyncComponent(() => import('./demos/ShadcnIntegrationDemo.vue')),
+  'pagination': defineAsyncComponent(() => import('./demos/PaginationDemo.vue')),
+  'selection': defineAsyncComponent(() => import('./demos/SelectionDemo.vue')),
 };
 
 function parseHash(hash: string): RouteId {

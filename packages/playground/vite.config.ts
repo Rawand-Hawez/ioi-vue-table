@@ -9,6 +9,7 @@ export default defineConfig({
   plugins: [vue(), tailwindcss() as any],
   resolve: {
     alias: {
+      '@ioi-dev/vue-table/themes/shadcn.css': resolve(__dirname, '../vue-table/src/themes/shadcn.css'),
       '@ioi-dev/vue-table/minimal.css': resolve(__dirname, '../vue-table/src/minimal.css'),
       '@ioi-dev/vue-table/minimal': resolve(__dirname, '../vue-table/src/minimal.css'),
       '@ioi-dev/vue-table/unstyled': resolve(__dirname, '../vue-table/src/unstyled.ts'),
