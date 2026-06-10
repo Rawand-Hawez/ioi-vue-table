@@ -164,7 +164,7 @@
   overflow: hidden;
 }
 
-.ioi-table__sort-button:focus {
+.ioi-table__sort-button:focus-visible {
   outline: var(--ioi-table-focus-outline);
   outline-offset: 2px;
   border-radius: 2px;
@@ -324,13 +324,13 @@
   box-shadow: var(--ioi-table-pinned-shadow-right);
 }
 
-.ioi-table__header-content:focus-within {
+.ioi-table__header-content:focus-visible {
   outline: var(--ioi-table-focus-outline);
   outline-offset: var(--ioi-table-focus-outline-offset);
 }
 
-.ioi-table__expand-icon:focus,
-.ioi-table__group-toggle:focus {
+.ioi-table__expand-icon:focus-visible,
+.ioi-table__group-toggle:focus-visible {
   outline: var(--ioi-table-focus-outline);
   outline-offset: 2px;
 }
@@ -352,7 +352,7 @@
   background: var(--ioi-table-accent-color);
 }
 
-.ioi-table__resize-handle:focus {
+.ioi-table__resize-handle:focus-visible {
   outline: var(--ioi-table-focus-outline);
   outline-offset: 0;
 }
@@ -505,7 +505,7 @@
   border-color: var(--ioi-table-accent-color);
 }
 
-.ioi-table__pagination-size:focus {
+.ioi-table__pagination-size:focus-visible {
   border-color: var(--ioi-table-accent-color);
   box-shadow: 0 0 0 3px rgba(15, 91, 212, 0.1);
 }
@@ -553,7 +553,7 @@
   filter: grayscale(1);
 }
 
-.ioi-table__pagination-btn:focus {
+.ioi-table__pagination-btn:focus-visible {
   outline: var(--ioi-table-focus-outline);
   outline-offset: 2px;
 }
