@@ -9,7 +9,7 @@ const { activeTheme } = useTheme();
 interface Row { id: number; name: string; email: string; status: string }
 
 const columns: ColumnDef<Row>[] = [
-  { field: 'id', header: 'ID', width: 80, type: 'number' },
+  { field: 'id', header: 'ID', width: 80, type: 'number' as const },
   { field: 'name', header: 'Name', width: 200 },
   { field: 'email', header: 'Email', width: 250 },
   { field: 'status', header: 'Status', width: 120 }
@@ -89,9 +89,9 @@ function refresh() {
     <div :class="`theme-${activeTheme}`">
       <Table
         ref="tableRef"
-        :columns="columns"
+        :columns="(columns as any)"
         data-mode="server"
-        :server-options="serverOptions"
+        :server-options="(serverOptions as any)"
         row-key="id"
         :height="400"
         :row-height="34"

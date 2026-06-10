@@ -6,7 +6,7 @@ import { useTheme } from '../composables/useTheme';
 const { activeTheme } = useTheme();
 
 const columns = [
-  { field: 'id', header: 'ID', width: 80, type: 'number' },
+  { field: 'id', header: 'ID', width: 80, type: 'number' as const },
   { field: 'name', header: 'Name', width: 200 },
   { field: 'email', header: 'Email', width: 250 },
   { field: 'role', header: 'Role', width: 140 },

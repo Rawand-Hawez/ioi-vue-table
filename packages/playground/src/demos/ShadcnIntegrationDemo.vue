@@ -8,7 +8,7 @@ const { activeTheme } = useTheme();
 interface Row { id: number; name: string; email: string; role: string; status: string }
 
 const columns = [
-  { field: 'id', header: 'ID', width: 80, type: 'number' },
+  { field: 'id', header: 'ID', width: 80, type: 'number' as const },
   { field: 'name', header: 'Name', width: 200 },
   { field: 'email', header: 'Email', width: 250 },
   { field: 'role', header: 'Role', width: 140 },
@@ -50,8 +50,8 @@ const useShadcnTheme = ref(true);
 
     <div :class="useShadcnTheme ? 'shadcn-preview' : `theme-${activeTheme}`">
       <Table
-        :columns="columns"
-        :rows="rows"
+        :columns="(columns as any)"
+        :rows="(rows as any)"
         row-key="id"
         :height="400"
         :row-height="36"
