@@ -1132,6 +1132,22 @@ describe('IoiTable', () => {
       const info = wrapper.find('.ioi-table__pagination-info');
       expect(info.text()).toContain('0');
     });
+
+    it('renders 0–0 of 0 when table has no rows', () => {
+      const wrapper = mount(IoiTable, {
+        props: {
+          rows: [],
+          columns: [{ field: 'name', header: 'Name' }],
+          rowKey: 'id',
+          showPagination: true,
+          pageSize: 10,
+          pageSizeOptions: [10, 25],
+        },
+      });
+
+      const info = wrapper.find('.ioi-table__pagination-info');
+      expect(info.text()).toBe('0–0 of 0');
+    });
   });
 
   describe('controlled selection', () => {

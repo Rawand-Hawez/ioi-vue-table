@@ -356,6 +356,13 @@ const currentPageSize = computed(() => table.pageSize.value);
 const currentPageCount = computed(() => table.pageCount.value);
 const currentTotalRows = computed(() => table.totalRows.value);
 
+const paginationRangeText = computed(() => {
+  if (currentTotalRows.value === 0) return '0–0 of 0';
+  const start = currentPageIndex.value * currentPageSize.value + 1;
+  const end = Math.min((currentPageIndex.value + 1) * currentPageSize.value, currentTotalRows.value);
+  return `${start}–${end} of ${currentTotalRows.value}`;
+});
+
 const headerFacetOptionsByField = computed(() => {
   const optionsByField = new Map<string, string[]>();
 
@@ -1764,7 +1771,7 @@ defineExpose({
         :last-page="() => table.setPageIndex(currentPageCount - 1)"
       >
         <span class="ioi-table__pagination-info">
-          {{ currentPageIndex * currentPageSize + 1 }}–{{ Math.min((currentPageIndex + 1) * currentPageSize, currentTotalRows) }} of {{ currentTotalRows }}
+          {{ paginationRangeText }}
         </span>
         <select
           v-if="pageSizeOptions && pageSizeOptions.length > 1"
