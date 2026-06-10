@@ -1133,4 +1133,187 @@ describe('IoiTable', () => {
       expect(info.text()).toContain('0');
     });
   });
+
+  describe('controlled selection', () => {
+    const rows = [
+      { id: 1, name: 'Alpha' },
+      { id: 2, name: 'Beta' },
+      { id: 3, name: 'Gamma' },
+      { id: 4, name: 'Delta' }
+    ];
+
+    it('emits update:selectedRowKeys on row click', async () => {
+      const wrapper = mount(IoiTable, {
+        props: {
+          columns: [{ field: 'name', header: 'Name' }],
+          rows,
+          rowKey: 'id'
+        }
+      });
+
+      await wrapper.findAll('tbody tr.ioi-table__row')[0].trigger('click');
+      await nextTick();
+
+      expect(wrapper.emitted('update:selectedRowKeys')).toBeTruthy();
+      const lastEmit = wrapper.emitted('update:selectedRowKeys')!.at(-1)![0] as number[];
+      expect(lastEmit).toContain(1);
+    });
+
+    it('emits selection-change with reason from engine', async () => {
+      const wrapper = mount(IoiTable, {
+        props: {
+          columns: [{ field: 'name', header: 'Name' }],
+          rows,
+          rowKey: 'id'
+        }
+      });
+
+      await wrapper.findAll('tbody tr.ioi-table__row')[0].trigger('click');
+      await nextTick();
+
+      expect(wrapper.emitted('selection-change')).toBeTruthy();
+      const payload = wrapper.emitted('selection-change')!.at(-1)![0] as { selectedRowKeys: number[]; reason: string };
+      expect(payload.reason).toBe('toggleRow');
+      expect(payload.selectedRowKeys).toContain(1);
+    });
+
+    it('syncs external selectedRowKeys into engine', async () => {
+      const wrapper = mount(IoiTable, {
+        props: {
+          columns: [{ field: 'name', header: 'Name' }],
+          rows,
+          rowKey: 'id',
+          selectedRowKeys: [2, 3]
+        }
+      });
+
+      const row2 = wrapper.findAll('tbody tr.ioi-table__row')[1];
+      expect(row2.classes()).toContain('ioi-table__row--selected');
+    });
+
+    it('updates selection when external selectedRowKeys change', async () => {
+      const wrapper = mount(IoiTable, {
+        props: {
+          columns: [{ field: 'name', header: 'Name' }],
+          rows,
+          rowKey: 'id',
+          selectedRowKeys: []
+        }
+      });
+
+      await wrapper.setProps({ selectedRowKeys: [1] });
+      await nextTick();
+
+      const row1 = wrapper.findAll('tbody tr.ioi-table__row')[0];
+      expect(row1.classes()).toContain('ioi-table__row--selected');
+    });
+
+    it('respects selectionMode single', async () => {
+      const wrapper = mount(IoiTable, {
+        props: {
+          columns: [{ field: 'name', header: 'Name' }],
+          rows,
+          rowKey: 'id',
+          selectionMode: 'single'
+        }
+      });
+
+      await wrapper.findAll('tbody tr.ioi-table__row')[0].trigger('click');
+      await nextTick();
+      await wrapper.findAll('tbody tr.ioi-table__row')[1].trigger('click');
+      await nextTick();
+
+      const lastEmit = wrapper.emitted('update:selectedRowKeys')!.at(-1)![0] as number[];
+      expect(lastEmit).toEqual([2]);
+    });
+
+    it('respects selectionMode multi with multiple selections', async () => {
+      const wrapper = mount(IoiTable, {
+        props: {
+          columns: [{ field: 'name', header: 'Name' }],
+          rows,
+          rowKey: 'id',
+          selectionMode: 'multi'
+        }
+      });
+
+      await wrapper.findAll('tbody tr.ioi-table__row')[0].trigger('click');
+      await nextTick();
+      await wrapper.findAll('tbody tr.ioi-table__row')[1].trigger('click');
+      await nextTick();
+
+      const lastEmit = wrapper.emitted('update:selectedRowKeys')!.at(-1)![0] as number[];
+      expect(lastEmit).toContain(1);
+      expect(lastEmit).toContain(2);
+    });
+
+    it('exposes toggleRow and clearSelection methods', () => {
+      const wrapper = mount(IoiTable, {
+        props: {
+          columns: [{ field: 'name', header: 'Name' }],
+          rows,
+          rowKey: 'id'
+        }
+      });
+
+      expect(typeof (wrapper.vm as { toggleRow: unknown }).toggleRow).toBe('function');
+      expect(typeof (wrapper.vm as { clearSelection: unknown }).clearSelection).toBe('function');
+    });
+
+    it('emits selection-change with clearSelection reason on clear', async () => {
+      const wrapper = mount(IoiTable, {
+        props: {
+          columns: [{ field: 'name', header: 'Name' }],
+          rows,
+          rowKey: 'id'
+        }
+      });
+
+      await wrapper.findAll('tbody tr.ioi-table__row')[0].trigger('click');
+      await nextTick();
+
+      (wrapper.vm as { clearSelection: () => void }).clearSelection();
+      await nextTick();
+
+      const payload = wrapper.emitted('selection-change')!.at(-1)![0] as { selectedRowKeys: number[]; reason: string };
+      expect(payload.reason).toBe('clearSelection');
+      expect(payload.selectedRowKeys).toEqual([]);
+    });
+
+    it('emits selection-change with external reason on external sync', async () => {
+      const wrapper = mount(IoiTable, {
+        props: {
+          columns: [{ field: 'name', header: 'Name' }],
+          rows,
+          rowKey: 'id',
+          selectedRowKeys: []
+        }
+      });
+
+      await wrapper.setProps({ selectedRowKeys: [1] });
+      await nextTick();
+
+      const payload = wrapper.emitted('selection-change')!.at(-1)![0] as { selectedRowKeys: number[]; reason: string };
+      expect(payload.reason).toBe('external');
+      expect(payload.selectedRowKeys).toEqual([1]);
+    });
+
+    it('does not emit duplicate selection-change for same keys', async () => {
+      const wrapper = mount(IoiTable, {
+        props: {
+          columns: [{ field: 'name', header: 'Name' }],
+          rows,
+          rowKey: 'id',
+          selectedRowKeys: [1]
+        }
+      });
+
+      const countBefore = wrapper.emitted('selection-change')?.length ?? 0;
+      await wrapper.setProps({ selectedRowKeys: [1] });
+      await nextTick();
+
+      const countAfter = wrapper.emitted('selection-change')?.length ?? 0;
+      expect(countAfter).toBe(countBefore);
+    });
+  });
 });

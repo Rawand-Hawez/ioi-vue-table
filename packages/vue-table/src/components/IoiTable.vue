@@ -598,8 +598,12 @@ watch(
 watch(
   () => table.state.value.selectedRowKeys,
   (nextKeys) => {
+    const lastEvt = table.lastEvent.value;
+    const reason = lastEvt?.type === 'data:select'
+      ? (lastEvt.payload as { reason?: string }).reason ?? 'internal'
+      : 'internal';
     emit('update:selectedRowKeys', [...nextKeys]);
-    emit('selection-change', { selectedRowKeys: [...nextKeys], reason: 'internal' });
+    emit('selection-change', { selectedRowKeys: [...nextKeys], reason });
   }
 );
 
@@ -617,7 +621,8 @@ watch(
       return;
     }
     table.setSelectedKeys(nextExternalKeys, 'external');
-  }
+  },
+  { immediate: true }
 );
 
 watch(
@@ -1112,8 +1117,15 @@ function getHeaderAriaSort(column: ColumnDef<TRow>): 'ascending' | 'descending' 
   return 'none';
 }
 
-  function onRowClick(row: TRow, rowIndex: number): void {
+  function onRowClick(row: TRow, rowIndex: number, event?: MouseEvent): void {
     emit('row-click', { row, rowIndex });
+
+    if (selectionEnabled.value) {
+      const rowKey = resolveRowSelectionKey(row, rowIndex);
+      if (rowKey !== null) {
+        table.toggleRow(rowKey, { shiftKey: event?.shiftKey });
+      }
+    }
   }
 
   function onHeaderSort(column: ColumnDef<TRow>, event?: MouseEvent): void {
@@ -1626,7 +1638,7 @@ defineExpose({
               :aria-selected="selectionEnabled ? isRowSelected(entry.row, entry.rowIndex) : undefined"
               :aria-expanded="expandable && isRowExpandable(entry.row, entry.rowIndex) ? isRowExpanded(entry.row, entry.rowIndex) : undefined"
               tabindex="0"
-              @click="onRowClick(entry.row, entry.rowIndex)"
+              @click="onRowClick(entry.row, entry.rowIndex, $event)"
               @focusin="onRowFocus(entry.rowIndex)"
               @keydown="onRowKeydown($event, entry.row, entry.rowIndex)"
             >
