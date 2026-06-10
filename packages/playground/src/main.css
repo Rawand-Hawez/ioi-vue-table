@@ -2,6 +2,45 @@
 @import "@ioi-dev/vue-table/styles.css";
 @import "./styles/table-themes.css";
 
+@media (prefers-color-scheme: dark) {
+  :root {
+    --ioi-table-color: #1e293b;
+    --ioi-table-border: #e2e8f0;
+    --ioi-table-border-subtle: #f1f5f9;
+    --ioi-table-header-bg: #f8fafc;
+    --ioi-table-header-color: #475569;
+    --ioi-table-row-hover-bg: #f8fafc;
+    --ioi-table-row-selected-bg: #bfdbfe;
+    --ioi-table-row-selected-hover-bg: #93c5fd;
+    --ioi-table-row-focused-bg: rgba(0, 102, 204, 0.08);
+    --ioi-table-row-focused-active-bg: rgba(0, 102, 204, 0.12);
+    --ioi-table-row-expanded-bg: #f8fafc;
+    --ioi-table-row-editing-bg: #fffbeb;
+    --ioi-table-focus-color: #0066cc;
+    --ioi-table-accent-color: #0f5bd4;
+    --ioi-table-error-bg: rgba(255, 240, 240, 0.95);
+    --ioi-table-error-color: #c00;
+    --ioi-table-loading-bg: rgba(255, 255, 255, 0.9);
+    --ioi-table-empty-color: #94a3b8;
+    --ioi-table-sort-indicator-color: #0f5bd4;
+    --ioi-table-drag-color: #0f5bd4;
+    --ioi-table-drag-handle-color: #94a3b8;
+    --ioi-table-drag-handle-hover-color: #475569;
+    --ioi-table-group-color: #64748b;
+    --ioi-table-group-hover-bg: #e2e8f0;
+    --ioi-table-pinned-shadow: 2px 0 6px -2px rgba(15, 23, 42, 0.12);
+    --ioi-table-pagination-border: #e2e8f0;
+    --ioi-table-pagination-bg: #ffffff;
+    --ioi-table-pagination-color: #475569;
+    --ioi-table-bg: #ffffff;
+    --ioi-table-pinned-shadow-right: -2px 0 6px -2px rgba(15, 23, 42, 0.12);
+  }
+  .ioi-table__filter-input,
+  .ioi-table__filter-select {
+    background: #ffffff;
+  }
+}
+
 :root {
   --brand: #0f5bd4;
   --brand-dim: #0c4baf;
