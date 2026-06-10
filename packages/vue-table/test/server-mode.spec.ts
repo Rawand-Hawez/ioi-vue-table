@@ -196,4 +196,48 @@ describe('server mode', () => {
     const params = fetch.mock.calls[0][0] as ServerFetchParams;
     expect(params.globalSearch).toBe('test query');
   });
+
+  it('ignores stale server response that resolves after a newer fetch', async () => {
+    let resolveFirst!: (result: ServerFetchResult) => void;
+    let resolveSecond!: (result: ServerFetchResult) => void;
+
+    let callIndex = 0;
+    const fetch = vi.fn(async (): Promise<ServerFetchResult> => {
+      callIndex++;
+      if (callIndex === 1) {
+        return new Promise<ServerFetchResult>((resolve) => { resolveFirst = resolve; });
+      }
+      return new Promise<ServerFetchResult>((resolve) => { resolveSecond = resolve; });
+    });
+
+    const wrapper = mount(IoiTable, {
+      props: {
+        columns: [{ field: 'name', header: 'Name' }],
+        dataMode: 'server',
+        serverOptions: { fetch, debounceMs: 0 },
+        rowKey: 'id'
+      }
+    });
+
+    vi.advanceTimersByTime(10);
+    await nextTick();
+
+    (wrapper.vm as { setGlobalSearch: (v: string) => void }).setGlobalSearch('new query');
+    await nextTick();
+    vi.advanceTimersByTime(10);
+    await nextTick();
+
+    resolveSecond({ rows: [{ id: 99, name: 'New Result' }], totalRows: 1 });
+    await nextTick();
+    await nextTick();
+
+    resolveFirst({ rows: [{ id: 1, name: 'Stale Result' }], totalRows: 1 });
+    await nextTick();
+    await nextTick();
+
+    const cells = wrapper.findAll('td');
+    const text = cells.map((c) => c.text());
+    expect(text).toContain('New Result');
+    expect(text).not.toContain('Stale Result');
+  });
 });
