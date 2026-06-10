@@ -18,7 +18,7 @@ import '@ioi-dev/vue-table/styles.css' // required for default theme
 - Props: `columns`, `rows`, `rowKey`, `selectionMode`, `selectedRowKeys`, `pageSize`, `showPagination`, `pageSizeOptions`, `dataMode`, `serverOptions`, `height`, `rowHeight`
 - Events: `row-click`, `cell-commit`, `selection-change`, `update:selectedRowKeys`, `pagination-change`, `update:pageIndex`, `update:pageSize`, `state-change`
 - Slots: `cell`, `header`, `header-filter`, `pagination`, `expanded-row`
-- Exposed methods: `toggleRow`, `clearSelection`, `startEdit`, `commitEdit`, `cancelEdit`, `setGlobalSearch`, `exportCsv`
+- Exposed methods: `toggleRow`, `clearSelection`, `startEdit`, `commitEdit`, `cancelEdit`, `setGlobalSearch`, `exportCSV`
 
 ## CSS Themes
 

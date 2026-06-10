@@ -81,7 +81,7 @@ import '@ioi-dev/vue-table/styles.css'
 | `commitEdit` | `() => boolean` | Commit current edit |
 | `cancelEdit` | `() => void` | Cancel current edit |
 | `setGlobalSearch` | `(query) => void` | Set search filter |
-| `exportCsv` | `(options?) => void` | Export to CSV |
+| `exportCSV` | `(options?) => void` | Export to CSV |
 
 ### ColumnDef
 
@@ -96,7 +96,7 @@ interface ColumnDef {
   maxWidth?: number
   headerFilter?: 'text' | 'select'
   validate?: (value, row) => true | string
-  pinned?: 'left' | 'right'
+  pin?: 'left' | 'right' | 'none'
   align?: 'left' | 'center' | 'right'
   type?: 'text' | 'number' | 'date' | 'boolean'
 }

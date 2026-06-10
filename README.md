@@ -36,6 +36,14 @@ import { Table } from '@ioi-dev/vue-table/unstyled';
 
 > **Note**: `IoiTable` remains available as a backward-compatible alias to `Table` in v1.x releases.
 
+## AI-Assisted Installation
+
+For AI coding assistants and automated tooling:
+
+- [llms.txt](https://rawand-hawez.github.io/ioi-vue-table/llms.txt) — Quick API reference
+- [llms-full.txt](https://rawand-hawez.github.io/ioi-vue-table/llms-full.txt) — Complete API documentation
+- [ai-installation.md](https://rawand-hawez.github.io/ioi-vue-table/ai-installation.md) — Integration guide
+
 ## Quick Start
 
 ```vue
@@ -119,7 +127,7 @@ import { ref } from 'vue';
 import { Table, type ServerDataOptions } from '@ioi-dev/vue-table';
 
 const serverOptions: ServerDataOptions<Row> = {
-  query: async ({ pageIndex, pageSize, sort, filters }) => {
+  fetch: async ({ pageIndex, pageSize, sort, filters }) => {
     const res = await fetch(`/api/data?page=${pageIndex}&size=${pageSize}`);
     const json = await res.json();
     return { rows: json.data, totalRows: json.total };

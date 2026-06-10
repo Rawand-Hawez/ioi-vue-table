@@ -301,7 +301,7 @@ function onCellEdit(payload: { field: string; rowIndex: number; oldValue: unknow
     :rows="rows"
     :columns="columns"
     row-key="id"
-    @cell-edit-commit="onCellEdit"
+    @cell-commit="onCellEdit"
   />
 </template>
 ```
