@@ -9,8 +9,8 @@
   --ioi-table-header-font-size: 0.75rem;
   --ioi-table-header-font-weight: 600;
   --ioi-table-row-hover-bg: #f8fafc;
-  --ioi-table-row-selected-bg: #dbeafe;
-  --ioi-table-row-selected-hover-bg: #dbeafe;
+  --ioi-table-row-selected-bg: #bfdbfe;
+  --ioi-table-row-selected-hover-bg: #93c5fd;
   --ioi-table-row-focused-bg: rgba(0, 102, 204, 0.08);
   --ioi-table-row-focused-active-bg: rgba(0, 102, 204, 0.12);
   --ioi-table-row-expanded-bg: #f8fafc;

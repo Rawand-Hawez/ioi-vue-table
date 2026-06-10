@@ -517,21 +517,25 @@ export function useIoiTable<TRow = Record<string, unknown>>(
   const totalHeight = computed(() => processedRowCount.value * rowHeight.value);
 
   const paginationConfig = computed(() => resolvedOptions.value.pagination);
-  const isPageIndexControlled = computed(() => paginationConfig.value?.pageIndex !== undefined);
-  const isPageSizeControlled = computed(() => paginationConfig.value?.pageSize !== undefined);
   const rawPageIndex = computed(() =>
-    normalizeNonNegativeInteger(
-      isPageIndexControlled.value ? paginationConfig.value?.pageIndex : uncontrolledPageIndex.value,
-      0
-    )
+    normalizeNonNegativeInteger(uncontrolledPageIndex.value, 0)
   );
   const rawPageSize = computed(() =>
-    normalizePositiveInteger(
-      isPageSizeControlled.value ? paginationConfig.value?.pageSize : uncontrolledPageSize.value,
-      0
-    )
+    normalizePositiveInteger(uncontrolledPageSize.value, 0)
   );
   const paginationEnabled = computed(() => rawPageSize.value > 0);
+
+  watch(
+    () => paginationConfig.value?.pageIndex,
+    (val) => { if (val !== undefined) uncontrolledPageIndex.value = val; },
+    { immediate: true }
+  );
+  watch(
+    () => paginationConfig.value?.pageSize,
+    (val) => { if (val !== undefined) uncontrolledPageSize.value = val; },
+    { immediate: true }
+  );
+
   const pageCount = computed(() => {
     if (paginationEnabled.value) {
       const rowCount = isServerMode.value && state.value.serverTotalRows !== null
@@ -1091,13 +1095,8 @@ export function useIoiTable<TRow = Record<string, unknown>>(
       return;
     }
 
-    if (!isPageIndexControlled.value) {
-      uncontrolledPageIndex.value = clampedNextPageIndex;
-    }
-
-    if (!isPageSizeControlled.value) {
-      uncontrolledPageSize.value = nextPageSize;
-    }
+    uncontrolledPageIndex.value = clampedNextPageIndex;
+    uncontrolledPageSize.value = nextPageSize;
 
     notifyPaginationChange(clampedNextPageIndex, nextPageSize, reason);
   }
@@ -1110,13 +1109,8 @@ export function useIoiTable<TRow = Record<string, unknown>>(
       return;
     }
 
-    if (!isPageSizeControlled.value) {
-      uncontrolledPageSize.value = normalizedNextPageSize;
-    }
-
-    if (!isPageIndexControlled.value) {
-      uncontrolledPageIndex.value = nextPageIndex;
-    }
+    uncontrolledPageSize.value = normalizedNextPageSize;
+    uncontrolledPageIndex.value = nextPageIndex;
 
     notifyPaginationChange(nextPageIndex, normalizedNextPageSize, reason);
   }

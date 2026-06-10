@@ -171,9 +171,11 @@ const table = useIoiTable<TRow>(
     dataMode: props.dataMode,
     serverOptions: props.serverOptions,
     pagination:
-      normalizedPageSize.value > 0
+      props.pageIndex !== undefined && normalizedPageSize.value > 0
         ? { pageIndex: normalizedPageIndex.value, pageSize: normalizedPageSize.value }
-        : undefined,
+        : normalizedPageSize.value > 0
+          ? { pageSize: normalizedPageSize.value }
+          : undefined,
     onPaginationChange: (payload) => {
       emit('update:pageIndex', payload.pageIndex);
       emit('update:pageSize', payload.pageSize);
