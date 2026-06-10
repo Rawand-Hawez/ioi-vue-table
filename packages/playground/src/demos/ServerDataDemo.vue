@@ -10,9 +10,9 @@ interface Row { id: number; name: string; email: string; status: string }
 
 const columns: ColumnDef<Row>[] = [
   { field: 'id', header: 'ID', width: 80, type: 'number' },
-  { field: 'name', header: 'Name', width: 200, type: 'text' },
-  { field: 'email', header: 'Email', width: 250, type: 'text' },
-  { field: 'status', header: 'Status', width: 120, type: 'text' }
+  { field: 'name', header: 'Name', width: 200 },
+  { field: 'email', header: 'Email', width: 250 },
+  { field: 'status', header: 'Status', width: 120 }
 ];
 
 const pageIndex = ref(0);
@@ -64,6 +64,7 @@ interface TableRef { refresh: () => void }
 const tableRef = ref<TableRef | null>(null);
 
 function refresh() {
+  requestCount.value = 0;
   tableRef.value?.refresh();
 }
 </script>
@@ -142,7 +143,7 @@ function refresh() {
   border-radius: 20px; padding: 0.1rem 0.4rem;
 }
 
-.controls { display: flex; align-items: center; gap: 0.75rem; flex-wrap: wrap; }
+.controls { display: flex; align-items: center; gap: 0.65rem; flex-wrap: wrap; }
 
 .loading-overlay {
   display: flex; flex-direction: column; align-items: center; justify-content: center;

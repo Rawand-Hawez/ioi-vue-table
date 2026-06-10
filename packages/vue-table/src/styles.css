@@ -9,7 +9,7 @@
   --ioi-table-header-font-size: 0.75rem;
   --ioi-table-header-font-weight: 600;
   --ioi-table-row-hover-bg: #f8fafc;
-  --ioi-table-row-selected-bg: #eff6ff;
+  --ioi-table-row-selected-bg: #dbeafe;
   --ioi-table-row-selected-hover-bg: #dbeafe;
   --ioi-table-row-focused-bg: rgba(0, 102, 204, 0.08);
   --ioi-table-row-focused-active-bg: rgba(0, 102, 204, 0.12);
@@ -189,8 +189,10 @@
 }
 
 .ioi-table__filter-row th {
-  background: var(--ioi-table-row-hover-bg);
+  background: var(--ioi-table-header-bg);
   border-bottom: 1px solid var(--ioi-table-border);
+  font-size: var(--ioi-table-header-font-size);
+  color: var(--ioi-table-header-color);
 }
 
 .ioi-table__filter-cell {
@@ -258,6 +260,10 @@
 
 .ioi-table__row--selected td {
   background: var(--ioi-table-row-selected-bg);
+}
+
+.ioi-table__row--selected td:first-child {
+  box-shadow: inset 3px 0 0 var(--ioi-table-accent-color);
 }
 
 .ioi-table__row--selected:hover td {
@@ -469,31 +475,48 @@
 .ioi-table__pagination {
   display: flex;
   align-items: center;
-  gap: 0.5rem;
-  padding: var(--ioi-table-pagination-padding);
+  gap: 0.75rem;
+  padding: 0.75rem 1rem;
   border-top: 1px solid var(--ioi-table-pagination-border);
   background: var(--ioi-table-pagination-bg);
   color: var(--ioi-table-pagination-color);
   font-size: 0.8125rem;
+  font-weight: 500;
 }
 
 .ioi-table__pagination-info {
   margin-right: auto;
+  color: var(--ioi-table-header-color);
 }
 
 .ioi-table__pagination-size {
-  padding: 0.2rem 0.4rem;
+  padding: 0.25rem 0.5rem;
   border: 1px solid var(--ioi-table-border);
-  border-radius: 4px;
+  border-radius: 6px;
   font: inherit;
-  font-size: 0.78rem;
-  background: #ffffff;
+  font-size: 0.75rem;
+  font-weight: 600;
+  background: var(--ioi-table-pagination-bg);
   color: var(--ioi-table-color);
+  cursor: pointer;
+  outline: none;
+  transition: border-color 150ms, box-shadow 150ms;
+}
+
+.ioi-table__pagination-size:hover {
+  border-color: var(--ioi-table-accent-color);
+}
+
+.ioi-table__pagination-size:focus {
+  border-color: var(--ioi-table-accent-color);
+  box-shadow: 0 0 0 3px rgba(15, 91, 212, 0.1);
 }
 
 .ioi-table__pagination-pages {
-  min-width: 4rem;
+  min-width: 3.5rem;
   text-align: center;
+  font-weight: 600;
+  color: var(--ioi-table-color);
 }
 
 .ioi-table__pagination-btn {
@@ -503,22 +526,33 @@
   width: 2rem;
   height: 2rem;
   border: 1px solid var(--ioi-table-border);
-  border-radius: 4px;
-  background: #ffffff;
+  border-radius: 6px;
+  background: var(--ioi-table-pagination-bg);
   color: var(--ioi-table-color);
-  font-size: 1rem;
+  font-size: 1.1rem;
+  font-weight: 400;
   cursor: pointer;
   padding: 0;
   line-height: 1;
+  transition: all 120ms ease;
+  user-select: none;
 }
 
 .ioi-table__pagination-btn:hover:not(:disabled) {
   background: var(--ioi-table-header-bg);
+  border-color: var(--ioi-table-accent-color);
+  color: var(--ioi-table-accent-color);
+}
+
+.ioi-table__pagination-btn:active:not(:disabled) {
+  background: var(--ioi-table-row-selected-bg);
+  transform: translateY(1px);
 }
 
 .ioi-table__pagination-btn:disabled {
-  opacity: 0.4;
-  cursor: default;
+  opacity: 0.35;
+  cursor: not-allowed;
+  filter: grayscale(1);
 }
 
 .ioi-table__pagination-btn:focus {

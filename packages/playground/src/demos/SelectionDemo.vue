@@ -1,40 +1,17 @@
-<template>
-  <div class="demo-section">
-    <h3>Selection</h3>
-    <p>Single and multi-row selection with <code>v-model:selectedRowKeys</code>.</p>
-
-    <div class="demo-controls">
-      <label>Mode:</label>
-      <select v-model="selectionMode">
-        <option value="single">Single</option>
-        <option value="multi">Multi</option>
-      </select>
-      <button @click="selectedKeys = []">Clear</button>
-      <span class="demo-info">{{ selectedKeys.length }} selected</span>
-    </div>
-
-    <IoiTable
-      :columns="columns"
-      :rows="rows"
-      row-key="id"
-      :selection-mode="selectionMode"
-      v-model:selected-row-keys="selectedKeys"
-      @selection-change="onSelectionChange"
-    />
-  </div>
-</template>
-
 <script setup lang="ts">
-import { ref } from 'vue';
-import { IoiTable } from '@ioi-dev/vue-table';
+import { ref, watch } from 'vue';
+import { Table } from '@ioi-dev/vue-table';
+import { useTheme } from '../composables/useTheme';
+
+const { activeTheme } = useTheme();
 
 const columns = [
-  { field: 'id', header: 'ID' },
-  { field: 'name', header: 'Name' },
-  { field: 'status', header: 'Status' }
+  { field: 'id', header: 'ID', width: 80, type: 'number' },
+  { field: 'name', header: 'Name', width: 200 },
+  { field: 'status', header: 'Status', width: 120 }
 ];
 
-const rows = Array.from({ length: 20 }, (_, i) => ({
+const rows = Array.from({ length: 30 }, (_, i) => ({
   id: i + 1,
   name: `Item ${i + 1}`,
   status: ['Active', 'Inactive', 'Pending'][i % 3]
@@ -43,34 +20,67 @@ const rows = Array.from({ length: 20 }, (_, i) => ({
 const selectionMode = ref<'single' | 'multi'>('multi');
 const selectedKeys = ref<Array<string | number>>([]);
 
-function onSelectionChange(payload: { selectedRowKeys: Array<string | number>; reason: string }) {
-  console.log('Selection changed:', payload.reason, payload.selectedRowKeys);
-}
+watch(selectionMode, () => { selectedKeys.value = []; });
 </script>
 
+<template>
+  <div class="demo">
+    <div class="demo-header">
+      <div>
+        <h2 class="demo-title">Selection <span class="new-badge">v0.3.0</span></h2>
+        <p class="demo-desc">
+          Single and multi-row selection with <code>v-model:selectedRowKeys</code>.
+          <strong class="text-blue-600">{{ selectedKeys.length }}</strong> selected.
+        </p>
+      </div>
+      <div class="controls">
+        <div class="segment">
+          <button :class="['seg-btn', { 'seg-btn--active': selectionMode === 'single' }]" @click="selectionMode = 'single'">Single</button>
+          <button :class="['seg-btn', { 'seg-btn--active': selectionMode === 'multi' }]" @click="selectionMode = 'multi'">Multi</button>
+        </div>
+        <button class="btn btn-ghost" @click="selectedKeys = []">Clear Selection</button>
+      </div>
+    </div>
+
+    <div :class="`theme-${activeTheme}`">
+      <Table
+        :columns="columns"
+        :rows="rows"
+        row-key="id"
+        :selection-mode="selectionMode"
+        v-model:selected-row-keys="selectedKeys"
+        :height="400"
+        :row-height="36"
+        :overscan="4"
+      />
+    </div>
+
+    <section class="code-section">
+      <h3>Usage</h3>
+      <pre v-pre class="code-block"><code>&lt;Table
+  :columns="columns"
+  :rows="rows"
+  row-key="id"
+  selection-mode="multi"
+  v-model:selected-row-keys="selectedKeys"
+  @selection-change="onChange"
+/&gt;</code></pre>
+    </section>
+  </div>
+</template>
+
 <style scoped>
-.demo-controls {
-  display: flex;
-  gap: 1rem;
-  margin-bottom: 1rem;
-  align-items: center;
+.demo { display: grid; gap: 1rem; }
+
+.demo-header { display: flex; flex-wrap: wrap; align-items: flex-start; justify-content: space-between; gap: 0.75rem; }
+.demo-title { margin: 0; font-size: 1.2rem; font-weight: 700; color: #0f172a; display: flex; align-items: center; gap: 0.5rem; }
+.demo-desc { margin: 0.25rem 0 0; color: #64748b; font-size: 0.82rem; max-width: 60ch; }
+
+.new-badge {
+  font-size: 0.6rem; font-weight: 700;
+  background: #f5f3ff; color: #7c3aed; border: 1px solid #ddd6fe;
+  border-radius: 20px; padding: 0.1rem 0.4rem;
 }
-.demo-controls select,
-.demo-controls button {
-  padding: 0.3rem 0.6rem;
-  border: 1px solid #ddd;
-  border-radius: 4px;
-  font: inherit;
-}
-.demo-controls button {
-  cursor: pointer;
-  background: #f5f5f5;
-}
-.demo-controls button:hover {
-  background: #e0e0e0;
-}
-.demo-info {
-  color: #666;
-  font-size: 0.85em;
-}
+
+.controls { display: flex; align-items: center; gap: 0.65rem; flex-wrap: wrap; }
 </style>

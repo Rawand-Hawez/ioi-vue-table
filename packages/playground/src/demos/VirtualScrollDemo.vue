@@ -105,7 +105,7 @@ function msColor(ms: number): string {
       </div>
     </div>
 
-    <div ref="tableWrapperRef" :class="`theme-${activeTheme}`">
+    <div ref="tableWrapperRef" :class="`theme-${activeTheme}`" style="overflow: hidden;">
       <Table
         ref="tableRef"
         :rows="rows"
@@ -167,13 +167,13 @@ tableRef.value.clearAllFilters()</code></pre>
 </template>
 
 <style scoped>
-.demo { display: grid; gap: 1rem; }
+.demo { display: grid; gap: 1rem; max-width: 100%; overflow: hidden; }
 
-.demo-header { display: flex; flex-wrap: wrap; align-items: flex-start; justify-content: space-between; gap: 0.75rem; }
+.demo-header { display: flex; flex-wrap: wrap; align-items: flex-start; justify-content: space-between; gap: 0.75rem; max-width: 100%; overflow: hidden; }
 .demo-title { margin: 0; font-size: 1.2rem; font-weight: 700; color: #0f172a; }
 .demo-desc { margin: 0.25rem 0 0; color: #64748b; font-size: 0.82rem; }
 
-.controls { display: flex; align-items: center; flex-wrap: wrap; gap: 0.5rem; }
+.controls { display: flex; align-items: center; flex-wrap: wrap; gap: 0.5rem; max-width: 100%; }
 
 .stat-chip {
   background: #f0fdf4;
