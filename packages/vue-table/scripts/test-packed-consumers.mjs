@@ -85,6 +85,10 @@ const rows = [{ id: 1, name: 'Test' }];
 
   run('npm install', fixtureDir);
 
+  console.log('--- Building default consumer with Vite ---');
+  run('npx vite build', fixtureDir);
+  console.log('  ✓ Vite consumer build succeeded');
+
   console.log('--- Verifying default consumer can resolve imports ---');
   const pkgPath = require.resolve('@ioi-dev/vue-table', { paths: [fixtureDir] });
   assert(pkgPath.includes('ioi-vue-table'), 'default consumer must resolve @ioi-dev/vue-table');
