@@ -808,4 +808,603 @@ describe('IoiTable', () => {
       expect(groupRows.length).toBeGreaterThanOrEqual(1);
     });
   });
+
+  describe('initial focus state', () => {
+    it('no row has focused styling after mount', () => {
+      const rows = Array.from({ length: 10 }, (_, index) => ({
+        id: index + 1,
+        name: `Name ${index + 1}`
+      }));
+      const wrapper = mount(IoiTable, {
+        props: {
+          columns: [{ field: 'id', header: 'ID' }, { field: 'name', header: 'Name' }],
+          rows,
+          rowHeight: 36,
+          height: 360,
+          rowKey: 'id'
+        }
+      });
+
+      const focusedRows = wrapper.findAll('tr.ioi-table__row--focused');
+      expect(focusedRows).toHaveLength(0);
+    });
+
+    it('no cell has focused styling after mount', () => {
+      const rows = Array.from({ length: 10 }, (_, index) => ({
+        id: index + 1,
+        name: `Name ${index + 1}`
+      }));
+      const wrapper = mount(IoiTable, {
+        props: {
+          columns: [{ field: 'id', header: 'ID' }, { field: 'name', header: 'Name' }],
+          rows,
+          rowHeight: 36,
+          height: 360,
+          rowKey: 'id'
+        }
+      });
+
+      const focusedCells = wrapper.findAll('td.ioi-table__cell--focused');
+      expect(focusedCells).toHaveLength(0);
+    });
+  });
+
+  describe('default sortable headers', () => {
+    const rows = [
+      { id: 1, name: 'Charlie', score: 30 },
+      { id: 2, name: 'Alice', score: 10 },
+      { id: 3, name: 'Bob', score: 20 }
+    ];
+
+    it('sorts ascending on first click of default header', async () => {
+      const wrapper = mount(IoiTable, {
+        props: {
+          columns: [
+            { field: 'name', header: 'Name' },
+            { field: 'score', header: 'Score' }
+          ],
+          rows,
+          rowKey: 'id'
+        }
+      });
+
+      const nameSortButton = wrapper.find('th[data-column-id="name"] .ioi-table__sort-button');
+      await nameSortButton.trigger('click');
+      await nextTick();
+
+      const renderedRows = wrapper.findAll('tbody tr.ioi-table__row');
+      expect(renderedRows[0]?.text()).toContain('Alice');
+      expect(renderedRows[1]?.text()).toContain('Bob');
+      expect(renderedRows[2]?.text()).toContain('Charlie');
+    });
+
+    it('sorts descending on second click', async () => {
+      const wrapper = mount(IoiTable, {
+        props: {
+          columns: [{ field: 'name', header: 'Name' }],
+          rows,
+          rowKey: 'id'
+        }
+      });
+
+      const sortButton = wrapper.find('th[data-column-id="name"] .ioi-table__sort-button');
+      await sortButton.trigger('click');
+      await nextTick();
+      await sortButton.trigger('click');
+      await nextTick();
+
+      const renderedRows = wrapper.findAll('tbody tr.ioi-table__row');
+      expect(renderedRows[0]?.text()).toContain('Charlie');
+      expect(renderedRows[2]?.text()).toContain('Alice');
+    });
+
+    it('clears sort on third click', async () => {
+      const wrapper = mount(IoiTable, {
+        props: {
+          columns: [{ field: 'name', header: 'Name' }],
+          rows,
+          rowKey: 'id'
+        }
+      });
+
+      const sortButton = wrapper.find('th[data-column-id="name"] .ioi-table__sort-button');
+      await sortButton.trigger('click');
+      await nextTick();
+      await sortButton.trigger('click');
+      await nextTick();
+      await sortButton.trigger('click');
+      await nextTick();
+
+      const renderedRows = wrapper.findAll('tbody tr.ioi-table__row');
+      expect(renderedRows[0]?.text()).toContain('Charlie');
+    });
+
+    it('does not sort when column has sortable: false', async () => {
+      const wrapper = mount(IoiTable, {
+        props: {
+          columns: [{ field: 'name', header: 'Name', sortable: false }],
+          rows,
+          rowKey: 'id'
+        }
+      });
+
+      expect(wrapper.find('th[data-column-id="name"] .ioi-table__sort-button').exists()).toBe(false);
+    });
+
+    it('supports multi-sort with Shift+click', async () => {
+      const wrapper = mount(IoiTable, {
+        props: {
+          columns: [
+            { field: 'name', header: 'Name' },
+            { field: 'score', header: 'Score' }
+          ],
+          rows,
+          rowKey: 'id'
+        }
+      });
+
+      await wrapper.find('th[data-column-id="name"] .ioi-table__sort-button').trigger('click');
+      await nextTick();
+      await wrapper.find('th[data-column-id="score"] .ioi-table__sort-button').trigger('click', { shiftKey: true });
+      await nextTick();
+
+      await wrapper.find('th[data-column-id="score"] .ioi-table__sort-button').trigger('click', { shiftKey: true });
+      await nextTick();
+
+      const thName = wrapper.find('th[data-column-id="name"]');
+      const thScore = wrapper.find('th[data-column-id="score"]');
+      const nameSorted = thName.classes().includes('ioi-table__header--sorted-asc') || thName.classes().includes('ioi-table__header--sorted-desc');
+      const scoreSorted = thScore.classes().includes('ioi-table__header--sorted-asc') || thScore.classes().includes('ioi-table__header--sorted-desc');
+      expect(nameSorted || scoreSorted).toBe(true);
+    });
+
+    it('preserves custom header slot', () => {
+      const wrapper = mount(IoiTable, {
+        props: {
+          columns: [{ field: 'name', header: 'Name' }],
+          rows,
+          rowKey: 'id'
+        },
+        slots: {
+          header: '<template #header="{ column }"><span class="custom-header">{{ column.header }}</span></template>'
+        }
+      });
+
+      expect(wrapper.find('.custom-header').exists()).toBe(true);
+      expect(wrapper.find('.custom-header').text()).toBe('Name');
+    });
+
+    it('sets aria-sort attribute on header', async () => {
+      const wrapper = mount(IoiTable, {
+        props: {
+          columns: [{ field: 'name', header: 'Name' }],
+          rows,
+          rowKey: 'id'
+        }
+      });
+
+      const th = wrapper.find('th[data-column-id="name"]');
+      expect(th.attributes('aria-sort')).toBe('none');
+
+      await wrapper.find('th[data-column-id="name"] .ioi-table__sort-button').trigger('click');
+      await nextTick();
+      expect(th.attributes('aria-sort')).toBe('ascending');
+    });
+  });
+
+  describe('pagination UI', () => {
+    const rows = Array.from({ length: 50 }, (_, i) => ({ id: i + 1, name: `Row ${i + 1}` }));
+
+    it('renders default pagination controls when pageSize > 0', () => {
+      const wrapper = mount(IoiTable, {
+        props: {
+          columns: [{ field: 'name', header: 'Name' }],
+          rows,
+          pageSize: 10,
+          rowKey: 'id'
+        }
+      });
+
+      expect(wrapper.find('.ioi-table__pagination').exists()).toBe(true);
+      expect(wrapper.find('.ioi-table__pagination-info').exists()).toBe(true);
+      expect(wrapper.find('.ioi-table__pagination-prev').exists()).toBe(true);
+      expect(wrapper.find('.ioi-table__pagination-next').exists()).toBe(true);
+    });
+
+    it('displays page info text', () => {
+      const wrapper = mount(IoiTable, {
+        props: {
+          columns: [{ field: 'name', header: 'Name' }],
+          rows,
+          pageSize: 10,
+          rowKey: 'id'
+        }
+      });
+
+      const info = wrapper.find('.ioi-table__pagination-info');
+      expect(info.text()).toContain('1');
+      expect(info.text()).toContain('10');
+      expect(info.text()).toContain('50');
+    });
+
+    it('disables previous button on first page', () => {
+      const wrapper = mount(IoiTable, {
+        props: {
+          columns: [{ field: 'name', header: 'Name' }],
+          rows,
+          pageSize: 10,
+          rowKey: 'id'
+        }
+      });
+
+      const prev = wrapper.find('.ioi-table__pagination-prev');
+      expect(prev.attributes('disabled')).toBeDefined();
+    });
+
+    it('enables next button when more pages exist', () => {
+      const wrapper = mount(IoiTable, {
+        props: {
+          columns: [{ field: 'name', header: 'Name' }],
+          rows,
+          pageSize: 10,
+          rowKey: 'id'
+        }
+      });
+
+      const next = wrapper.find('.ioi-table__pagination-next');
+      expect(next.attributes('disabled')).toBeUndefined();
+    });
+
+    it('navigates to next page on next button click', async () => {
+      const wrapper = mount(IoiTable, {
+        props: {
+          columns: [{ field: 'name', header: 'Name' }],
+          rows,
+          pageSize: 10,
+          rowKey: 'id'
+        }
+      });
+
+      await wrapper.find('.ioi-table__pagination-next').trigger('click');
+      await nextTick();
+
+      expect(wrapper.emitted('update:pageIndex')?.[0]).toEqual([1]);
+    });
+
+    it('renders page size selector', () => {
+      const wrapper = mount(IoiTable, {
+        props: {
+          columns: [{ field: 'name', header: 'Name' }],
+          rows,
+          pageSize: 10,
+          rowKey: 'id',
+          pageSizeOptions: [5, 10, 25]
+        }
+      });
+
+      const select = wrapper.find('.ioi-table__pagination-size');
+      expect(select.exists()).toBe(true);
+      expect(select.findAll('option').length).toBe(3);
+    });
+
+    it('hides pagination when showPagination is false', () => {
+      const wrapper = mount(IoiTable, {
+        props: {
+          columns: [{ field: 'name', header: 'Name' }],
+          rows,
+          pageSize: 10,
+          rowKey: 'id',
+          showPagination: false
+        }
+      });
+
+      expect(wrapper.find('.ioi-table__pagination').exists()).toBe(false);
+    });
+
+    it('renders pagination slot when provided', () => {
+      const wrapper = mount(IoiTable, {
+        props: {
+          columns: [{ field: 'name', header: 'Name' }],
+          rows,
+          pageSize: 10,
+          rowKey: 'id'
+        },
+        slots: {
+          pagination: `<template #pagination="{ pageIndex, pageCount }"><div class="custom-pagination">{{ pageIndex }}/{{ pageCount }}</div></template>`
+        }
+      });
+
+      expect(wrapper.find('.custom-pagination').exists()).toBe(true);
+      expect(wrapper.find('.custom-pagination').text()).toBe('0/5');
+    });
+
+    it('handles zero rows', () => {
+      const wrapper = mount(IoiTable, {
+        props: {
+          columns: [{ field: 'name', header: 'Name' }],
+          rows: [],
+          pageSize: 10,
+          rowKey: 'id'
+        }
+      });
+
+      expect(wrapper.find('.ioi-table__pagination').exists()).toBe(true);
+      const info = wrapper.find('.ioi-table__pagination-info');
+      expect(info.text()).toContain('0');
+    });
+
+    it('renders 0–0 of 0 when table has no rows', () => {
+      const wrapper = mount(IoiTable, {
+        props: {
+          rows: [],
+          columns: [{ field: 'name', header: 'Name' }],
+          rowKey: 'id',
+          showPagination: true,
+          pageSize: 10,
+          pageSizeOptions: [10, 25],
+        },
+      });
+
+      const info = wrapper.find('.ioi-table__pagination-info');
+      expect(info.text()).toBe('0–0 of 0');
+    });
+  });
+
+  describe('controlled selection', () => {
+    const rows = [
+      { id: 1, name: 'Alpha' },
+      { id: 2, name: 'Beta' },
+      { id: 3, name: 'Gamma' },
+      { id: 4, name: 'Delta' }
+    ];
+
+    it('emits update:selectedRowKeys on row click', async () => {
+      const wrapper = mount(IoiTable, {
+        props: {
+          columns: [{ field: 'name', header: 'Name' }],
+          rows,
+          rowKey: 'id'
+        }
+      });
+
+      await wrapper.findAll('tbody tr.ioi-table__row')[0].trigger('click');
+      await nextTick();
+
+      expect(wrapper.emitted('update:selectedRowKeys')).toBeTruthy();
+      const lastEmit = wrapper.emitted('update:selectedRowKeys')!.at(-1)![0] as number[];
+      expect(lastEmit).toContain(1);
+    });
+
+    it('emits selection-change with reason from engine', async () => {
+      const wrapper = mount(IoiTable, {
+        props: {
+          columns: [{ field: 'name', header: 'Name' }],
+          rows,
+          rowKey: 'id'
+        }
+      });
+
+      await wrapper.findAll('tbody tr.ioi-table__row')[0].trigger('click');
+      await nextTick();
+
+      expect(wrapper.emitted('selection-change')).toBeTruthy();
+      const payload = wrapper.emitted('selection-change')!.at(-1)![0] as { selectedRowKeys: number[]; reason: string };
+      expect(payload.reason).toBe('toggleRow');
+      expect(payload.selectedRowKeys).toContain(1);
+    });
+
+    it('syncs external selectedRowKeys into engine', async () => {
+      const wrapper = mount(IoiTable, {
+        props: {
+          columns: [{ field: 'name', header: 'Name' }],
+          rows,
+          rowKey: 'id',
+          selectedRowKeys: [2, 3]
+        }
+      });
+
+      const row2 = wrapper.findAll('tbody tr.ioi-table__row')[1];
+      expect(row2.classes()).toContain('ioi-table__row--selected');
+    });
+
+    it('updates selection when external selectedRowKeys change', async () => {
+      const wrapper = mount(IoiTable, {
+        props: {
+          columns: [{ field: 'name', header: 'Name' }],
+          rows,
+          rowKey: 'id',
+          selectedRowKeys: []
+        }
+      });
+
+      await wrapper.setProps({ selectedRowKeys: [1] });
+      await nextTick();
+
+      const row1 = wrapper.findAll('tbody tr.ioi-table__row')[0];
+      expect(row1.classes()).toContain('ioi-table__row--selected');
+    });
+
+    it('respects selectionMode single', async () => {
+      const wrapper = mount(IoiTable, {
+        props: {
+          columns: [{ field: 'name', header: 'Name' }],
+          rows,
+          rowKey: 'id',
+          selectionMode: 'single'
+        }
+      });
+
+      await wrapper.findAll('tbody tr.ioi-table__row')[0].trigger('click');
+      await nextTick();
+      await wrapper.findAll('tbody tr.ioi-table__row')[1].trigger('click');
+      await nextTick();
+
+      const lastEmit = wrapper.emitted('update:selectedRowKeys')!.at(-1)![0] as number[];
+      expect(lastEmit).toEqual([2]);
+    });
+
+    it('respects selectionMode multi with multiple selections', async () => {
+      const wrapper = mount(IoiTable, {
+        props: {
+          columns: [{ field: 'name', header: 'Name' }],
+          rows,
+          rowKey: 'id',
+          selectionMode: 'multi'
+        }
+      });
+
+      await wrapper.findAll('tbody tr.ioi-table__row')[0].trigger('click');
+      await nextTick();
+      await wrapper.findAll('tbody tr.ioi-table__row')[1].trigger('click');
+      await nextTick();
+
+      const lastEmit = wrapper.emitted('update:selectedRowKeys')!.at(-1)![0] as number[];
+      expect(lastEmit).toContain(1);
+      expect(lastEmit).toContain(2);
+    });
+
+    it('exposes toggleRow and clearSelection methods', () => {
+      const wrapper = mount(IoiTable, {
+        props: {
+          columns: [{ field: 'name', header: 'Name' }],
+          rows,
+          rowKey: 'id'
+        }
+      });
+
+      expect(typeof (wrapper.vm as { toggleRow: unknown }).toggleRow).toBe('function');
+      expect(typeof (wrapper.vm as { clearSelection: unknown }).clearSelection).toBe('function');
+    });
+
+    it('emits selection-change with clearSelection reason on clear', async () => {
+      const wrapper = mount(IoiTable, {
+        props: {
+          columns: [{ field: 'name', header: 'Name' }],
+          rows,
+          rowKey: 'id'
+        }
+      });
+
+      await wrapper.findAll('tbody tr.ioi-table__row')[0].trigger('click');
+      await nextTick();
+
+      (wrapper.vm as { clearSelection: () => void }).clearSelection();
+      await nextTick();
+
+      const payload = wrapper.emitted('selection-change')!.at(-1)![0] as { selectedRowKeys: number[]; reason: string };
+      expect(payload.reason).toBe('clearSelection');
+      expect(payload.selectedRowKeys).toEqual([]);
+    });
+
+    it('emits selection-change with external reason on external sync', async () => {
+      const wrapper = mount(IoiTable, {
+        props: {
+          columns: [{ field: 'name', header: 'Name' }],
+          rows,
+          rowKey: 'id',
+          selectedRowKeys: []
+        }
+      });
+
+      await wrapper.setProps({ selectedRowKeys: [1] });
+      await nextTick();
+
+      const payload = wrapper.emitted('selection-change')!.at(-1)![0] as { selectedRowKeys: number[]; reason: string };
+      expect(payload.reason).toBe('external');
+      expect(payload.selectedRowKeys).toEqual([1]);
+    });
+
+    it('does not emit duplicate selection-change for same keys', async () => {
+      const wrapper = mount(IoiTable, {
+        props: {
+          columns: [{ field: 'name', header: 'Name' }],
+          rows,
+          rowKey: 'id',
+          selectedRowKeys: [1]
+        }
+      });
+
+      const countBefore = wrapper.emitted('selection-change')?.length ?? 0;
+      await wrapper.setProps({ selectedRowKeys: [1] });
+      await nextTick();
+
+      const countAfter = wrapper.emitted('selection-change')?.length ?? 0;
+      expect(countAfter).toBe(countBefore);
+    });
+  });
+
+  describe('cell editing events', () => {
+    const rows = [{ id: 1, name: 'Alpha' }];
+    const columns = [{ field: 'name', header: 'Name', editable: true as const }];
+
+    it('emits cell-commit when edit is committed', async () => {
+      const wrapper = mount(IoiTable, {
+        props: {
+          columns,
+          rows,
+          rowKey: 'id'
+        }
+      });
+
+      (wrapper.vm as { startEdit: (opts: { rowIndex: number; field: string }) => void }).startEdit({ rowIndex: 0, field: 'name' });
+      await nextTick();
+
+      (wrapper.vm as { setEditDraft: (v: unknown) => void }).setEditDraft('Beta');
+      (wrapper.vm as { commitEdit: () => boolean }).commitEdit();
+      await nextTick();
+
+      expect(wrapper.emitted('cell-commit')).toBeTruthy();
+      const payload = wrapper.emitted('cell-commit')![0][0] as { field: string; oldValue: unknown; newValue: unknown; rowKey: number };
+      expect(payload.field).toBe('name');
+      expect(payload.oldValue).toBe('Alpha');
+      expect(payload.newValue).toBe('Beta');
+      expect(payload.rowKey).toBe(1);
+    });
+
+    it('does not emit cell-commit when validation fails', async () => {
+      const wrapper = mount(IoiTable, {
+        props: {
+          columns: [{ ...columns[0], validate: () => 'Invalid' }],
+          rows,
+          rowKey: 'id'
+        }
+      });
+
+      (wrapper.vm as { startEdit: (opts: { rowIndex: number; field: string }) => void }).startEdit({ rowIndex: 0, field: 'name' });
+      await nextTick();
+
+      (wrapper.vm as { setEditDraft: (v: unknown) => void }).setEditDraft('Bad');
+      const result = (wrapper.vm as { commitEdit: () => boolean }).commitEdit();
+      await nextTick();
+
+      expect(result).toBe(false);
+      expect(wrapper.emitted('cell-commit')).toBeFalsy();
+    });
+
+    it('exposes editing methods on the component instance', () => {
+      const wrapper = mount(IoiTable, {
+        props: { columns, rows, rowKey: 'id' }
+      });
+
+      const vm = wrapper.vm as unknown as Record<string, unknown>;
+      expect(typeof vm.startEdit).toBe('function');
+      expect(typeof vm.setEditDraft).toBe('function');
+      expect(typeof vm.commitEdit).toBe('function');
+      expect(typeof vm.cancelEdit).toBe('function');
+    });
+
+    it('cancelEdit clears editing state without emitting', async () => {
+      const wrapper = mount(IoiTable, {
+        props: { columns, rows, rowKey: 'id' }
+      });
+
+      (wrapper.vm as { startEdit: (opts: { rowIndex: number; field: string }) => void }).startEdit({ rowIndex: 0, field: 'name' });
+      await nextTick();
+
+      (wrapper.vm as { cancelEdit: () => void }).cancelEdit();
+      await nextTick();
+
+      expect(wrapper.emitted('cell-commit')).toBeFalsy();
+    });
+  });
 });

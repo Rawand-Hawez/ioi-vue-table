@@ -1,0 +1,31 @@
+# @ioi-dev/vue-table
+
+> Vue 3 data table component — performance-first, headless-core, CSS-optional.
+
+## Installation
+
+```bash
+npm install @ioi-dev/vue-table
+```
+
+```js
+import { IoiTable } from '@ioi-dev/vue-table'
+import '@ioi-dev/vue-table/styles.css' // required for default theme
+```
+
+## Quick API
+
+- Props: `columns`, `rows`, `rowKey`, `selectionMode`, `selectedRowKeys`, `pageSize`, `showPagination`, `pageSizeOptions`, `dataMode`, `serverOptions`, `height`, `rowHeight`
+- Events: `row-click`, `cell-commit`, `selection-change`, `update:selectedRowKeys`, `pagination-change`, `update:pageIndex`, `update:pageSize`, `state-change`
+- Slots: `cell`, `header`, `header-filter`, `pagination`, `expanded-row`
+- Exposed methods: `toggleRow`, `clearSelection`, `startEdit`, `commitEdit`, `cancelEdit`, `setGlobalSearch`, `exportCSV`
+
+## CSS Themes
+
+- Default: `import '@ioi-dev/vue-table/styles.css'`
+- Minimal (no colors): `import '@ioi-dev/vue-table/minimal.css'`
+- Shadcn: `import '@ioi-dev/vue-table/themes/shadcn.css'` (add after styles.css)
+
+## Full Docs
+
+See ai-installation.md for detailed integration instructions and llms-full.txt for the complete API reference.

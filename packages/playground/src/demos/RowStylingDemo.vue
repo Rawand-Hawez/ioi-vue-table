@@ -82,8 +82,8 @@ function headerSort(field: string): void {
       </p>
 
       <div class="controls">
-        <button class="btn" @click="autoSizeAllColumns">Auto-size All Columns</button>
-        <button class="btn btn-secondary" @click="autoSizeStatusColumn">Auto-size Status Only</button>
+        <button class="pg-btn" @click="autoSizeAllColumns">Auto-size All Columns</button>
+        <button class="pg-btn pg-btn-secondary" @click="autoSizeStatusColumn">Auto-size Status Only</button>
         <label class="toggle-label">
           <input v-model="stringClassMode" type="checkbox">
           Use string class

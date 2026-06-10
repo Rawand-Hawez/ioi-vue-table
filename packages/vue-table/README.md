@@ -2,7 +2,7 @@
 
 A performance-first Vue 3 data table component with a streamlined API surface and JavaScript-first defaults. Designed to deliver enterprise-grade performance without the complexity of larger alternatives.
 
-> **v0.2.5** - Minimal CSS tier, row reorder, clipboard copy, column groups
+> **v0.3.0** — Complete default theme, visible pagination, default sortable headers, correct focus behaviour, selection bindings, editing events, and Tailwind/shadcn integration path
 
 ## Overview
 
@@ -23,7 +23,7 @@ IOI Vue Table provides a lightweight yet powerful solution for rendering large d
 - **Row Expansion**: Expandable rows with custom content slots
 - **CSV Export/Import**: Secure data export with formula sanitisation and preview-based import
 - **Server-Side Mode**: Fetch data from server with debounced requests, loading/error states, cursor-based pagination, and infinite scroll support
-- **Accessibility (a11y)**: Full keyboard navigation (Arrow keys, Home/End, PageUp/PageDown), focus management, ARIA attributes, live region announcements, and WCAG 2.1 AA compliance
+- **Accessibility (a11y)**: Full keyboard navigation (Arrow keys, Home/End, PageUp/PageDown), focus management, ARIA attributes, live region announcements. Aiming for WCAG 2.1 AA; automated axe audits planned for v1.0.
 - **TypeScript Support**: Comprehensive type definitions with full generic inference
 - **Zero-Dependency Core**: Minimal external dependencies to reduce bundle size
 
@@ -39,10 +39,17 @@ npm install @ioi-dev/vue-table
 
 ### CSS Integration
 
-The default package entry includes library CSS. For zero-CSS integration, use the unstyled entry point:
+CSS is not auto-injected. Import the stylesheet explicitly alongside the component:
 
-```bash
-@ioi-dev/vue-table/unstyled
+```ts
+import { Table } from '@ioi-dev/vue-table';
+import '@ioi-dev/vue-table/styles.css';
+```
+
+For headless use (no CSS):
+
+```ts
+import { Table } from '@ioi-dev/vue-table/unstyled';
 ```
 
 **Available entry points:**
@@ -294,7 +301,7 @@ function onCellEdit(payload: { field: string; rowIndex: number; oldValue: unknow
     :rows="rows"
     :columns="columns"
     row-key="id"
-    @cell-edit-commit="onCellEdit"
+    @cell-commit="onCellEdit"
   />
 </template>
 ```
@@ -386,7 +393,7 @@ The table is built with accessibility in mind:
 - **Keyboard Navigation**: Full support for Arrow keys, Home/End, Page Up/Down
 - **Focus Management**: Visible focus indicators and focus trapping in edit mode
 - **Screen Reader Support**: ARIA attributes and live region announcements
-- **WCAG 2.1 AA Compliance**: Color contrast, focus visibility, and reduced motion support
+- **WCAG 2.1 AA**: Aiming for compliance — color contrast, focus visibility, and reduced motion support. Automated axe audits planned for v1.0.
 
 ```vue
 <template>

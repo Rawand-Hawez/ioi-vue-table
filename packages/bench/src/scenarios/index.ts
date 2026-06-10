@@ -66,7 +66,7 @@ export const benchmarks: BenchmarkScenario[] = [
         rowHeight: 40,
         viewportHeight: 600,
       });
-      
+
       // Simulate scroll position change
       api.setViewport(50000 * 40, 600);
       void api.visibleRows.value;
@@ -84,7 +84,7 @@ export const benchmarks: BenchmarkScenario[] = [
         columns,
         rowKey: 'id',
       });
-      
+
       api.toggleSort('name');
       void api.sortedIndices.value;
       void api.visibleRows.value;
@@ -101,7 +101,7 @@ export const benchmarks: BenchmarkScenario[] = [
         columns,
         rowKey: 'id',
       });
-      
+
       api.toggleSort('department', true);
       api.toggleSort('name', true);
       api.toggleSort('age', true);
@@ -120,7 +120,7 @@ export const benchmarks: BenchmarkScenario[] = [
         columns,
         rowKey: 'id',
       });
-      
+
       api.setColumnFilter('name', { type: 'text', value: 'John', operator: 'contains' });
       void api.filteredIndices.value;
       void api.visibleRows.value;
@@ -137,7 +137,7 @@ export const benchmarks: BenchmarkScenario[] = [
         columns,
         rowKey: 'id',
       });
-      
+
       api.setGlobalSearch('engineering');
       void api.filteredIndices.value;
       void api.visibleRows.value;

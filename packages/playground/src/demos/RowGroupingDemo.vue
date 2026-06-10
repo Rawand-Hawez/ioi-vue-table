@@ -86,13 +86,14 @@ function headerSort(field: string): void {
             {{ opt.label }}
           </button>
         </div>
-        <button class="btn btn-ghost" @click="clearHistory">Clear Log</button>
+        <button class="pg-btn pg-btn-ghost" @click="clearHistory">Clear Log</button>
       </div>
     </div>
 
     <div :class="`theme-${activeTheme}`">
       <Table
         ref="tableRef"
+        v-model:expanded-group-keys="expandedGroupKeys"
         :rows="rows"
         :columns="columns"
         row-key="id"
@@ -101,7 +102,6 @@ function headerSort(field: string): void {
         :overscan="6"
         :group-by="groupByField"
         :group-aggregations="groupAggregations"
-        v-model:expandedGroupKeys="expandedGroupKeys"
       >
         <template #header="{ column }">
           <div class="sort-header" @click.stop="headerSort(String(column.field))">

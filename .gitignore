@@ -15,9 +15,8 @@ target/
 pkg/
 *.swp
 *.swo
-docs/
 .worktrees/
 .agent/
-.changeset/
 .kilo
-*.txt
+/*.txt
+docs/

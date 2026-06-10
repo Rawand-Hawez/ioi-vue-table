@@ -40,20 +40,40 @@ export function createKeyboardNavigation<TRow = Record<string, unknown>>(
     onAnnounce
   } = options;
 
-  const focusedRowIndex = ref(0);
-  const focusedColumnIndex = ref(0);
+  const focusedRowIndex = ref(-1);
+  const focusedColumnIndex = ref(-1);
   const isCellNavigationMode = ref(false);
 
   const visibleColumnCount = computed(() => {
     return columns.value.filter((col) => !col.hidden).length;
   });
 
+  const UNFOCUSED = -1;
+
+  function isUnfocused(): boolean {
+    return focusedRowIndex.value === UNFOCUSED;
+  }
+
+  function establishFirstRow(): void {
+    focusedRowIndex.value = 0;
+  }
+
+  function establishLastRow(): void {
+    focusedRowIndex.value = Math.max(0, rowCount.value - 1);
+  }
+
   function clampRowIndex(index: number): number {
-    return Math.max(0, Math.min(index, rowCount.value - 1));
+    if (index < 0 || rowCount.value === 0) {
+      return 0;
+    }
+    return Math.min(index, rowCount.value - 1);
   }
 
   function clampColumnIndex(index: number): number {
-    return Math.max(0, Math.min(index, visibleColumnCount.value - 1));
+    if (index < 0 || visibleColumnCount.value === 0) {
+      return 0;
+    }
+    return Math.min(index, visibleColumnCount.value - 1);
   }
 
   function announce(message: string): void {
@@ -61,6 +81,11 @@ export function createKeyboardNavigation<TRow = Record<string, unknown>>(
   }
 
   function setFocusedRow(index: number): void {
+    if (index === UNFOCUSED) {
+      focusedRowIndex.value = UNFOCUSED;
+      isCellNavigationMode.value = false;
+      return;
+    }
     focusedRowIndex.value = clampRowIndex(index);
     isCellNavigationMode.value = false;
     onFocusChange?.(focusedRowIndex.value);
@@ -74,6 +99,9 @@ export function createKeyboardNavigation<TRow = Record<string, unknown>>(
   }
 
   function enterCellNavigation(): void {
+    if (isUnfocused()) {
+      establishFirstRow();
+    }
     isCellNavigationMode.value = true;
     focusedColumnIndex.value = 0;
     onFocusChange?.(focusedRowIndex.value, focusedColumnIndex.value);
@@ -121,7 +149,28 @@ export function createKeyboardNavigation<TRow = Record<string, unknown>>(
     }
 
     switch (key) {
+      case 'ArrowDown':
+        if (isUnfocused()) {
+          establishFirstRow();
+          onFocusChange?.(0);
+          event.preventDefault();
+          return true;
+        }
+        return false;
+
+      case 'ArrowUp':
+        if (isUnfocused()) {
+          establishFirstRow();
+          onFocusChange?.(0);
+          event.preventDefault();
+          return true;
+        }
+        return false;
+
       case 'ArrowRight':
+        if (isUnfocused()) {
+          establishFirstRow();
+        }
         if (!isCellNavigationMode.value) {
           enterCellNavigation();
           event.preventDefault();
@@ -133,6 +182,9 @@ export function createKeyboardNavigation<TRow = Record<string, unknown>>(
         return true;
 
       case 'ArrowLeft':
+        if (isUnfocused()) {
+          establishFirstRow();
+        }
         if (isCellNavigationMode.value) {
           event.preventDefault();
           if (focusedColumnIndex.value === 0) {
@@ -153,6 +205,9 @@ export function createKeyboardNavigation<TRow = Record<string, unknown>>(
           isCellNavigationMode.value = false;
           announce('First row');
         } else {
+          if (isUnfocused()) {
+            establishFirstRow();
+          }
           focusedRowIndex.value = 0;
           if (isCellNavigationMode.value) {
             focusedColumnIndex.value = 0;
@@ -170,7 +225,11 @@ export function createKeyboardNavigation<TRow = Record<string, unknown>>(
           isCellNavigationMode.value = false;
           announce('Last row');
         } else {
-          focusedRowIndex.value = Math.max(0, rowCount.value - 1);
+          if (isUnfocused()) {
+            establishLastRow();
+          } else {
+            focusedRowIndex.value = Math.max(0, rowCount.value - 1);
+          }
           if (isCellNavigationMode.value) {
             focusedColumnIndex.value = Math.max(0, visibleColumnCount.value - 1);
           }
@@ -181,6 +240,9 @@ export function createKeyboardNavigation<TRow = Record<string, unknown>>(
 
       case 'PageDown': {
         event.preventDefault();
+        if (isUnfocused()) {
+          establishFirstRow();
+        }
         const pageDownSize = pageSize.value > 0 ? pageSize.value : 10;
         focusedRowIndex.value = clampRowIndex(focusedRowIndex.value + pageDownSize);
         onFocusChange?.(focusedRowIndex.value, isCellNavigationMode.value ? focusedColumnIndex.value : undefined);
@@ -190,6 +252,9 @@ export function createKeyboardNavigation<TRow = Record<string, unknown>>(
 
       case 'PageUp': {
         event.preventDefault();
+        if (isUnfocused()) {
+          establishFirstRow();
+        }
         const pageUpSize = pageSize.value > 0 ? pageSize.value : 10;
         focusedRowIndex.value = clampRowIndex(focusedRowIndex.value - pageUpSize);
         onFocusChange?.(focusedRowIndex.value, isCellNavigationMode.value ? focusedColumnIndex.value : undefined);

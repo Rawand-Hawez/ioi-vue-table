@@ -1,4 +1,4 @@
-# @ioi-dev/vue-table v0.2.5
+# @ioi-dev/vue-table v0.3.0
 
 A performance-first Vue 3 data table component with virtual scrolling, server-side data fetching, row expansion, grouping, CSV import/export, inline editing, and a streamlined API surface.
 
@@ -153,13 +153,13 @@ interface IoiTableProps<TRow> {
   groupAggregations?: Record<string, AggregationType[]>;
   expandedGroupKeys?: Array<string>;
 
-  // Column Groups (v0.2.5)
+  // Column Groups (v0.3.0)
   columnGroups?: ColumnGroup[];
 
-  // Row Reorder (v0.2.5)
+  // Row Reorder (v0.3.0)
   rowDraggable?: boolean;                 // Default: false
 
-  // Clipboard Copy (v0.2.5)
+  // Clipboard Copy (v0.3.0)
   copyable?: boolean;                     // Default: true when selection enabled
 
   // Server-Side Mode
@@ -225,7 +225,7 @@ interface IoiTableSlots<TRow> {
     toggle: () => void;
   }) => VNode;
 
-  // Column group header (v0.2.5)
+  // Column group header (v0.3.0)
   'column-group-header'?: (props: {
     group: ColumnGroup;
   }) => VNode;
@@ -285,7 +285,7 @@ interface IoiTableExpose<TRow> {
   clearSelection: () => void;
   selectAll: (scope?: SelectAllScope) => void;
   getSelectedKeys: () => Array<string | number>;
-  copySelectionToClipboard: () => Promise<void>;  // v0.2.5
+  copySelectionToClipboard: () => Promise<void>;  // v0.3.0
 
   // Row Expansion
   toggleRowExpansion: (key: string | number) => void;
@@ -445,13 +445,13 @@ interface IoiTableOptions<TRow> {
   groupAggregations?: Record<string, AggregationType[]>;
   expandedGroupKeys?: Array<string>;
 
-  // Column Groups (v0.2.5)
+  // Column Groups (v0.3.0)
   columnGroups?: ColumnGroup[];
 
-  // Row Reorder (v0.2.5)
+  // Row Reorder (v0.3.0)
   rowDraggable?: boolean;
 
-  // Clipboard Copy (v0.2.5)
+  // Clipboard Copy (v0.3.0)
   copyable?: boolean;
 
   // Server Mode
@@ -687,7 +687,7 @@ interface GroupHeader {
 }
 ```
 
-### Column Group Types (v0.2.5)
+### Column Group Types (v0.3.0)
 
 ```typescript
 interface ColumnGroup {
@@ -1310,12 +1310,12 @@ function handleExport() {
 .ioi-table__group-value { }
 .ioi-table__group-count { }
 
-/* Column group header (v0.2.5) */
+/* Column group header (v0.3.0) */
 .ioi-table__group-header-row { }
 .ioi-table__group-header-cell { }
 .ioi-table__group-header-cell--empty { }
 
-/* Row reorder (v0.2.5) */
+/* Row reorder (v0.3.0) */
 .ioi-table__drag-handle { }
 .ioi-table__row--dragging { }
 .ioi-table__row--drag-over { }
@@ -1741,7 +1741,7 @@ rowKey={(row) => row.uuid}
 ```typescript
 // ❌ Wrong - No error handling
 const serverOptions = {
-  query: async (params) => {
+  fetch: async (params) => {
     const res = await fetch('/api/data');
     return res.json();
   }
@@ -1749,7 +1749,7 @@ const serverOptions = {
 
 // ✅ Correct - Handle errors
 const serverOptions = {
-  query: async (params) => {
+  fetch: async (params) => {
     try {
       const res = await fetch('/api/data');
       if (!res.ok) throw new Error('Failed to fetch');

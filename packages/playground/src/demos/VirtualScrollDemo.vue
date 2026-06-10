@@ -97,15 +97,15 @@ function msColor(ms: number): string {
             class="ctrl-input"
             min="1"
             :max="ROW_COUNT"
-          />
-          <button type="submit" class="btn">Scroll</button>
+          >
+          <button type="submit" class="pg-btn">Scroll</button>
         </form>
-        <button class="btn btn-accent" @click="runBenchmark">Run Benchmark</button>
-        <button class="btn btn-ghost" @click="clearHistory">Clear Log</button>
+        <button class="pg-btn pg-btn-accent" @click="runBenchmark">Run Benchmark</button>
+        <button class="pg-btn pg-btn-ghost" @click="clearHistory">Clear Log</button>
       </div>
     </div>
 
-    <div ref="tableWrapperRef" :class="`theme-${activeTheme}`">
+    <div ref="tableWrapperRef" :class="`theme-${activeTheme}`" style="overflow: hidden;">
       <Table
         ref="tableRef"
         :rows="rows"
@@ -167,13 +167,13 @@ tableRef.value.clearAllFilters()</code></pre>
 </template>
 
 <style scoped>
-.demo { display: grid; gap: 1rem; }
+.demo { display: grid; gap: 1rem; max-width: 100%; overflow: hidden; }
 
-.demo-header { display: flex; flex-wrap: wrap; align-items: flex-start; justify-content: space-between; gap: 0.75rem; }
+.demo-header { display: flex; flex-wrap: wrap; align-items: flex-start; justify-content: space-between; gap: 0.75rem; max-width: 100%; overflow: hidden; }
 .demo-title { margin: 0; font-size: 1.2rem; font-weight: 700; color: #0f172a; }
 .demo-desc { margin: 0.25rem 0 0; color: #64748b; font-size: 0.82rem; }
 
-.controls { display: flex; align-items: center; flex-wrap: wrap; gap: 0.5rem; }
+.controls { display: flex; align-items: center; flex-wrap: wrap; gap: 0.5rem; max-width: 100%; }
 
 .stat-chip {
   background: #f0fdf4;
@@ -186,8 +186,8 @@ tableRef.value.clearAllFilters()</code></pre>
 
 .jump-form { display: flex; align-items: center; gap: 0.4rem; }
 .ctrl-input { width: 100px; }
-.btn-accent { background: #7c3aed; }
-.btn-accent:hover { background: #6d28d9; }
+.pg-btn-accent { background: #7c3aed; }
+.pg-btn-accent:hover { background: #6d28d9; }
 
 
 .perf-panel { background: #fff; border: 1px solid #e2e8f0; border-radius: 10px; padding: 0.85rem 1rem; }

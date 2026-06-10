@@ -74,8 +74,8 @@ describe('createKeyboardNavigation', () => {
       const keyboard = createKeyboardSetup();
 
       expect(typeof keyboard.handleKeyDown).toBe('function');
-      expect(keyboard.focusedRowIndex.value).toBe(0);
-      expect(keyboard.focusedColumnIndex.value).toBe(0);
+      expect(keyboard.focusedRowIndex.value).toBe(-1);
+      expect(keyboard.focusedColumnIndex.value).toBe(-1);
       expect(keyboard.isCellNavigationMode.value).toBe(false);
       expect(typeof keyboard.setFocusedRow).toBe('function');
       expect(typeof keyboard.setFocusedCell).toBe('function');
@@ -84,9 +84,85 @@ describe('createKeyboardNavigation', () => {
       expect(typeof keyboard.getFocusedElementSelector).toBe('function');
     });
 
-    it('starts with row 0 focused', () => {
+    it('starts with no row focused (-1 sentinel)', () => {
       const keyboard = createKeyboardSetup();
+      expect(keyboard.focusedRowIndex.value).toBe(-1);
+      expect(keyboard.focusedColumnIndex.value).toBe(-1);
+    });
+  });
+
+  describe('unfocused state — first interaction', () => {
+    it('ArrowDown from unfocused state establishes row 0', () => {
+      const onFocusChange = vi.fn();
+      const keyboard = createKeyboardSetup({ onFocusChange });
+
+      expect(keyboard.focusedRowIndex.value).toBe(-1);
+
+      const event = createKeyEvent('ArrowDown');
+      const handled = keyboard.handleKeyDown(event);
+
+      expect(handled).toBe(true);
       expect(keyboard.focusedRowIndex.value).toBe(0);
+      expect(onFocusChange).toHaveBeenCalledWith(0);
+    });
+
+    it('ArrowUp from unfocused state establishes row 0', () => {
+      const onFocusChange = vi.fn();
+      const keyboard = createKeyboardSetup({ onFocusChange });
+
+      const event = createKeyEvent('ArrowUp');
+      const handled = keyboard.handleKeyDown(event);
+
+      expect(handled).toBe(true);
+      expect(keyboard.focusedRowIndex.value).toBe(0);
+    });
+
+    it('Home from unfocused state establishes row 0', () => {
+      const onFocusChange = vi.fn();
+      const keyboard = createKeyboardSetup({ onFocusChange });
+
+      const event = createKeyEvent('Home');
+      const handled = keyboard.handleKeyDown(event);
+
+      expect(handled).toBe(true);
+      expect(keyboard.focusedRowIndex.value).toBe(0);
+    });
+
+    it('End from unfocused state establishes last row', () => {
+      const onFocusChange = vi.fn();
+      const keyboard = createKeyboardSetup({ onFocusChange });
+
+      const event = createKeyEvent('End');
+      const handled = keyboard.handleKeyDown(event);
+
+      expect(handled).toBe(true);
+      expect(keyboard.focusedRowIndex.value).toBe(99);
+    });
+
+    it('PageDown from unfocused state establishes row at pageSize', () => {
+      const onFocusChange = vi.fn();
+      const keyboard = createKeyboardSetup({ onFocusChange });
+
+      const event = createKeyEvent('PageDown');
+      const handled = keyboard.handleKeyDown(event);
+
+      expect(handled).toBe(true);
+      expect(keyboard.focusedRowIndex.value).toBe(10);
+    });
+
+    it('ArrowRight from unfocused state enters cell navigation at row 0, col 0', () => {
+      const onFocusChange = vi.fn();
+      const keyboard = createKeyboardSetup({ onFocusChange });
+
+      expect(keyboard.focusedRowIndex.value).toBe(-1);
+
+      const event = createKeyEvent('ArrowRight');
+      const handled = keyboard.handleKeyDown(event);
+
+      expect(handled).toBe(true);
+      expect(keyboard.focusedRowIndex.value).toBe(0);
+      expect(keyboard.focusedColumnIndex.value).toBe(0);
+      expect(keyboard.isCellNavigationMode.value).toBe(true);
     });
   });
 

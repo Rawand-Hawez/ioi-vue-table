@@ -63,6 +63,7 @@ export type {
   NumberFilterOperator,
   NumberValueColumnFilter,
   ParseCsvOptions,
+  PaginationSlotProps,
   RowClickPayload,
   SelectAllScope,
   SelectionMode,
@@ -76,5 +77,3 @@ export type {
   AutoSizeOptions,
   ToggleRowOptions
 } from './types';
-
-import './styles.css';

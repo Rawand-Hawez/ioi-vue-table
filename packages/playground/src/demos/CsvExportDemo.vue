@@ -118,7 +118,7 @@ const scopes: Array<{ value: ExportCsvScope; label: string; desc: string }> = [
             :key="s.value"
             :class="['scope-card', { 'scope-card--active': scope === s.value }]"
           >
-            <input v-model="scope" type="radio" :value="s.value" class="sr-only" />
+            <input v-model="scope" type="radio" :value="s.value" class="sr-only">
             <span class="scope-card-label">{{ s.label }}</span>
             <span class="scope-card-desc">{{ s.value === 'selected' ? `${selectedCount} rows` : s.desc }}</span>
           </label>
@@ -143,20 +143,20 @@ const scopes: Array<{ value: ExportCsvScope; label: string; desc: string }> = [
 
         <div class="config-checks">
           <label class="check-label">
-            <input v-model="includeHeader" type="checkbox" />
+            <input v-model="includeHeader" type="checkbox">
             Include header row
           </label>
           <label class="check-label">
-            <input v-model="sanitize" type="checkbox" />
+            <input v-model="sanitize" type="checkbox">
             Sanitize formulas (injection-safe)
           </label>
         </div>
       </div>
 
       <div class="config-actions">
-        <button class="btn" @click="doExport">Download CSV</button>
-        <button class="btn btn-secondary" @click="selectSome">Select Visible</button>
-        <button class="btn btn-ghost" @click="clearSel">Clear Selection</button>
+        <button class="pg-btn" @click="doExport">Download CSV</button>
+        <button class="pg-btn pg-btn-secondary" @click="selectSome">Select Visible</button>
+        <button class="pg-btn pg-btn-ghost" @click="clearSel">Clear Selection</button>
       </div>
     </div>
 
@@ -164,14 +164,16 @@ const scopes: Array<{ value: ExportCsvScope; label: string; desc: string }> = [
     <div :class="`theme-${activeTheme}`">
       <Table
         ref="tableRef"
+        v-model:page-index="pageIndex"
+        v-model:page-size="pageSize"
         :rows="rows"
         :columns="columns"
         row-key="id"
         :height="440"
         :row-height="36"
         :overscan="6"
-        v-model:pageIndex="pageIndex"
-        v-model:pageSize="pageSize"
+        :show-pagination="true"
+        :page-size-options="[10, 25, 50, 100]"
         @state-change="syncSelected"
       >
         <template #header="{ column }">
@@ -181,24 +183,6 @@ const scopes: Array<{ value: ExportCsvScope; label: string; desc: string }> = [
           </div>
         </template>
       </Table>
-    </div>
-
-    <!-- Pagination -->
-    <div class="pagination-bar">
-      <div class="page-info">
-        Page {{ pageIndex + 1 }} &nbsp;|&nbsp;
-        <select
-          :value="pageSize"
-          class="page-size-select"
-          @change="pageSize = Number(($event.target as HTMLSelectElement).value); pageIndex = 0"
-        >
-          <option v-for="n in [10, 25, 50, 100]" :key="n" :value="n">{{ n }} / page</option>
-        </select>
-      </div>
-      <div class="page-btns">
-        <button class="page-btn" :disabled="pageIndex === 0" @click="pageIndex--">&larr;</button>
-        <button class="page-btn" @click="pageIndex++">&rarr;</button>
-      </div>
     </div>
 
     <section class="code-section">
@@ -270,20 +254,4 @@ URL.revokeObjectURL(url)</code></pre>
 .check-label { display: flex; align-items: center; gap: 0.4rem; font-size: 0.8rem; color: #475569; cursor: pointer; }
 
 .config-actions { display: flex; gap: 0.5rem; flex-wrap: wrap; border-top: 1px solid #f1f5f9; padding-top: 0.85rem; }
-
-
-.pagination-bar {
-  display: flex; align-items: center; justify-content: space-between;
-  background: #fff; border: 1px solid #e2e8f0; border-radius: 8px;
-  padding: 0.45rem 0.85rem; font-size: 0.8rem; color: #475569;
-}
-.page-info { display: flex; align-items: center; gap: 0.5rem; }
-.page-size-select { border: 1px solid #e2e8f0; border-radius: 6px; padding: 0.15rem 0.35rem; font-size: 0.78rem; }
-.page-btns { display: flex; gap: 0.35rem; }
-.page-btn {
-  border: 1px solid #e2e8f0; background: #fff; border-radius: 6px;
-  padding: 0.25rem 0.65rem; font-size: 0.8rem; cursor: pointer;
-}
-.page-btn:hover:not(:disabled) { background: #f1f5f9; }
-.page-btn:disabled { opacity: 0.4; cursor: not-allowed; }
 </style>

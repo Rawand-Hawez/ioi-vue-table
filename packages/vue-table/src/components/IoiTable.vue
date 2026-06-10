@@ -11,10 +11,12 @@ import type {
   ColumnGroupHeaderSlotProps,
   HeaderFilterSlotProps,
   HeaderSlotProps,
+  IoiCellCommitPayload,
   IoiPaginationChangePayload,
   IoiRowReorderPayload,
   IoiSemanticEvent,
   IoiTableOptions,
+  PaginationSlotProps,
   RowClickPayload
 } from '../types';
 import { get as getNestedPathValue } from '../utils/nestedPath';
@@ -52,6 +54,10 @@ const props = withDefaults(
     copyable?: boolean;
     rowDraggable?: boolean;
     columnGroups?: ColumnGroup[];
+    selectionMode?: 'single' | 'multi';
+    selectedRowKeys?: Array<string | number>;
+    showPagination?: boolean;
+    pageSizeOptions?: number[];
   }>(),
   {
     rows: () => [],
@@ -74,7 +80,11 @@ const props = withDefaults(
     serverOptions: undefined,
     copyable: true,
     rowDraggable: false,
-    columnGroups: undefined
+    columnGroups: undefined,
+    selectionMode: undefined,
+    selectedRowKeys: undefined,
+    showPagination: undefined,
+    pageSizeOptions: () => [10, 25, 50, 100]
   }
 );
 
@@ -89,6 +99,9 @@ const emit = defineEmits<{
   'update:expandedGroupKeys': [value: Array<string>];
   'group-expand': [payload: { groupKey: string; groupValue: unknown; expanded: boolean; rowCount: number }];
   'row-reorder': [payload: IoiRowReorderPayload<TRow>];
+  'update:selectedRowKeys': [value: Array<string | number>];
+  'selection-change': [payload: { selectedRowKeys: Array<string | number>; reason: string }];
+  'cell-commit': [payload: IoiCellCommitPayload<TRow>];
 }>();
 
 defineSlots<{
@@ -98,6 +111,7 @@ defineSlots<{
   'expanded-row'?: (slotProps: { row: TRow; rowIndex: number }) => unknown;
   'group-header'?: (slotProps: import('../types').GroupHeaderSlotProps) => unknown;
   'column-group-header'?: (slotProps: ColumnGroupHeaderSlotProps) => unknown;
+  pagination?: (slotProps: PaginationSlotProps) => unknown;
   empty?: () => unknown;
   loading?: () => unknown;
   error?: (slotProps: { error: string | null }) => unknown;
@@ -139,6 +153,7 @@ const table = useIoiTable<TRow>(
     rows: props.rows,
     columns: props.columns,
     rowKey: props.rowKey,
+    selectionMode: props.selectionMode,
     rowHeight: normalizedRowHeight.value,
     overscan: normalizedOverscan.value,
     viewportHeight: normalizedHeight.value,
@@ -169,6 +184,9 @@ const table = useIoiTable<TRow>(
         payload.pageCount,
         payload.rowCount
       );
+    },
+    onCellCommit: (payload) => {
+      emit('cell-commit', payload);
     },
     onRowExpand: (payload) => {
       emit('row-expand', payload);
@@ -331,6 +349,19 @@ function getGroupCellStyle(cell: ColumnGroupRowCell): Record<string, string> {
 }
 
 const renderEntries = computed(() => table.renderEntries.value);
+
+const paginationEnabled = computed(() => table.paginationEnabled.value);
+const currentPageIndex = computed(() => table.pageIndex.value);
+const currentPageSize = computed(() => table.pageSize.value);
+const currentPageCount = computed(() => table.pageCount.value);
+const currentTotalRows = computed(() => table.totalRows.value);
+
+const paginationRangeText = computed(() => {
+  if (currentTotalRows.value === 0) return '0–0 of 0';
+  const start = currentPageIndex.value * currentPageSize.value + 1;
+  const end = Math.min((currentPageIndex.value + 1) * currentPageSize.value, currentTotalRows.value);
+  return `${start}–${end} of ${currentTotalRows.value}`;
+});
 
 const headerFacetOptionsByField = computed(() => {
   const optionsByField = new Map<string, string[]>();
@@ -567,6 +598,36 @@ watch(
       rowCount: nextRowCount,
       reason: 'meta'
     });
+  },
+  { immediate: true }
+);
+
+watch(
+  () => table.state.value.selectedRowKeys,
+  (nextKeys) => {
+    const lastEvt = table.lastEvent.value;
+    const reason = lastEvt?.type === 'data:select'
+      ? (lastEvt.payload as { reason?: string }).reason ?? 'internal'
+      : 'internal';
+    emit('update:selectedRowKeys', [...nextKeys]);
+    emit('selection-change', { selectedRowKeys: [...nextKeys], reason });
+  }
+);
+
+watch(
+  () => props.selectedRowKeys,
+  (nextExternalKeys) => {
+    if (nextExternalKeys === undefined) {
+      return;
+    }
+    const currentKeys = table.state.value.selectedRowKeys;
+    if (
+      nextExternalKeys.length === currentKeys.length &&
+      nextExternalKeys.every((key, index) => key === currentKeys[index])
+    ) {
+      return;
+    }
+    table.setSelectedKeys(nextExternalKeys, 'external');
   },
   { immediate: true }
 );
@@ -1063,9 +1124,30 @@ function getHeaderAriaSort(column: ColumnDef<TRow>): 'ascending' | 'descending' 
   return 'none';
 }
 
-function onRowClick(row: TRow, rowIndex: number): void {
-  emit('row-click', { row, rowIndex });
-}
+  function onRowClick(row: TRow, rowIndex: number, event?: MouseEvent): void {
+    emit('row-click', { row, rowIndex });
+
+    if (selectionEnabled.value) {
+      const rowKey = resolveRowSelectionKey(row, rowIndex);
+      if (rowKey !== null) {
+        table.toggleRow(rowKey, { shiftKey: event?.shiftKey });
+      }
+    }
+  }
+
+  function onHeaderSort(column: ColumnDef<TRow>, event?: MouseEvent): void {
+    if (column.sortable === false) {
+      return;
+    }
+    const field = String(column.field);
+    table.toggleSort(field, event?.shiftKey);
+  }
+
+  function onRowFocus(rowIndex: number): void {
+    if (focusedRowIndex.value !== rowIndex) {
+      keyboard.setFocusedRow(rowIndex);
+    }
+  }
 
 function onRowKeydown(event: KeyboardEvent, row: TRow, rowIndex: number): void {
   if (props.rowDraggable && event.altKey && (event.key === 'ArrowUp' || event.key === 'ArrowDown')) {
@@ -1147,13 +1229,13 @@ function focusRow(rowIndex: number): void {
   });
 }
 
-function isRowFocused(rowIndex: number): boolean {
-  return focusedRowIndex.value === rowIndex;
-}
+  function isRowFocused(rowIndex: number): boolean {
+    return focusedRowIndex.value >= 0 && focusedRowIndex.value === rowIndex;
+  }
 
-function isCellFocused(rowIndex: number, columnIndex: number): boolean {
-  return isCellNavigationMode.value && focusedRowIndex.value === rowIndex && focusedColumnIndex.value === columnIndex;
-}
+  function isCellFocused(rowIndex: number, columnIndex: number): boolean {
+    return isCellNavigationMode.value && focusedRowIndex.value >= 0 && focusedRowIndex.value === rowIndex && focusedColumnIndex.value === columnIndex;
+  }
 
 function getAriaRowIndex(entry: { type: string; rowIndex?: number }, offset: number = 0): number {
   if (entry.type === 'row' && entry.rowIndex !== undefined) {
@@ -1321,6 +1403,7 @@ defineExpose({
   clearSelection: table.clearSelection,
   selectAll: table.selectAll,
   getSelectedKeys: table.getSelectedKeys,
+  setSelectedKeys: table.setSelectedKeys,
   toggleRowExpansion: table.toggleRowExpansion,
   expandAllRows: table.expandAllRows,
   collapseAllRows: table.collapseAllRows,
@@ -1353,8 +1436,8 @@ defineExpose({
 </script>
 
 <template>
-  <div 
-    class="ioi-table" 
+  <div
+    class="ioi-table"
     role="grid"
     :aria-label="ariaLabel"
     :aria-rowcount="table.totalRows.value"
@@ -1419,8 +1502,16 @@ defineExpose({
               @drop="onHeaderDrop($event, column)"
             >
               <div class="ioi-table__header-content">
-                <slot name="header" :column="column" :column-index="columnIndex">
-                  <span class="ioi-table__header-label">{{ column.header ?? column.field }}</span>
+                <slot name="header" :column="column" :column-index="columnIndex" :sort="() => onHeaderSort(column)" :sort-direction="getSortDirection(column)">
+                  <button
+                    v-if="column.sortable !== false"
+                    type="button"
+                    class="ioi-table__sort-button"
+                    @click.stop="onHeaderSort(column, $event)"
+                  >
+                    <span class="ioi-table__header-label">{{ column.header ?? column.field }}</span>
+                  </button>
+                  <span v-else class="ioi-table__header-label">{{ column.header ?? column.field }}</span>
                 </slot>
               </div>
               <button
@@ -1554,7 +1645,8 @@ defineExpose({
               :aria-selected="selectionEnabled ? isRowSelected(entry.row, entry.rowIndex) : undefined"
               :aria-expanded="expandable && isRowExpandable(entry.row, entry.rowIndex) ? isRowExpanded(entry.row, entry.rowIndex) : undefined"
               tabindex="0"
-              @click="onRowClick(entry.row, entry.rowIndex)"
+              @click="onRowClick(entry.row, entry.rowIndex, $event)"
+              @focusin="onRowFocus(entry.rowIndex)"
               @keydown="onRowKeydown($event, entry.row, entry.rowIndex)"
             >
               <td
@@ -1658,6 +1750,75 @@ defineExpose({
           </tr>
         </tbody>
       </table>
+    </div>
+    <div
+      v-if="paginationEnabled && showPagination !== false"
+      class="ioi-table__pagination"
+    >
+      <slot
+        name="pagination"
+        :page-index="currentPageIndex"
+        :page-size="currentPageSize"
+        :page-count="currentPageCount"
+        :row-count="currentTotalRows"
+        :can-previous-page="currentPageIndex > 0"
+        :can-next-page="currentPageIndex < currentPageCount - 1"
+        :set-page-index="table.setPageIndex"
+        :set-page-size="table.setPageSize"
+        :previous-page="() => table.setPageIndex(currentPageIndex - 1)"
+        :next-page="() => table.setPageIndex(currentPageIndex + 1)"
+        :first-page="() => table.setPageIndex(0)"
+        :last-page="() => table.setPageIndex(currentPageCount - 1)"
+      >
+        <span class="ioi-table__pagination-info">
+          {{ paginationRangeText }}
+        </span>
+        <select
+          v-if="pageSizeOptions && pageSizeOptions.length > 1"
+          class="ioi-table__pagination-size"
+          :value="currentPageSize"
+          @change="table.setPageSize(Number(($event.target as HTMLSelectElement).value))"
+        >
+          <option v-for="size in pageSizeOptions" :key="size" :value="size">{{ size }} / page</option>
+        </select>
+        <button
+          type="button"
+          class="ioi-table__pagination-btn ioi-table__pagination-first"
+          :disabled="currentPageIndex <= 0"
+          aria-label="First page"
+          @click="table.setPageIndex(0)"
+        >
+          &#171;
+        </button>
+        <button
+          type="button"
+          class="ioi-table__pagination-btn ioi-table__pagination-prev"
+          :disabled="currentPageIndex <= 0"
+          aria-label="Previous page"
+          @click="table.setPageIndex(currentPageIndex - 1)"
+        >
+          &#8249;
+        </button>
+        <span class="ioi-table__pagination-pages">{{ currentPageIndex + 1 }} / {{ currentPageCount }}</span>
+        <button
+          type="button"
+          class="ioi-table__pagination-btn ioi-table__pagination-next"
+          :disabled="currentPageIndex >= currentPageCount - 1"
+          aria-label="Next page"
+          @click="table.setPageIndex(currentPageIndex + 1)"
+        >
+          &#8250;
+        </button>
+        <button
+          type="button"
+          class="ioi-table__pagination-btn ioi-table__pagination-last"
+          :disabled="currentPageIndex >= currentPageCount - 1"
+          aria-label="Last page"
+          @click="table.setPageIndex(currentPageCount - 1)"
+        >
+          &#187;
+        </button>
+      </slot>
     </div>
     <div v-if="table.loading.value" class="ioi-table__loading-overlay">
       <slot name="loading">Loading...</slot>

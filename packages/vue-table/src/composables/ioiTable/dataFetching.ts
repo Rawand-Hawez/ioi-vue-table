@@ -49,6 +49,7 @@ export function createDataFetching<TRow>(
   let abortController: AbortController | null = null;
   let currentCursor: string | null = null;
   let nextPageIndex: number | null = null;
+  let currentRequestId = 0;
 
   const isLoading = computed(() => state.value.loading);
   const hasError = computed(() => state.value.error !== null);
@@ -73,6 +74,7 @@ export function createDataFetching<TRow>(
       abortController.abort();
     }
     abortController = new AbortController();
+    const myRequestId = ++currentRequestId;
 
     state.value = {
       ...state.value,
@@ -94,7 +96,7 @@ export function createDataFetching<TRow>(
 
       const result: ServerFetchResult<TRow> = await serverOptions.fetch(params);
 
-      if (abortController?.signal.aborted) {
+      if (myRequestId !== currentRequestId) {
         return;
       }
 
@@ -103,7 +105,7 @@ export function createDataFetching<TRow>(
       } else {
         onRowsReceived(result.rows, result.totalRows);
       }
-      
+
       if (result.nextCursor !== undefined) {
         currentCursor = result.nextCursor;
       }
@@ -123,7 +125,7 @@ export function createDataFetching<TRow>(
 
       serverOptions.onFetchSuccess?.(result);
     } catch (err) {
-      if (abortController?.signal.aborted) {
+      if (myRequestId !== currentRequestId) {
         return;
       }
 
@@ -154,16 +156,15 @@ export function createDataFetching<TRow>(
     [
       pageIndex,
       pageSize,
-      () => state.value.sort,
-      () => state.value.filters,
+      () => JSON.stringify(state.value.sort),
+      () => JSON.stringify(state.value.filters),
       () => state.value.globalSearch
     ],
     () => {
       currentCursor = null;
       nextPageIndex = null;
       debouncedFetch();
-    },
-    { deep: true }
+    }
   );
 
   onScopeDispose(() => {

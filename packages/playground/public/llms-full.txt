@@ -1,0 +1,131 @@
+# @ioi-dev/vue-table — Complete AI Reference
+
+## Package
+
+- **Name**: `@ioi-dev/vue-table`
+- **Version**: 0.3.0
+- **License**: MIT
+- **Peer**: Vue ^3.4.0
+
+## Installation
+
+```bash
+npm install @ioi-dev/vue-table
+```
+
+```js
+import { IoiTable } from '@ioi-dev/vue-table'
+import '@ioi-dev/vue-table/styles.css'
+```
+
+## Component: `<IoiTable>`
+
+### Props
+
+| Prop | Type | Default | Description |
+|------|------|---------|-------------|
+| `columns` | `ColumnDef[]` | required | Column definitions |
+| `rows` | `TRow[]` | required | Row data array |
+| `rowKey` | `string` | undefined | Field name for row identity (enables selection) |
+| `selectionMode` | `'single' \| 'multi'` | `'multi'` | Selection behavior |
+| `selectedRowKeys` | `Array<string\|number>` | `[]` | Controlled selection |
+| `pageSize` | `number` | `0` | Page size (0 = no pagination) |
+| `showPagination` | `boolean` | `true` | Show/hide pagination UI |
+| `pageSizeOptions` | `number[]` | `[10,25,50,100]` | Page size selector options |
+| `height` | `number` | `400` | Viewport height in px |
+| `rowHeight` | `number` | `40` | Row height in px |
+| `overscan` | `number` | `5` | Virtual scroll overscan rows |
+| `dataMode` | `'client' \| 'server'` | `'client'` | Data mode |
+| `serverOptions` | `ServerDataOptions` | undefined | Server-side config (requires `dataMode: 'server'`) |
+| `expandable` | `boolean` | `false` | Enable row expansion |
+| `groupBy` | `string` | undefined | Field to group rows by |
+| `rowDraggable` | `boolean` | `false` | Enable row drag reorder |
+
+### Events
+
+| Event | Payload | Description |
+|-------|---------|-------------|
+| `row-click` | `{ row, rowIndex }` | Row clicked |
+| `cell-commit` | `{ row, rowIndex, rowKey, field, oldValue, newValue }` | Cell edit committed |
+| `selection-change` | `{ selectedRowKeys, reason }` | Selection changed |
+| `update:selectedRowKeys` | `Array<string\|number>` | v-model for selection |
+| `pagination-change` | `{ pageIndex, pageSize, pageCount, rowCount }` | Page changed |
+| `update:pageIndex` | `number` | v-model for page index |
+| `update:pageSize` | `number` | v-model for page size |
+| `state-change` | `IoiSemanticEvent` | Internal state change |
+| `row-expand` | `{ row, rowIndex, rowKey, expanded }` | Row expanded/collapsed |
+| `row-reorder` | `{ fromIndex, toIndex, row }` | Row dragged |
+
+### Slots
+
+| Slot | Props | Description |
+|------|-------|-------------|
+| `cell` | `{ row, rowIndex, column, columnIndex, value }` | Custom cell renderer |
+| `header` | `{ column, columnIndex }` | Custom header |
+| `header-filter` | `{ column, columnIndex }` | Custom filter input |
+| `pagination` | `{ pageIndex, pageSize, pageCount, rowCount, ... }` | Custom pagination UI |
+| `expanded-row` | `{ row, rowIndex }` | Expanded row content |
+| `loading` | — | Loading overlay content |
+| `error` | `{ error }` | Error overlay content |
+| `empty` | — | Empty state content |
+
+### Exposed Methods
+
+| Method | Signature | Description |
+|--------|-----------|-------------|
+| `toggleRow` | `(key, options?) => void` | Toggle row selection |
+| `clearSelection` | `() => void` | Clear all selection |
+| `selectAll` | `(scope?) => void` | Select all rows |
+| `getSelectedKeys` | `() => Array` | Get selected keys |
+| `startEdit` | `(options) => void` | Start cell editing |
+| `commitEdit` | `() => boolean` | Commit current edit |
+| `cancelEdit` | `() => void` | Cancel current edit |
+| `setGlobalSearch` | `(query) => void` | Set search filter |
+| `exportCSV` | `(options?) => void` | Export to CSV |
+
+### ColumnDef
+
+```ts
+interface ColumnDef {
+  field: string
+  header?: string
+  sortable?: boolean        // default: true at runtime
+  editable?: boolean
+  width?: number | string
+  minWidth?: number
+  maxWidth?: number
+  headerFilter?: 'text' | 'select'
+  validate?: (value, row) => true | string
+  pin?: 'left' | 'right' | 'none'
+  align?: 'left' | 'center' | 'right'
+  type?: 'text' | 'number' | 'date' | 'boolean'
+}
+```
+
+### Server Mode
+
+```ts
+const serverOptions = {
+  fetch: async (params) => {
+    // params: { pageIndex, pageSize, sort, filters, globalSearch }
+    return { rows, totalRows }
+  },
+  debounceMs: 300,
+  initialPageSize: 50
+}
+```
+
+### CSS Themes
+
+```js
+// Default theme (required)
+import '@ioi-dev/vue-table/styles.css'
+
+// Minimal (structure only, no colors)
+import '@ioi-dev/vue-table/minimal.css'
+
+// Shadcn-compatible (add after styles.css)
+import '@ioi-dev/vue-table/themes/shadcn.css'
+```
+
+CSS custom properties are prefixed `--ioi-table-*` and can be overridden.

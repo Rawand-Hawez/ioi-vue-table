@@ -64,6 +64,7 @@ export interface ColumnDef<TRow = Record<string, unknown>> {
   maxWidth?: number;
   hidden?: boolean;
   pin?: 'left' | 'right' | 'none';
+  sortable?: boolean;
 }
 
 export interface SortState {
@@ -137,6 +138,21 @@ export interface IoiPaginationChangePayload extends IoiPaginationState {
   pageCount: number;
   rowCount: number;
   reason: 'setPageIndex' | 'setPageSize' | 'autoReset' | 'clamp' | 'resetState' | 'meta';
+}
+
+export interface PaginationSlotProps {
+  pageIndex: number;
+  pageSize: number;
+  pageCount: number;
+  rowCount: number;
+  canPreviousPage: boolean;
+  canNextPage: boolean;
+  setPageIndex: (index: number) => void;
+  setPageSize: (size: number) => void;
+  previousPage: () => void;
+  nextPage: () => void;
+  firstPage: () => void;
+  lastPage: () => void;
 }
 
 export type SelectionMode = 'single' | 'multi';
@@ -362,6 +378,7 @@ export interface IoiTableActions<TRow = Record<string, unknown>> {
   clearSelection: () => void;
   selectAll: (scope?: SelectAllScope) => void;
   getSelectedKeys: () => Array<string | number>;
+  setSelectedKeys: (keys: Array<string | number>, reason?: string) => void;
   toggleSort: (field: string, multi?: boolean) => void;
   setViewport: (scrollTop: number, viewportHeight?: number) => void;
   scrollToRow: (index: number) => void;
@@ -456,6 +473,8 @@ export interface CellSlotProps<TRow = Record<string, unknown>> {
 export interface HeaderSlotProps<TRow = Record<string, unknown>> {
   column: ColumnDef<TRow>;
   columnIndex: number;
+  sort: () => void;
+  sortDirection: 'asc' | 'desc' | null;
 }
 
 export interface HeaderFilterSlotProps<TRow = Record<string, unknown>> {

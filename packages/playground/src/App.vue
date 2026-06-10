@@ -14,7 +14,11 @@ type RouteId =
   | 'row-styling'
   | 'custom-cells'
   | 'editing'
-  | 'csv-export';
+  | 'csv-export'
+  | 'server-data'
+  | 'shadcn'
+  | 'pagination'
+  | 'selection';
 
 interface NavRoute {
   id: RouteId;
@@ -32,6 +36,10 @@ const routes: NavRoute[] = [
   { id: 'custom-cells', label: 'Custom Cells' },
   { id: 'editing', label: 'Editing' },
   { id: 'csv-export', label: 'CSV Export' },
+  { id: 'server-data', label: 'Server Data', badge: 'v0.3' },
+  { id: 'shadcn', label: 'Shadcn', badge: 'v0.3' },
+  { id: 'pagination', label: 'Pagination', badge: 'v0.3' },
+  { id: 'selection', label: 'Selection', badge: 'v0.3' },
 ];
 
 const componentMap: Record<RouteId, ReturnType<typeof defineAsyncComponent>> = {
@@ -44,6 +52,10 @@ const componentMap: Record<RouteId, ReturnType<typeof defineAsyncComponent>> = {
   'custom-cells': defineAsyncComponent(() => import('./demos/CustomCellsDemo.vue')),
   'editing': defineAsyncComponent(() => import('./demos/InlineEditingDemo.vue')),
   'csv-export': defineAsyncComponent(() => import('./demos/CsvExportDemo.vue')),
+  'server-data': defineAsyncComponent(() => import('./demos/ServerDataDemo.vue')),
+  'shadcn': defineAsyncComponent(() => import('./demos/ShadcnIntegrationDemo.vue')),
+  'pagination': defineAsyncComponent(() => import('./demos/PaginationDemo.vue')),
+  'selection': defineAsyncComponent(() => import('./demos/SelectionDemo.vue')),
 };
 
 function parseHash(hash: string): RouteId {
@@ -91,7 +103,7 @@ const perfColor = computed(() => {
           <span class="nav-logo">IOI</span>
           <div class="nav-brand-text">
             <span class="nav-title">Vue Table</span>
-            <span class="nav-version">v0.2.6</span>
+            <span class="nav-version">v0.3.0</span>
           </div>
         </a>
         <button
