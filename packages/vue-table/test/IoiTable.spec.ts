@@ -1316,4 +1316,79 @@ describe('IoiTable', () => {
       expect(countAfter).toBe(countBefore);
     });
   });
+
+  describe('cell editing events', () => {
+    const rows = [{ id: 1, name: 'Alpha' }];
+    const columns = [{ field: 'name', header: 'Name', editable: true as const }];
+
+    it('emits cell-commit when edit is committed', async () => {
+      const wrapper = mount(IoiTable, {
+        props: {
+          columns,
+          rows,
+          rowKey: 'id'
+        }
+      });
+
+      (wrapper.vm as { startEdit: (opts: { rowIndex: number; field: string }) => void }).startEdit({ rowIndex: 0, field: 'name' });
+      await nextTick();
+
+      (wrapper.vm as { setEditDraft: (v: unknown) => void }).setEditDraft('Beta');
+      (wrapper.vm as { commitEdit: () => boolean }).commitEdit();
+      await nextTick();
+
+      expect(wrapper.emitted('cell-commit')).toBeTruthy();
+      const payload = wrapper.emitted('cell-commit')![0][0] as { field: string; oldValue: unknown; newValue: unknown; rowKey: number };
+      expect(payload.field).toBe('name');
+      expect(payload.oldValue).toBe('Alpha');
+      expect(payload.newValue).toBe('Beta');
+      expect(payload.rowKey).toBe(1);
+    });
+
+    it('does not emit cell-commit when validation fails', async () => {
+      const wrapper = mount(IoiTable, {
+        props: {
+          columns: [{ ...columns[0], validate: () => 'Invalid' }],
+          rows,
+          rowKey: 'id'
+        }
+      });
+
+      (wrapper.vm as { startEdit: (opts: { rowIndex: number; field: string }) => void }).startEdit({ rowIndex: 0, field: 'name' });
+      await nextTick();
+
+      (wrapper.vm as { setEditDraft: (v: unknown) => void }).setEditDraft('Bad');
+      const result = (wrapper.vm as { commitEdit: () => boolean }).commitEdit();
+      await nextTick();
+
+      expect(result).toBe(false);
+      expect(wrapper.emitted('cell-commit')).toBeFalsy();
+    });
+
+    it('exposes editing methods on the component instance', () => {
+      const wrapper = mount(IoiTable, {
+        props: { columns, rows, rowKey: 'id' }
+      });
+
+      const vm = wrapper.vm as unknown as Record<string, unknown>;
+      expect(typeof vm.startEdit).toBe('function');
+      expect(typeof vm.setEditDraft).toBe('function');
+      expect(typeof vm.commitEdit).toBe('function');
+      expect(typeof vm.cancelEdit).toBe('function');
+    });
+
+    it('cancelEdit clears editing state without emitting', async () => {
+      const wrapper = mount(IoiTable, {
+        props: { columns, rows, rowKey: 'id' }
+      });
+
+      (wrapper.vm as { startEdit: (opts: { rowIndex: number; field: string }) => void }).startEdit({ rowIndex: 0, field: 'name' });
+      await nextTick();
+
+      (wrapper.vm as { cancelEdit: () => void }).cancelEdit();
+      await nextTick();
+
+      expect(wrapper.emitted('cell-commit')).toBeFalsy();
+    });
+  });
 });

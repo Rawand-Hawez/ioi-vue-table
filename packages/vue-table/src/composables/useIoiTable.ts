@@ -1600,16 +1600,14 @@ export function useIoiTable<TRow = Record<string, unknown>>(
     }
 
     const oldValue = getFieldValue(row, field);
-    const updatedRow = (typeof structuredClone === 'function'
-      ? structuredClone(row)
-      : JSON.parse(JSON.stringify(row))) as TRow;
-    setNestedPathValue(updatedRow, field, draftValue);
+    const rawRow = JSON.parse(JSON.stringify(row)) as TRow;
+    setNestedPathValue(rawRow, field, draftValue);
     const nextRows = [...normalizedRows.value];
-    nextRows[rowIndex] = updatedRow;
+    nextRows[rowIndex] = rawRow;
     normalizedRows.value = nextRows;
 
     const payload: IoiCellCommitPayload<TRow> = {
-      row: updatedRow,
+      row: rawRow,
       rowIndex,
       rowKey: resolveSelectionKeyByIndex(rowIndex),
       field,
