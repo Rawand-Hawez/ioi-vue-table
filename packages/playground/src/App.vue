@@ -103,7 +103,7 @@ const perfColor = computed(() => {
           <span class="nav-logo">IOI</span>
           <div class="nav-brand-text">
             <span class="nav-title">Vue Table</span>
-            <span class="nav-version">v0.2.6</span>
+            <span class="nav-version">v0.3.0</span>
           </div>
         </a>
         <button

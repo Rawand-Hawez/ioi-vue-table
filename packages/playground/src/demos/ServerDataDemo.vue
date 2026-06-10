@@ -33,7 +33,7 @@
 
 <script setup lang="ts">
 import { ref, reactive } from 'vue';
-import IoiTable from '@ioi-dev/vue-table';
+import { IoiTable } from '@ioi-dev/vue-table';
 import type { ServerFetchParams, ServerFetchResult, ColumnDef } from '@ioi-dev/vue-table';
 
 interface Row { id: number; name: string; email: string; status: string }

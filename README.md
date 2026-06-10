@@ -250,6 +250,7 @@ The component uses a BEM class API for styling hooks:
 | Version | Focus | Target |
 |---------|-------|--------|
 | **v0.2.5** | Minimal CSS tier, row reorder, clipboard copy, column groups | ✅ Released 2026-04-13 |
+| **v0.3.0** | Built-in pagination UI, click-sort headers, selection bindings, shadcn theme, CSS explicit import, AI docs | ✅ |
 | **v1.0** | API freeze, SemVer commitments, bundle/a11y/SSR gates, doc truth-up | 2026-Q2 |
 | **v1.1** | Optional Rust/WASM acceleration (sort, filter, virtual engine, CSV streaming); horizontal virtualization; dark mode | 2026-Q3 |
 | **v1.2** | Nested column groups, RTL, router sync, undo/redo, MCP bridge | 2026-Q4 |

@@ -21,7 +21,7 @@
 </template>
 
 <script setup lang="ts">
-import IoiTable from '@ioi-dev/vue-table';
+import { IoiTable } from '@ioi-dev/vue-table';
 import type { ColumnDef } from '@ioi-dev/vue-table';
 
 interface Row { id: number; name: string; email: string; role: string; status: string }

@@ -26,7 +26,7 @@
 
 <script setup lang="ts">
 import { ref } from 'vue';
-import IoiTable from '@ioi-dev/vue-table';
+import { IoiTable } from '@ioi-dev/vue-table';
 
 const columns = [
   { field: 'id', header: 'ID' },
