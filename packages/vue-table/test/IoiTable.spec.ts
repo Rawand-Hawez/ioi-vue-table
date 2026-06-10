@@ -808,4 +808,44 @@ describe('IoiTable', () => {
       expect(groupRows.length).toBeGreaterThanOrEqual(1);
     });
   });
+
+  describe('initial focus state', () => {
+    it('no row has focused styling after mount', () => {
+      const rows = Array.from({ length: 10 }, (_, index) => ({
+        id: index + 1,
+        name: `Name ${index + 1}`
+      }));
+      const wrapper = mount(IoiTable, {
+        props: {
+          columns: [{ field: 'id', header: 'ID' }, { field: 'name', header: 'Name' }],
+          rows,
+          rowHeight: 36,
+          height: 360,
+          rowKey: 'id'
+        }
+      });
+
+      const focusedRows = wrapper.findAll('tr.ioi-table__row--focused');
+      expect(focusedRows).toHaveLength(0);
+    });
+
+    it('no cell has focused styling after mount', () => {
+      const rows = Array.from({ length: 10 }, (_, index) => ({
+        id: index + 1,
+        name: `Name ${index + 1}`
+      }));
+      const wrapper = mount(IoiTable, {
+        props: {
+          columns: [{ field: 'id', header: 'ID' }, { field: 'name', header: 'Name' }],
+          rows,
+          rowHeight: 36,
+          height: 360,
+          rowKey: 'id'
+        }
+      });
+
+      const focusedCells = wrapper.findAll('td.ioi-table__cell--focused');
+      expect(focusedCells).toHaveLength(0);
+    });
+  });
 });

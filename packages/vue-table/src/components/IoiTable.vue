@@ -1112,9 +1112,15 @@ function getHeaderAriaSort(column: ColumnDef<TRow>): 'ascending' | 'descending' 
   return 'none';
 }
 
-function onRowClick(row: TRow, rowIndex: number): void {
-  emit('row-click', { row, rowIndex });
-}
+  function onRowClick(row: TRow, rowIndex: number): void {
+    emit('row-click', { row, rowIndex });
+  }
+
+  function onRowFocus(rowIndex: number): void {
+    if (focusedRowIndex.value !== rowIndex) {
+      keyboard.setFocusedRow(rowIndex);
+    }
+  }
 
 function onRowKeydown(event: KeyboardEvent, row: TRow, rowIndex: number): void {
   if (props.rowDraggable && event.altKey && (event.key === 'ArrowUp' || event.key === 'ArrowDown')) {
@@ -1196,13 +1202,13 @@ function focusRow(rowIndex: number): void {
   });
 }
 
-function isRowFocused(rowIndex: number): boolean {
-  return focusedRowIndex.value === rowIndex;
-}
+  function isRowFocused(rowIndex: number): boolean {
+    return focusedRowIndex.value >= 0 && focusedRowIndex.value === rowIndex;
+  }
 
-function isCellFocused(rowIndex: number, columnIndex: number): boolean {
-  return isCellNavigationMode.value && focusedRowIndex.value === rowIndex && focusedColumnIndex.value === columnIndex;
-}
+  function isCellFocused(rowIndex: number, columnIndex: number): boolean {
+    return isCellNavigationMode.value && focusedRowIndex.value >= 0 && focusedRowIndex.value === rowIndex && focusedColumnIndex.value === columnIndex;
+  }
 
 function getAriaRowIndex(entry: { type: string; rowIndex?: number }, offset: number = 0): number {
   if (entry.type === 'row' && entry.rowIndex !== undefined) {
@@ -1605,6 +1611,7 @@ defineExpose({
               :aria-expanded="expandable && isRowExpandable(entry.row, entry.rowIndex) ? isRowExpanded(entry.row, entry.rowIndex) : undefined"
               tabindex="0"
               @click="onRowClick(entry.row, entry.rowIndex)"
+              @focusin="onRowFocus(entry.rowIndex)"
               @keydown="onRowKeydown($event, entry.row, entry.rowIndex)"
             >
               <td
