@@ -97,7 +97,7 @@ function msColor(ms: number): string {
             class="ctrl-input"
             min="1"
             :max="ROW_COUNT"
-          />
+          >
           <button type="submit" class="pg-btn">Scroll</button>
         </form>
         <button class="pg-btn pg-btn-accent" @click="runBenchmark">Run Benchmark</button>

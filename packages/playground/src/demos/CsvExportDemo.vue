@@ -118,7 +118,7 @@ const scopes: Array<{ value: ExportCsvScope; label: string; desc: string }> = [
             :key="s.value"
             :class="['scope-card', { 'scope-card--active': scope === s.value }]"
           >
-            <input v-model="scope" type="radio" :value="s.value" class="sr-only" />
+            <input v-model="scope" type="radio" :value="s.value" class="sr-only">
             <span class="scope-card-label">{{ s.label }}</span>
             <span class="scope-card-desc">{{ s.value === 'selected' ? `${selectedCount} rows` : s.desc }}</span>
           </label>
@@ -143,11 +143,11 @@ const scopes: Array<{ value: ExportCsvScope; label: string; desc: string }> = [
 
         <div class="config-checks">
           <label class="check-label">
-            <input v-model="includeHeader" type="checkbox" />
+            <input v-model="includeHeader" type="checkbox">
             Include header row
           </label>
           <label class="check-label">
-            <input v-model="sanitize" type="checkbox" />
+            <input v-model="sanitize" type="checkbox">
             Sanitize formulas (injection-safe)
           </label>
         </div>
@@ -164,6 +164,8 @@ const scopes: Array<{ value: ExportCsvScope; label: string; desc: string }> = [
     <div :class="`theme-${activeTheme}`">
       <Table
         ref="tableRef"
+        v-model:page-index="pageIndex"
+        v-model:page-size="pageSize"
         :rows="rows"
         :columns="columns"
         row-key="id"
@@ -172,8 +174,6 @@ const scopes: Array<{ value: ExportCsvScope; label: string; desc: string }> = [
         :overscan="6"
         :show-pagination="true"
         :page-size-options="[10, 25, 50, 100]"
-        v-model:pageIndex="pageIndex"
-        v-model:pageSize="pageSize"
         @state-change="syncSelected"
       >
         <template #header="{ column }">

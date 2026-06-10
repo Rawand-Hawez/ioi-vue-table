@@ -89,20 +89,20 @@ function refresh() {
     <div :class="`theme-${activeTheme}`">
       <Table
         ref="tableRef"
+        v-model:page-index="pageIndex"
+        v-model:page-size="pageSize"
         :columns="(columns as any)"
         data-mode="server"
         :server-options="(serverOptions as any)"
         row-key="id"
         :height="400"
         :row-height="34"
-        v-model:pageIndex="pageIndex"
-        v-model:pageSize="pageSize"
         :show-pagination="true"
         :page-size-options="[10, 25, 50]"
       >
         <template #loading>
           <div class="loading-overlay">
-            <div class="spinner"></div>
+            <div class="spinner" />
             <span>Fetching from remote...</span>
           </div>
         </template>

@@ -51,13 +51,13 @@ const pageSize = ref(10);
 
     <div :class="`theme-${activeTheme}`">
       <Table
+        v-model:page-index="pageIndex"
+        v-model:page-size="pageSize"
         :columns="columns"
         :rows="rows"
         row-key="id"
         :height="400"
         :row-height="36"
-        v-model:pageIndex="pageIndex"
-        v-model:pageSize="pageSize"
         :show-pagination="true"
         :page-size-options="[5, 10, 25]"
       />

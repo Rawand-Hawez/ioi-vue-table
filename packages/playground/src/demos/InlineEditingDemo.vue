@@ -138,11 +138,11 @@ function onCellCommit(payload: IoiCellCommitPayload<TeamMember>): void {
                 class="edit-input"
                 :class="{ 'edit-input--error': editingError }"
                 :value="slotProps.value as string"
+                autofocus
                 @input="onInputChange"
                 @keydown.enter="onCommit"
                 @keydown.escape="onCancel"
-                autofocus
-              />
+              >
               <div v-if="editingError" class="edit-error">{{ editingError }}</div>
               <div class="edit-actions">
                 <button class="edit-btn edit-btn--ok" @click="onCommit">✓</button>

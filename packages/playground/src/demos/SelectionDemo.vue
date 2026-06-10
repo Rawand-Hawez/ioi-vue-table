@@ -44,11 +44,11 @@ watch(selectionMode, () => { selectedKeys.value = []; });
 
     <div :class="`theme-${activeTheme}`">
       <Table
+        v-model:selected-row-keys="selectedKeys"
         :columns="columns"
         :rows="rows"
         row-key="id"
         :selection-mode="selectionMode"
-        v-model:selected-row-keys="selectedKeys"
         :height="400"
         :row-height="36"
         :overscan="4"

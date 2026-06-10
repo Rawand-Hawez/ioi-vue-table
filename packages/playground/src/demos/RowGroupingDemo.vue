@@ -93,6 +93,7 @@ function headerSort(field: string): void {
     <div :class="`theme-${activeTheme}`">
       <Table
         ref="tableRef"
+        v-model:expanded-group-keys="expandedGroupKeys"
         :rows="rows"
         :columns="columns"
         row-key="id"
@@ -101,7 +102,6 @@ function headerSort(field: string): void {
         :overscan="6"
         :group-by="groupByField"
         :group-aggregations="groupAggregations"
-        v-model:expandedGroupKeys="expandedGroupKeys"
       >
         <template #header="{ column }">
           <div class="sort-header" @click.stop="headerSort(String(column.field))">

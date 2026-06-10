@@ -97,7 +97,7 @@ function clearAll(): void {
           placeholder="e.g. 80000"
           style="width:110px"
           @keydown.enter="runSalaryFilter"
-        />
+        >
         <button class="pg-btn" @click="runSalaryFilter">Apply</button>
         <button v-if="salaryMin !== ''" class="pg-btn pg-btn-ghost" @click="clearSalaryFilter">×</button>
       </div>
@@ -109,7 +109,7 @@ function clearAll(): void {
           class="ctrl-input"
           placeholder="Search all columns…"
           @keydown.enter="runGlobalSearch"
-        />
+        >
         <button class="pg-btn" @click="runGlobalSearch">Search</button>
       </div>
 
@@ -123,14 +123,14 @@ function clearAll(): void {
     <div :class="`theme-${activeTheme}`">
       <Table
         ref="tableRef"
+        v-model:page-index="pageIndex"
+        v-model:page-size="pageSize"
         :rows="rows"
         :columns="columns"
         row-key="id"
         :height="460"
         :row-height="36"
         :overscan="6"
-        v-model:pageIndex="pageIndex"
-        v-model:pageSize="pageSize"
         :show-pagination="true"
         @state-change="syncSelected"
       />
