@@ -2027,6 +2027,7 @@ export function useIoiTable<TRow = Record<string, unknown>>(
     clearSelection,
     selectAll,
     getSelectedKeys,
+    setSelectedKeys: (keys: Array<string | number>, reason?: string) => setSelectedKeys(keys, reason ?? 'api'),
     toggleSort: sortingApi.toggleSort,
     setViewport,
     scrollToRow,

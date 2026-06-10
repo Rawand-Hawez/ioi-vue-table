@@ -11,10 +11,12 @@ import type {
   ColumnGroupHeaderSlotProps,
   HeaderFilterSlotProps,
   HeaderSlotProps,
+  IoiCellCommitPayload,
   IoiPaginationChangePayload,
   IoiRowReorderPayload,
   IoiSemanticEvent,
   IoiTableOptions,
+  PaginationSlotProps,
   RowClickPayload
 } from '../types';
 import { get as getNestedPathValue } from '../utils/nestedPath';
@@ -52,6 +54,10 @@ const props = withDefaults(
     copyable?: boolean;
     rowDraggable?: boolean;
     columnGroups?: ColumnGroup[];
+    selectionMode?: 'single' | 'multi';
+    selectedRowKeys?: Array<string | number>;
+    showPagination?: boolean;
+    pageSizeOptions?: number[];
   }>(),
   {
     rows: () => [],
@@ -74,7 +80,11 @@ const props = withDefaults(
     serverOptions: undefined,
     copyable: true,
     rowDraggable: false,
-    columnGroups: undefined
+    columnGroups: undefined,
+    selectionMode: undefined,
+    selectedRowKeys: undefined,
+    showPagination: undefined,
+    pageSizeOptions: () => [10, 25, 50, 100]
   }
 );
 
@@ -89,6 +99,9 @@ const emit = defineEmits<{
   'update:expandedGroupKeys': [value: Array<string>];
   'group-expand': [payload: { groupKey: string; groupValue: unknown; expanded: boolean; rowCount: number }];
   'row-reorder': [payload: IoiRowReorderPayload<TRow>];
+  'update:selectedRowKeys': [value: Array<string | number>];
+  'selection-change': [payload: { selectedRowKeys: Array<string | number>; reason: string }];
+  'cell-commit': [payload: IoiCellCommitPayload<TRow>];
 }>();
 
 defineSlots<{
@@ -98,6 +111,7 @@ defineSlots<{
   'expanded-row'?: (slotProps: { row: TRow; rowIndex: number }) => unknown;
   'group-header'?: (slotProps: import('../types').GroupHeaderSlotProps) => unknown;
   'column-group-header'?: (slotProps: ColumnGroupHeaderSlotProps) => unknown;
+  pagination?: (slotProps: PaginationSlotProps) => unknown;
   empty?: () => unknown;
   loading?: () => unknown;
   error?: (slotProps: { error: string | null }) => unknown;
@@ -139,6 +153,7 @@ const table = useIoiTable<TRow>(
     rows: props.rows,
     columns: props.columns,
     rowKey: props.rowKey,
+    selectionMode: props.selectionMode,
     rowHeight: normalizedRowHeight.value,
     overscan: normalizedOverscan.value,
     viewportHeight: normalizedHeight.value,
@@ -169,6 +184,9 @@ const table = useIoiTable<TRow>(
         payload.pageCount,
         payload.rowCount
       );
+    },
+    onCellCommit: (payload) => {
+      emit('cell-commit', payload);
     },
     onRowExpand: (payload) => {
       emit('row-expand', payload);
@@ -331,6 +349,12 @@ function getGroupCellStyle(cell: ColumnGroupRowCell): Record<string, string> {
 }
 
 const renderEntries = computed(() => table.renderEntries.value);
+
+const paginationEnabled = computed(() => table.paginationEnabled.value);
+const currentPageIndex = computed(() => table.pageIndex.value);
+const currentPageSize = computed(() => table.pageSize.value);
+const currentPageCount = computed(() => table.pageCount.value);
+const currentTotalRows = computed(() => table.totalRows.value);
 
 const headerFacetOptionsByField = computed(() => {
   const optionsByField = new Map<string, string[]>();
@@ -569,6 +593,31 @@ watch(
     });
   },
   { immediate: true }
+);
+
+watch(
+  () => table.state.value.selectedRowKeys,
+  (nextKeys) => {
+    emit('update:selectedRowKeys', [...nextKeys]);
+    emit('selection-change', { selectedRowKeys: [...nextKeys], reason: 'internal' });
+  }
+);
+
+watch(
+  () => props.selectedRowKeys,
+  (nextExternalKeys) => {
+    if (nextExternalKeys === undefined) {
+      return;
+    }
+    const currentKeys = table.state.value.selectedRowKeys;
+    if (
+      nextExternalKeys.length === currentKeys.length &&
+      nextExternalKeys.every((key, index) => key === currentKeys[index])
+    ) {
+      return;
+    }
+    table.setSelectedKeys(nextExternalKeys, 'external');
+  }
 );
 
 watch(
@@ -1321,6 +1370,7 @@ defineExpose({
   clearSelection: table.clearSelection,
   selectAll: table.selectAll,
   getSelectedKeys: table.getSelectedKeys,
+  setSelectedKeys: table.setSelectedKeys,
   toggleRowExpansion: table.toggleRowExpansion,
   expandAllRows: table.expandAllRows,
   collapseAllRows: table.collapseAllRows,
@@ -1658,6 +1708,26 @@ defineExpose({
           </tr>
         </tbody>
       </table>
+    </div>
+    <div
+      v-if="paginationEnabled && showPagination !== false"
+      class="ioi-table__pagination"
+    >
+      <slot
+        name="pagination"
+        :page-index="currentPageIndex"
+        :page-size="currentPageSize"
+        :page-count="currentPageCount"
+        :row-count="currentTotalRows"
+        :can-previous-page="currentPageIndex > 0"
+        :can-next-page="currentPageIndex < currentPageCount - 1"
+        :set-page-index="table.setPageIndex"
+        :set-page-size="table.setPageSize"
+        :previous-page="() => table.setPageIndex(currentPageIndex - 1)"
+        :next-page="() => table.setPageIndex(currentPageIndex + 1)"
+        :first-page="() => table.setPageIndex(0)"
+        :last-page="() => table.setPageIndex(currentPageCount - 1)"
+      />
     </div>
     <div v-if="table.loading.value" class="ioi-table__loading-overlay">
       <slot name="loading">Loading...</slot>

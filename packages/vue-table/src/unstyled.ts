@@ -63,6 +63,7 @@ export type {
   NumberFilterOperator,
   NumberValueColumnFilter,
   ParseCsvOptions,
+  PaginationSlotProps,
   RowClickPayload,
   SelectAllScope,
   SelectionMode,
