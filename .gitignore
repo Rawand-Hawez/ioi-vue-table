@@ -19,3 +19,4 @@ pkg/
 .agent/
 .kilo
 /*.txt
+docs/
