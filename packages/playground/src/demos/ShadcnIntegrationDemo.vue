@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { ref } from 'vue';
 import { Table } from '@ioi-dev/vue-table';
+import '@ioi-dev/vue-table/themes/shadcn.css';
 import { useTheme } from '../composables/useTheme';
 
 const { activeTheme } = useTheme();

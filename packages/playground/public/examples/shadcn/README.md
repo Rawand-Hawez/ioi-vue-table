@@ -1,21 +1,24 @@
 # Shadcn Integration
 
+## What This Provides
+
+1. **CSS theme mapping** (`@ioi-dev/vue-table/themes/shadcn.css`) — maps all `--ioi-table-*` custom properties to your existing shadcn CSS variables.
+
+2. **Copy-paste adapter** (`IoiDataTable.vue`) — imports both CSS files and forwards all props, events, and slots.
+
 ## Quick Start
 
-1. Install the package:
+1. Install:
    ```bash
    npm install @ioi-dev/vue-table
    ```
 
 2. Copy `IoiDataTable.vue` into your project (e.g., `src/components/ui/data-table/`).
 
-3. The adapter imports both the default and shadcn CSS themes. The shadcn theme maps `--ioi-table-*` variables to your existing shadcn CSS variables (`--background`, `--foreground`, `--muted`, etc.).
-
-4. Use the component:
-
+3. Use:
    ```vue
    <script setup>
-   import IoiDataTable from '@/components/ui/data-table/IoiDataTable.vue'
+   import { IoiDataTable } from '@/components/ui/data-table/IoiDataTable.vue'
 
    const columns = [
      { field: 'name', header: 'Name' },
@@ -29,37 +32,19 @@
    </script>
 
    <template>
-     <IoiDataTable
-       :columns="columns"
-       :rows="rows"
-       row-key="id"
-       :page-size="10"
-       :show-pagination="true"
-     />
+     <IoiDataTable :columns="columns" :rows="rows" row-key="id" :page-size="10" :show-pagination="true" />
    </template>
    ```
 
-## Adapter Philosophy
+## Customisation
 
-The adapter is a thin wrapper. It:
+The table renders with your shadcn design tokens automatically. To customise further:
 
-- Imports both CSS files (`styles.css` + `themes/shadcn.css`)
-- Forwards all props, events, and slots to `IoiTable`
-- Does **not** reimplement any UI primitives
-
-You can customize it by:
-
-- Adding shadcn components in the `pagination` slot
-- Using the `header-filter` slot with shadcn `Input` / `Select`
-- Wrapping cells with shadcn `Badge`, `Button`, etc. via the `cell` slot
-
-## Aliases
-
-If your shadcn components use a different import path, adjust the imports in your copy of `IoiDataTable.vue`. The adapter does not depend on any specific shadcn component — it only uses the CSS variable mapping.
+- Use the `pagination` slot with your own pagination component
+- Use the `header-filter` slot with shadcn `Input` / `Select`
+- Use the `cell` slot for custom cell rendering (Badge, Button, etc.)
 
 ## CSS Variables Used
-
-The shadcn theme references these variables from your shadcn CSS:
 
 - `--background`, `--foreground`
 - `--card`, `--card-foreground`
