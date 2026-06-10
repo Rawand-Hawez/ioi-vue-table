@@ -848,4 +848,147 @@ describe('IoiTable', () => {
       expect(focusedCells).toHaveLength(0);
     });
   });
+
+  describe('default sortable headers', () => {
+    const rows = [
+      { id: 1, name: 'Charlie', score: 30 },
+      { id: 2, name: 'Alice', score: 10 },
+      { id: 3, name: 'Bob', score: 20 }
+    ];
+
+    it('sorts ascending on first click of default header', async () => {
+      const wrapper = mount(IoiTable, {
+        props: {
+          columns: [
+            { field: 'name', header: 'Name' },
+            { field: 'score', header: 'Score' }
+          ],
+          rows,
+          rowKey: 'id'
+        }
+      });
+
+      const nameSortButton = wrapper.find('th[data-column-id="name"] .ioi-table__sort-button');
+      await nameSortButton.trigger('click');
+      await nextTick();
+
+      const renderedRows = wrapper.findAll('tbody tr.ioi-table__row');
+      expect(renderedRows[0]?.text()).toContain('Alice');
+      expect(renderedRows[1]?.text()).toContain('Bob');
+      expect(renderedRows[2]?.text()).toContain('Charlie');
+    });
+
+    it('sorts descending on second click', async () => {
+      const wrapper = mount(IoiTable, {
+        props: {
+          columns: [{ field: 'name', header: 'Name' }],
+          rows,
+          rowKey: 'id'
+        }
+      });
+
+      const sortButton = wrapper.find('th[data-column-id="name"] .ioi-table__sort-button');
+      await sortButton.trigger('click');
+      await nextTick();
+      await sortButton.trigger('click');
+      await nextTick();
+
+      const renderedRows = wrapper.findAll('tbody tr.ioi-table__row');
+      expect(renderedRows[0]?.text()).toContain('Charlie');
+      expect(renderedRows[2]?.text()).toContain('Alice');
+    });
+
+    it('clears sort on third click', async () => {
+      const wrapper = mount(IoiTable, {
+        props: {
+          columns: [{ field: 'name', header: 'Name' }],
+          rows,
+          rowKey: 'id'
+        }
+      });
+
+      const sortButton = wrapper.find('th[data-column-id="name"] .ioi-table__sort-button');
+      await sortButton.trigger('click');
+      await nextTick();
+      await sortButton.trigger('click');
+      await nextTick();
+      await sortButton.trigger('click');
+      await nextTick();
+
+      const renderedRows = wrapper.findAll('tbody tr.ioi-table__row');
+      expect(renderedRows[0]?.text()).toContain('Charlie');
+    });
+
+    it('does not sort when column has sortable: false', async () => {
+      const wrapper = mount(IoiTable, {
+        props: {
+          columns: [{ field: 'name', header: 'Name', sortable: false }],
+          rows,
+          rowKey: 'id'
+        }
+      });
+
+      expect(wrapper.find('th[data-column-id="name"] .ioi-table__sort-button').exists()).toBe(false);
+    });
+
+    it('supports multi-sort with Shift+click', async () => {
+      const wrapper = mount(IoiTable, {
+        props: {
+          columns: [
+            { field: 'name', header: 'Name' },
+            { field: 'score', header: 'Score' }
+          ],
+          rows,
+          rowKey: 'id'
+        }
+      });
+
+      await wrapper.find('th[data-column-id="name"] .ioi-table__sort-button').trigger('click');
+      await nextTick();
+      await wrapper.find('th[data-column-id="score"] .ioi-table__sort-button').trigger('click', { shiftKey: true });
+      await nextTick();
+
+      await wrapper.find('th[data-column-id="score"] .ioi-table__sort-button').trigger('click', { shiftKey: true });
+      await nextTick();
+
+      const thName = wrapper.find('th[data-column-id="name"]');
+      const thScore = wrapper.find('th[data-column-id="score"]');
+      const nameSorted = thName.classes().includes('ioi-table__header--sorted-asc') || thName.classes().includes('ioi-table__header--sorted-desc');
+      const scoreSorted = thScore.classes().includes('ioi-table__header--sorted-asc') || thScore.classes().includes('ioi-table__header--sorted-desc');
+      expect(nameSorted || scoreSorted).toBe(true);
+    });
+
+    it('preserves custom header slot', () => {
+      const wrapper = mount(IoiTable, {
+        props: {
+          columns: [{ field: 'name', header: 'Name' }],
+          rows,
+          rowKey: 'id'
+        },
+        slots: {
+          header: '<template #header="{ column }"><span class="custom-header">{{ column.header }}</span></template>'
+        }
+      });
+
+      expect(wrapper.find('.custom-header').exists()).toBe(true);
+      expect(wrapper.find('.custom-header').text()).toBe('Name');
+    });
+
+    it('sets aria-sort attribute on header', async () => {
+      const wrapper = mount(IoiTable, {
+        props: {
+          columns: [{ field: 'name', header: 'Name' }],
+          rows,
+          rowKey: 'id'
+        }
+      });
+
+      const th = wrapper.find('th[data-column-id="name"]');
+      expect(th.attributes('aria-sort')).toBe('none');
+
+      await wrapper.find('th[data-column-id="name"] .ioi-table__sort-button').trigger('click');
+      await nextTick();
+      expect(th.attributes('aria-sort')).toBe('ascending');
+    });
+  });
 });

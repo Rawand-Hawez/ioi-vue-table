@@ -1116,6 +1116,14 @@ function getHeaderAriaSort(column: ColumnDef<TRow>): 'ascending' | 'descending' 
     emit('row-click', { row, rowIndex });
   }
 
+  function onHeaderSort(column: ColumnDef<TRow>, event?: MouseEvent): void {
+    if (column.sortable === false) {
+      return;
+    }
+    const field = String(column.field);
+    table.toggleSort(field, event?.shiftKey);
+  }
+
   function onRowFocus(rowIndex: number): void {
     if (focusedRowIndex.value !== rowIndex) {
       keyboard.setFocusedRow(rowIndex);
@@ -1475,8 +1483,16 @@ defineExpose({
               @drop="onHeaderDrop($event, column)"
             >
               <div class="ioi-table__header-content">
-                <slot name="header" :column="column" :column-index="columnIndex">
-                  <span class="ioi-table__header-label">{{ column.header ?? column.field }}</span>
+                <slot name="header" :column="column" :column-index="columnIndex" :sort="() => onHeaderSort(column)" :sort-direction="getSortDirection(column)">
+                  <button
+                    v-if="column.sortable !== false"
+                    type="button"
+                    class="ioi-table__sort-button"
+                    @click.stop="onHeaderSort(column, $event)"
+                  >
+                    <span class="ioi-table__header-label">{{ column.header ?? column.field }}</span>
+                  </button>
+                  <span v-else class="ioi-table__header-label">{{ column.header ?? column.field }}</span>
                 </slot>
               </div>
               <button

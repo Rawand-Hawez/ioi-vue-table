@@ -473,6 +473,8 @@ export interface CellSlotProps<TRow = Record<string, unknown>> {
 export interface HeaderSlotProps<TRow = Record<string, unknown>> {
   column: ColumnDef<TRow>;
   columnIndex: number;
+  sort: () => void;
+  sortDirection: 'asc' | 'desc' | null;
 }
 
 export interface HeaderFilterSlotProps<TRow = Record<string, unknown>> {
