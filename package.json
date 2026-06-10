@@ -14,7 +14,10 @@
     "lint": "npm run lint --workspace @ioi-dev/vue-table && npm run lint --workspace @ioi/vue-table-playground",
     "ci": "npm run lint && npm run typecheck && npm run test && npm run build",
     "bench": "npm run build --workspace @ioi-dev/vue-table && npx tsx packages/bench/src/index.ts",
-    "build:wasm": "npm run build:wasm --workspace @ioi/vue-table-core"
+    "build:wasm": "npm run build:wasm --workspace @ioi/vue-table-core",
+    "release:status": "npx changeset status",
+    "release:version": "npx changeset version",
+    "release:publish": "npx changeset publish"
   },
   "devDependencies": {
     "@changesets/cli": "^2.30.0",

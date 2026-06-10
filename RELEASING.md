@@ -1,37 +1,39 @@
 # Releasing @ioi-dev/vue-table
 
-This project uses [Changesets](https://github.com/changesets/changesets) for versioning and publishing.
+## Tag-Based Release
 
-## Making a Release
+1. **Ensure version is correct** in `packages/vue-table/package.json`.
 
-1. **Create a changeset** after your changes:
+2. **Create a changeset** (optional, for changelog generation):
    ```bash
    npx changeset
+   npx changeset version
    ```
-   Select `@ioi-dev/vue-table`, choose the bump type (patch/minor/major), and write a summary.
 
-2. **Commit the changeset** markdown file alongside your code changes.
+3. **Commit and tag**:
+   ```bash
+   git commit -am "chore: version packages"
+   git tag v0.3.0
+   git push origin release/v0.3.0 --tags
+   ```
 
-3. **Merge to main**. The GitHub Actions release workflow will:
-   - Run lint, typecheck, tests, and packed-consumer verification
-   - Open a "Version Packages" PR that applies version bumps and updates the changelog
-   - Publish to npm when the Version Packages PR is merged
+4. **Merge to main** (after review approval). The tag must exist on main for the workflow to trigger.
+
+5. The GitHub Actions release workflow will:
+   - Run lint, typecheck, tests, build, and packed-consumer verification
+   - Verify the tag version matches `package.json`
+   - Publish to npm with provenance (OIDC)
 
 ## Manual Release (Emergency)
 
 ```bash
 npm run build --workspace @ioi-dev/vue-table
 npm run verify:artifact --workspace @ioi-dev/vue-table
-npx changeset version
-npx changeset publish
+npm publish --workspace @ioi-dev/vue-table --access public
 ```
 
 ## Pre-release
 
 ```bash
-npx changeset pre enter next
-# make changes, create changesets
-npx changeset version
-npx changeset publish
-npx changeset pre exit
+npm publish --workspace @ioi-dev/vue-table --tag next --access public
 ```

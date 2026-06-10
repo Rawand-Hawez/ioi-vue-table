@@ -2,7 +2,8 @@ name: Release
 
 on:
   push:
-    branches: [main]
+    tags: ['v*']
+  workflow_dispatch:
 
 concurrency: ${{ github.workflow }}-${{ github.ref }}
 
@@ -10,6 +11,9 @@ jobs:
   release:
     name: Release
     runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      id-token: write
     steps:
       - uses: actions/checkout@v4
 
@@ -24,15 +28,20 @@ jobs:
       - run: npm run lint --workspace @ioi-dev/vue-table
       - run: npm run typecheck --workspace @ioi-dev/vue-table
       - run: npm run test --workspace @ioi-dev/vue-table
+      - run: npm run build --workspace @ioi-dev/vue-table
+      - run: npm run verify:artifact --workspace @ioi-dev/vue-table
       - run: npm run test:consumers --workspace @ioi-dev/vue-table
 
-      - name: Create Release Pull Request or Publish to npm
-        id: changesets
-        uses: changesets/action@v1
-        with:
-          title: chore(release): version packages
-          commit: chore(release): version packages
-          publish: npx changeset publish
+      - name: Verify tag matches package version
+        run: |
+          TAG_VERSION="${GITHUB_REF#refs/tags/v}"
+          PKG_VERSION=$(node -p "require('./packages/vue-table/package.json').version")
+          if [ "$TAG_VERSION" != "$PKG_VERSION" ]; then
+            echo "Tag version $TAG_VERSION does not match package version $PKG_VERSION"
+            exit 1
+          fi
+
+      - name: Publish to npm
+        run: npm publish --workspace @ioi-dev/vue-table --provenance --access public
         env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          NPM_TOKEN: ${{ secrets.NPM_TOKEN }}
+          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
