@@ -154,16 +154,15 @@ export function createDataFetching<TRow>(
     [
       pageIndex,
       pageSize,
-      () => state.value.sort,
-      () => state.value.filters,
+      () => JSON.stringify(state.value.sort),
+      () => JSON.stringify(state.value.filters),
       () => state.value.globalSearch
     ],
     () => {
       currentCursor = null;
       nextPageIndex = null;
       debouncedFetch();
-    },
-    { deep: true }
+    }
   );
 
   onScopeDispose(() => {

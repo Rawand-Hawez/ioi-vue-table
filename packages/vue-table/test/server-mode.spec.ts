@@ -187,7 +187,9 @@ describe('server mode', () => {
     fetch.mockClear();
 
     (wrapper.vm as { setGlobalSearch: (v: string) => void }).setGlobalSearch('test query');
+    await nextTick();
     vi.advanceTimersByTime(500);
+    await nextTick();
     await nextTick();
 
     expect(fetch).toHaveBeenCalled();
