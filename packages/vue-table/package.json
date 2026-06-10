@@ -93,6 +93,7 @@
     "verify:artifact": "node ./scripts/verify-artifact.mjs",
     "prepack": "npm run build && npm run verify:artifact",
     "test": "node ../../node_modules/vitest/vitest.mjs run --config vitest.config.ts",
+    "test:consumers": "npm run build && npm run verify:artifact && node ./scripts/test-packed-consumers.mjs",
     "test:coverage": "node ../../node_modules/vitest/vitest.mjs run --config vitest.config.ts --coverage",
     "typecheck": "node ../../node_modules/vue-tsc/bin/vue-tsc.js --noEmit -p tsconfig.json",
     "lint": "node ../../node_modules/eslint/bin/eslint.js \"src/**/*.{ts,vue}\" \"test/**/*.ts\""
